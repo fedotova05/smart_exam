@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<CodeBlocks_project_file>
+  <FileVersion major="1" minor="6" />
+  <Project>
+    <Option title="SmartExam" />
+    <Option compiler="gcc" />
+    <Build>
+      <Target title="Debug">
+        <Option output="../bin/Debug/smart_exam" prefix_auto="1" extension_auto="1" />
+        <Option object_output="../obj/smart_exam/Debug/" />
+        <Option type="1" />
+        <Option working_dir=".." />
+        <Compiler>
+          <Add option="-g" />
+        </Compiler>
+      </Target>
+      <Target title="Release">
+        <Option output="../bin/Release/smart_exam" prefix_auto="1" extension_auto="1" />
+        <Option object_output="../obj/smart_exam/Release/" />
+        <Option type="1" />
+        <Option working_dir=".." />
+        <Compiler>
+          <Add option="-O2" />
+        </Compiler>
+      </Target>
+    </Build>
+    <Compiler>
+      <Add option="-std=c++11" />
+      <Add option="-Wall" />
+      <Add option="-Wextra" />
+      <Add option="-finput-charset=UTF-8" />
+      <Add option="-fexec-charset=UTF-8" />
+      <Add directory="../src" />
+      <Add directory="$(#sfml)/include" />
+    </Compiler>
+    <Linker>
+      <Add directory="$(#sfml)/lib" />
+      <Add library="sfml-graphics" />
+      <Add library="sfml-window" />
+      <Add library="sfml-system" />
+    </Linker>
+    <Unit filename="../src/core/Services.h" />
+    <Unit filename="../src/core/Types.h" />
+    <Unit filename="../main.cpp" />
+  </Project>
+</CodeBlocks_project_file>

@@ -1,0 +1,9 @@
+bin/
+obj/
+*.layout
+*.depend
+*.db
+*.db-*
+*.log
+__pycache__/
+local.json
