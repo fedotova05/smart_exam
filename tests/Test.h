@@ -7,4 +7,5 @@
 void testCore();
 void testStorage();
 void testMath();
+void testChecker();
 #endif
