@@ -11,6 +11,7 @@ int main() {
     try {
         testCore();
         testStorage();
+        testMath();
         std::cout << "All tests passed\n";
         return 0;
     } catch (const std::exception& error) {
