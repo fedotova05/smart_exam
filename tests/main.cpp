@@ -13,6 +13,7 @@ int main() {
         testStorage();
         testMath();
         testChecker();
+        testGeneration();
         std::cout << "All tests passed\n";
         return 0;
     } catch (const std::exception& error) {
