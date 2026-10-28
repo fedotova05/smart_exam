@@ -19,8 +19,11 @@ flags = ['-std=c++11', '-Wall', '-Wextra', '-pedantic', '-Isrc', '-Ithird_party/
 flags += ['-g', '-O0'] if args.mode == 'Debug' else ['-O2', '-DNDEBUG']
 sources = [str(p) for p in sorted(Path('src').rglob('*.cpp'))]
 sqlite_object = out / 'sqlite3.o'
-if not sqlite_object.exists() or sqlite_object.stat().st_mtime < Path('third_party/sqlite/sqlite3.c').stat().st_mtime:
+compiler_stamp = out / 'compiler.txt'
+compiler_id = str(Path(args.compiler).resolve()) + '\n' + subprocess.check_output([args.compiler, '--version'], text=True)
+if not sqlite_object.exists() or sqlite_object.stat().st_mtime < Path('third_party/sqlite/sqlite3.c').stat().st_mtime or not compiler_stamp.exists() or compiler_stamp.read_text() != compiler_id:
     subprocess.run([str(Path(args.compiler).with_name('gcc.exe')), '-O2', '-D_WIN32_WINNT=0x0600', '-c', 'third_party/sqlite/sqlite3.c', '-o', str(sqlite_object)], check=True)
+    compiler_stamp.write_text(compiler_id)
 sources += [str(sqlite_object)]
 tests = [str(p) for p in sorted(Path('tests').rglob('*.cpp'))]
 subprocess.run([args.compiler] + flags + sources + tests + ['-o', str(out / 'tests.exe')], check=True)
