@@ -36,14 +36,17 @@
     </Compiler>
     <Unit filename="../src/core/Services.h" />
     <Unit filename="../src/core/Types.h" />
+    <Unit filename="../src/math/checkers/EquationChecker.h" />
     <Unit filename="../src/math/numbers/Rational.h" />
     <Unit filename="../src/math/parser/Parser.h" />
     <Unit filename="../src/storage/Database.h" />
     <Unit filename="../src/storage/Store.h" />
+    <Unit filename="../src/math/checkers/EquationChecker.cpp" />
     <Unit filename="../src/math/numbers/Rational.cpp" />
     <Unit filename="../src/math/parser/Parser.cpp" />
     <Unit filename="../src/storage/Database.cpp" />
     <Unit filename="../src/storage/Store.cpp" />
+    <Unit filename="../tests/checker/CheckerTests.cpp" />
     <Unit filename="../tests/main.cpp" />
     <Unit filename="../tests/math/ParserTests.cpp" />
     <Unit filename="../tests/storage/StorageTests.cpp" />
