@@ -19,9 +19,10 @@ for name in ['smart_exam', 'tests']:
         compiler = ET.SubElement(target, 'Compiler')
         ET.SubElement(compiler, 'Add', option='-g' if mode == 'Debug' else '-O2')
     compiler = ET.SubElement(project, 'Compiler')
-    for flag in ['-std=c++11', '-Wall', '-Wextra', '-finput-charset=UTF-8', '-fexec-charset=UTF-8']:
+    for flag in ['-std=c++11', '-Wall', '-Wextra', '-D_WIN32_WINNT=0x0600', '-finput-charset=UTF-8', '-fexec-charset=UTF-8']:
         ET.SubElement(compiler, 'Add', option=flag)
     ET.SubElement(compiler, 'Add', directory='../src')
+    ET.SubElement(compiler, 'Add', directory='../third_party/sqlite')
     files = sorted((root / 'src').rglob('*.h')) + sorted((root / 'src').rglob('*.cpp'))
     if name == 'smart_exam':
         ET.SubElement(compiler, 'Add', directory='$(#sfml)/include')
@@ -34,6 +35,8 @@ for name in ['smart_exam', 'tests']:
         files += sorted((root / 'tests').rglob('*.cpp')) + sorted((root / 'tests').rglob('*.h'))
     for file in files:
         ET.SubElement(project, 'Unit', filename='../' + file.relative_to(root).as_posix())
+    unit = ET.SubElement(project, 'Unit', filename='../third_party/sqlite/sqlite3.c')
+    ET.SubElement(unit, 'Option', compilerVar='CC')
     (root / 'project').mkdir(exist_ok=True)
     ET.indent(tree)
     ET.ElementTree(tree).write(root / 'project' / (name + '.cbp'), encoding='utf-8', xml_declaration=True)

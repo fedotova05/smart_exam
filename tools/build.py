@@ -15,9 +15,13 @@ os.chdir(root)
 os.environ['PATH'] = str(Path(args.compiler).parent) + os.pathsep + str(Path(args.sfml) / 'bin') + os.pathsep + os.environ['PATH']
 out = root / 'bin' / args.mode
 out.mkdir(parents=True, exist_ok=True)
-flags = ['-std=c++11', '-Wall', '-Wextra', '-pedantic', '-Isrc', '-finput-charset=UTF-8', '-fexec-charset=UTF-8']
+flags = ['-std=c++11', '-Wall', '-Wextra', '-pedantic', '-Isrc', '-Ithird_party/sqlite', '-finput-charset=UTF-8', '-fexec-charset=UTF-8']
 flags += ['-g', '-O0'] if args.mode == 'Debug' else ['-O2', '-DNDEBUG']
 sources = [str(p) for p in sorted(Path('src').rglob('*.cpp'))]
+sqlite_object = out / 'sqlite3.o'
+if not sqlite_object.exists() or sqlite_object.stat().st_mtime < Path('third_party/sqlite/sqlite3.c').stat().st_mtime:
+    subprocess.run([str(Path(args.compiler).with_name('gcc.exe')), '-O2', '-D_WIN32_WINNT=0x0600', '-c', 'third_party/sqlite/sqlite3.c', '-o', str(sqlite_object)], check=True)
+sources += [str(sqlite_object)]
 tests = [str(p) for p in sorted(Path('tests').rglob('*.cpp'))]
 subprocess.run([args.compiler] + flags + sources + tests + ['-o', str(out / 'tests.exe')], check=True)
 subprocess.run([str(out / 'tests.exe')], check=True)
