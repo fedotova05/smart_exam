@@ -72,5 +72,16 @@ struct Selection {
     std::string reason;
     Selection() : found(false) {}
 };
+struct PartEvidence {
+    std::vector<std::string> skills;
+    CheckStatus finalStatus;
+    bool hadError, usedHelp;
+    PartEvidence() : finalStatus(CheckStatus::Incomplete),hadError(false),usedHelp(false) {}
+};
+struct Observation {
+    std::string skill;
+    bool correct, eligible;
+    SkillState before, after;
+};
 }
 #endif

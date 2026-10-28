@@ -9,4 +9,5 @@ void testStorage();
 void testMath();
 void testChecker();
 void testGeneration();
+void testSession();
 #endif

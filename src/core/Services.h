@@ -16,6 +16,17 @@ public:
     virtual ~GraphChecker() {}
     virtual CheckResult check(const TaskPart&, const GraphAnswer&) const = 0;
 };
+class TaskSelector {
+public:
+    virtual ~TaskSelector() {}
+    virtual Selection selectNext(const StudentSnapshot&,const std::vector<TaskVersion>&,
+                                  const std::vector<std::string>& history) const = 0;
+};
+class LearningModel {
+public:
+    virtual ~LearningModel() {}
+    virtual std::vector<Observation> observe(const StudentSnapshot&,const std::vector<PartEvidence>&,double difficulty) const = 0;
+};
 // Подключается участником 2. Отсутствие проверки не означает верный ответ.
 class UnavailableGraphChecker : public GraphChecker {
 public:

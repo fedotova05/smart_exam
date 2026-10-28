@@ -1,4 +1,5 @@
 #include "Store.h"
+#include "core/GraphCodec.h"
 #include <stdexcept>
 #include <set>
 namespace exam {
@@ -16,6 +17,7 @@ ResponseRecord readResponse(const Row& row) {
     r.requestId=row[0]; r.attemptId=row[1]; r.partId=row[2]; r.answer.text=row[3];
     r.graph=row[4]; r.result=CheckResult(static_cast<CheckStatus>(std::stoi(row[5])),row[6]);
     r.finalAnswer=row[7]=="1"; r.operation=row[8]; r.operand=row[9];
+    r.answer.graph=decodeGraph(r.graph);
     return r;
 }
 const std::string responseColumns="request_id,attempt_id,part_id,text,graph,status,message,is_final,operation,operand";
@@ -113,11 +115,13 @@ AttemptRecord Store::openAttempt(const std::string& sessionId, int position, con
     }
     require(position==static_cast<int>(old.size()) && position<s.settings.taskLimit, "Invalid attempt position");
     require(old.empty() || old.back().finished, "Finish current attempt first");
+    require(db.query("SELECT 1 FROM attempts a JOIN sessions s ON s.id=a.session_id WHERE s.student_id=? AND a.finished=0",{s.studentId}).empty(), "У ученика уже есть незавершённая попытка");
     TaskVersion t=task(taskId); require(t.published, "Draft task cannot be assigned");
     if (s.settings.mode==SessionMode::Fixed) require(position<static_cast<int>(s.tasks.size()) && s.tasks[position]==taskId, "Fixed set cannot change");
     else require(!t.archived, "Task archived");
     std::string id=sessionId+":"+number(position);
     db.query("INSERT INTO attempts(id,session_id,position,task_id) VALUES(?,?,?,?)",{id,sessionId,number(position),taskId});
+    db.query("INSERT INTO attempt_skills SELECT ?,k.id,CASE WHEN s.skill_id IS NULL THEN 0 ELSE 1 END,COALESCE(s.mastery,0.2),COALESCE(s.rating,1000),COALESCE(s.observations,0),'bkt-elo-1' FROM skills k LEFT JOIN student_skills s ON s.skill_id=k.id AND s.student_id=?",{id,s.studentId});
     transaction.commit(); return attempt(id);
 }
 AttemptRecord Store::attempt(const std::string& id) {
@@ -185,4 +189,13 @@ StudentSnapshot Store::snapshot(const std::string& student) {
     return result;
 }
 int Store::observationCount(const std::string& id) { return std::stoi(db.query("SELECT count(*) FROM observations WHERE attempt_id=?",{id})[0][0]); }
+StudentSnapshot Store::attemptSnapshot(const std::string& id) {
+    AttemptRecord a=attempt(id);
+    StudentSnapshot result; result.studentId=session(a.sessionId).studentId;
+    for(const Row& r:db.query("SELECT skill_id,known,mastery,rating,observations,model_version FROM attempt_skills WHERE attempt_id=?",{id})) {
+        SkillState state; state.known=r[1]=="1"; state.mastery=std::stod(r[2]); state.rating=std::stod(r[3]); state.observations=std::stoi(r[4]);
+        result.skills[r[0]]=state; result.modelVersion=r[5];
+    }
+    return result;
+}
 }
