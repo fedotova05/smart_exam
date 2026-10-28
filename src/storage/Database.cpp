@@ -49,15 +49,17 @@ void Database::script(const std::string& sql) {
 }
 void Database::migrate(const std::string& directory) {
     int version = std::stoi(query("PRAGMA user_version")[0][0]);
-    if (version > 1) throw std::runtime_error("Database version is newer than application");
-    if (version == 1) return;
-    std::ifstream input((directory + "/001_initial.sql").c_str());
-    if (!input) throw std::runtime_error("Migration file not found");
-    std::ostringstream text;
-    text << input.rdbuf();
-    Transaction transaction(*this);
-    script(text.str());
-    transaction.commit();
+    if (version > 2) throw std::runtime_error("Database version is newer than application");
+    const char* files[]={"001_initial.sql","002_attempt_snapshot.sql"};
+    for(int next=version;next<2;++next) {
+        std::ifstream input((directory + "/" + files[next]).c_str());
+        if (!input) throw std::runtime_error("Migration file not found");
+        std::ostringstream text;
+        text << input.rdbuf();
+        Transaction transaction(*this);
+        script(text.str());
+        transaction.commit();
+    }
 }
 Transaction::Transaction(Database& database) : db(database), complete(false) { db.script("BEGIN IMMEDIATE"); }
 Transaction::~Transaction() { if (!complete) { try { db.script("ROLLBACK"); } catch (...) {} } }

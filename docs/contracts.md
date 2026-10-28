@@ -17,6 +17,7 @@ Checker::checkAnswer проверяет ответ на часть. Checker::che
 Графический проверяющий модуль участника 2 подключается через GraphChecker.
 Пока он не подключён, возвращается Unsupported.
 
-Реализации generateTask, submitResponse, finishAttempt, selectNext добавляются в T05–T07.
+Generator::generateTask создаёт задание; SessionService::submitResponse сохраняет ответ;
+finishAttempt завершает попытку; TaskSelector::selectNext подбирает следующее задание.
 reviewPart и importPackage относятся к следующим задачам: интерфейс не должен показывать
 их как работающие операции. SQL вызывается только из слоя хранения.

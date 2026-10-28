@@ -21,11 +21,6 @@ struct ResponseRecord {
     bool finalAnswer;
     ResponseRecord() : finalAnswer(true) {}
 };
-struct Observation {
-    std::string skill;
-    bool correct, eligible;
-    SkillState before, after;
-};
 class Store {
     Database db;
 public:
@@ -52,6 +47,7 @@ public:
     bool usedHelp(const std::string& attemptId, const std::string& partId);
     void finish(const std::string& attemptId, int score, bool provisional, const std::vector<Observation>& observations);
     StudentSnapshot snapshot(const std::string& studentId);
+    StudentSnapshot attemptSnapshot(const std::string& attemptId);
     int observationCount(const std::string& attemptId);
 };
 }

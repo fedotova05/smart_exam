@@ -34,6 +34,8 @@
       <Add directory="../src" />
       <Add directory="../third_party/sqlite" />
     </Compiler>
+    <Unit filename="../src/application/session/SessionService.h" />
+    <Unit filename="../src/core/GraphCodec.h" />
     <Unit filename="../src/core/Services.h" />
     <Unit filename="../src/core/Types.h" />
     <Unit filename="../src/generation/Generator.h" />
@@ -42,6 +44,7 @@
     <Unit filename="../src/math/parser/Parser.h" />
     <Unit filename="../src/storage/Database.h" />
     <Unit filename="../src/storage/Store.h" />
+    <Unit filename="../src/application/session/SessionService.cpp" />
     <Unit filename="../src/generation/Generator.cpp" />
     <Unit filename="../src/math/checkers/EquationChecker.cpp" />
     <Unit filename="../src/math/numbers/Rational.cpp" />
@@ -52,7 +55,9 @@
     <Unit filename="../tests/generation/GeneratorTests.cpp" />
     <Unit filename="../tests/main.cpp" />
     <Unit filename="../tests/math/ParserTests.cpp" />
+    <Unit filename="../tests/session/SessionTests.cpp" />
     <Unit filename="../tests/storage/StorageTests.cpp" />
+    <Unit filename="../tests/Fixture.h" />
     <Unit filename="../tests/Test.h" />
     <Unit filename="../third_party/sqlite/sqlite3.c">
       <Option compilerVar="CC" />
