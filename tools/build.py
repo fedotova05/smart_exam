@@ -31,3 +31,4 @@ subprocess.run([str(out / 'tests.exe')], check=True)
 subprocess.run([args.compiler] + flags + sources + ['main.cpp', '-I' + args.sfml + '/include', '-L' + args.sfml + '/lib', '-lsfml-graphics', '-lsfml-window', '-lsfml-system', '-o', str(out / 'smart_exam.exe')], check=True)
 if args.smoke:
     subprocess.run([str(out / 'smart_exam.exe'), '--smoke'], check=True, timeout=15)
+subprocess.run([str(out / 'smart_exam.exe'), '--demo'], check=True, timeout=15)

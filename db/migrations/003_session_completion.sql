@@ -1,0 +1,3 @@
+ALTER TABLE sessions ADD COLUMN closed INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE attempts ADD COLUMN selection_reason TEXT NOT NULL DEFAULT '';
+PRAGMA user_version=3;

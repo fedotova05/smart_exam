@@ -41,18 +41,24 @@
       <Add library="sfml-window" />
       <Add library="sfml-system" />
     </Linker>
+    <Unit filename="../src/adaptation/Adaptation.h" />
+    <Unit filename="../src/application/Demo.h" />
     <Unit filename="../src/application/session/SessionService.h" />
     <Unit filename="../src/core/GraphCodec.h" />
     <Unit filename="../src/core/Services.h" />
     <Unit filename="../src/core/Types.h" />
     <Unit filename="../src/generation/Generator.h" />
+    <Unit filename="../src/knowledge/SkillGraph.h" />
     <Unit filename="../src/math/checkers/EquationChecker.h" />
     <Unit filename="../src/math/numbers/Rational.h" />
     <Unit filename="../src/math/parser/Parser.h" />
     <Unit filename="../src/storage/Database.h" />
     <Unit filename="../src/storage/Store.h" />
+    <Unit filename="../src/adaptation/Adaptation.cpp" />
+    <Unit filename="../src/application/Demo.cpp" />
     <Unit filename="../src/application/session/SessionService.cpp" />
     <Unit filename="../src/generation/Generator.cpp" />
+    <Unit filename="../src/knowledge/SkillGraph.cpp" />
     <Unit filename="../src/math/checkers/EquationChecker.cpp" />
     <Unit filename="../src/math/numbers/Rational.cpp" />
     <Unit filename="../src/math/parser/Parser.cpp" />

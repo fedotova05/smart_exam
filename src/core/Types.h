@@ -12,12 +12,19 @@ struct CheckResult {
     std::string message;
     int errorPosition;
     CheckResult(CheckStatus value = CheckStatus::Unsupported,
-                const std::string& text = "Проверка пока недоступна", int position = -1)
+                const std::string &text = "Проверка пока недоступна", int position = -1)
         : status(value), message(text), errorPosition(position) {}
 };
 enum class PartKind { Expression, Equation, Line, Parabola };
-struct Point { double x; double y; Point(double a = 0, double b = 0) : x(a), y(b) {} };
-struct GraphAnswer { std::vector<Point> points; std::vector<double> coefficients; };
+struct Point {
+    double x;
+    double y;
+    Point(double a = 0, double b = 0) : x(a), y(b) {}
+};
+struct GraphAnswer {
+    std::vector<Point> points;
+    std::vector<double> coefficients;
+};
 struct AnswerPayload {
     std::string text;
     GraphAnswer graph;
@@ -50,8 +57,9 @@ struct SessionSettings {
     FeedbackPolicy feedback;
     bool guided;
     int taskLimit;
-    SessionSettings() : mode(SessionMode::Fixed), feedback(FeedbackPolicy::AfterStep),
-                        guided(false), taskLimit(10) {}
+    SessionSettings()
+        : mode(SessionMode::Fixed), feedback(FeedbackPolicy::AfterStep), guided(false),
+          taskLimit(10) {}
 };
 struct SkillState {
     bool known;
@@ -76,12 +84,18 @@ struct PartEvidence {
     std::vector<std::string> skills;
     CheckStatus finalStatus;
     bool hadError, usedHelp;
-    PartEvidence() : finalStatus(CheckStatus::Incomplete),hadError(false),usedHelp(false) {}
+    PartEvidence() : finalStatus(CheckStatus::Incomplete), hadError(false), usedHelp(false) {}
 };
 struct Observation {
     std::string skill;
     bool correct, eligible;
     SkillState before, after;
 };
-}
+struct ModelParameters {
+    std::string version;
+    double initial, learn, slip, guess, k;
+    ModelParameters()
+        : version("bkt-elo-1"), initial(0.2), learn(0.1), slip(0.1), guess(0.2), k(32) {}
+};
+} // namespace exam
 #endif
