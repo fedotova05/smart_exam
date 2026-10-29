@@ -36,11 +36,15 @@ struct TaskPart {
     std::string expression;
     std::vector<std::string> skills;
     int maxScore;
-    TaskPart() : kind(PartKind::Equation), maxScore(1) {}
+    double graphSnap, graphTolerance;
+    TaskPart() : kind(PartKind::Equation), maxScore(1), graphSnap(0.5), graphTolerance(0.0001) {}
 };
 struct TaskVersion {
     std::string id;
     std::string title;
+    std::string description;
+    std::string commonFunction;
+    std::vector<std::string> resources;
     std::vector<TaskPart> parts;
     bool published;
     bool archived;

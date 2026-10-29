@@ -15,4 +15,7 @@ void testChecker();
 void testGeneration();
 void testSession();
 void testAdaptation();
+void testGeometry();
+void testJsonPackages();
+void testSchool();
 #endif

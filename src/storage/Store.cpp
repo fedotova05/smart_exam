@@ -81,16 +81,24 @@ void Store::saveDraft(const TaskVersion &value) {
             "Published version is immutable; create a new identifier");
     db.query("DELETE FROM part_skills WHERE task_id=?", {value.id});
     db.query("DELETE FROM parts WHERE task_id=?", {value.id});
-    db.query("INSERT INTO tasks VALUES(?,?,0,0,?,?,?,?) ON CONFLICT(id) DO UPDATE SET "
+    db.query("DELETE FROM task_resources WHERE task_id=?", {value.id});
+    db.query("INSERT INTO "
+             "tasks(id,title,published,archived,generator,seed,parameters,difficulty,description,"
+             "common_function) VALUES(?,?,0,0,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET "
              "title=excluded.title,generator=excluded.generator,seed=excluded.seed,parameters="
-             "excluded.parameters,difficulty=excluded.difficulty",
+             "excluded.parameters,difficulty=excluded.difficulty,description=excluded.description,"
+             "common_function=excluded.common_function",
              {value.id, value.title, value.generator, std::to_string(value.seed), value.parameters,
-              std::to_string(value.difficulty)});
+              std::to_string(value.difficulty), value.description, value.commonFunction});
+    for (const std::string &path : value.resources)
+        db.query("INSERT INTO task_resources VALUES(?,?)", {value.id, path});
+    int partPosition = 0;
     for (const TaskPart &part : value.parts) {
         require(!part.id.empty() && part.maxScore > 0 && part.maxScore <= 100, "Invalid task part");
-        db.query("INSERT INTO parts VALUES(?,?,?,?,?,?)",
+        db.query("INSERT INTO parts VALUES(?,?,?,?,?,?,?,?,?)",
                  {value.id, part.id, number(static_cast<int>(part.kind)), part.prompt,
-                  part.expression, number(part.maxScore)});
+                  part.expression, number(part.maxScore), number(partPosition++),
+                  std::to_string(part.graphSnap), std::to_string(part.graphTolerance)});
         for (const std::string &skill : part.skills)
             db.query("INSERT INTO part_skills VALUES(?,?,?)", {value.id, part.id, skill});
     }
@@ -111,10 +119,11 @@ void Store::archive(const std::string &id) {
     db.query("UPDATE tasks SET archived=1 WHERE id=?", {id});
 }
 TaskVersion Store::task(const std::string &id) {
-    std::vector<Row> rows =
-        db.query("SELECT id,title,published,archived,generator,seed,parameters,difficulty FROM "
-                 "tasks WHERE id=?",
-                 {id});
+    std::vector<Row> rows = db.query("SELECT "
+                                     "id,title,published,archived,generator,seed,parameters,"
+                                     "difficulty,description,common_function FROM "
+                                     "tasks WHERE id=?",
+                                     {id});
     require(!rows.empty(), "Task not found");
     const Row &r = rows[0];
     TaskVersion t;
@@ -126,15 +135,23 @@ TaskVersion Store::task(const std::string &id) {
     t.seed = static_cast<unsigned>(std::stoul(r[5]));
     t.parameters = r[6];
     t.difficulty = std::stod(r[7]);
-    for (const Row &p : db.query(
-             "SELECT id,kind,prompt,expression,max_score FROM parts WHERE task_id=? ORDER BY id",
-             {id})) {
+    t.description = r[8];
+    t.commonFunction = r[9];
+    for (const Row &path :
+         db.query("SELECT path FROM task_resources WHERE task_id=? ORDER BY path", {id}))
+        t.resources.push_back(path[0]);
+    for (const Row &p :
+         db.query("SELECT id,kind,prompt,expression,max_score,graph_snap,graph_tolerance FROM "
+                  "parts WHERE task_id=? ORDER BY position,id",
+                  {id})) {
         TaskPart part;
         part.id = p[0];
         part.kind = static_cast<PartKind>(std::stoi(p[1]));
         part.prompt = p[2];
         part.expression = p[3];
         part.maxScore = std::stoi(p[4]);
+        part.graphSnap = std::stod(p[5]);
+        part.graphTolerance = std::stod(p[6]);
         for (const Row &s : db.query(
                  "SELECT skill_id FROM part_skills WHERE task_id=? AND part_id=? ORDER BY skill_id",
                  {id, part.id}))
@@ -392,6 +409,73 @@ void Store::closeSession(const std::string &id) {
     require(db.query("SELECT 1 FROM attempts WHERE session_id=? AND finished=0", {id}).empty(),
             "Сначала завершите текущую попытку");
     db.query("UPDATE sessions SET closed=1 WHERE id=?", {id});
+    transaction.commit();
+}
+std::vector<std::pair<std::string, std::string>> Store::profiles() {
+    std::vector<std::pair<std::string, std::string>> result;
+    for (const Row &row : db.query("SELECT id,name FROM profiles ORDER BY name,id"))
+        result.push_back({row[0], row[1]});
+    return result;
+}
+std::vector<std::pair<std::string, std::string>> Store::topics() {
+    std::vector<std::pair<std::string, std::string>> result;
+    for (const Row &row : db.query("SELECT id,name FROM topics ORDER BY name,id"))
+        result.push_back({row[0], row[1]});
+    return result;
+}
+std::vector<SkillInfo> Store::skills() {
+    std::vector<SkillInfo> result;
+    for (const Row &row : db.query("SELECT s.id,s.topic_id,s.name,p.x,p.y FROM skills s LEFT JOIN "
+                                   "skill_positions p ON p.skill_id=s.id ORDER BY s.id")) {
+        SkillInfo skill;
+        skill.id = row[0];
+        skill.topicId = row[1];
+        skill.name = row[2];
+        if (!row[3].empty()) {
+            skill.position = Point(std::stod(row[3]), std::stod(row[4]));
+            skill.placed = true;
+        }
+        result.push_back(skill);
+    }
+    return result;
+}
+std::vector<TaskVersion> Store::allTasks() {
+    std::vector<TaskVersion> result;
+    for (const Row &row : db.query("SELECT id FROM tasks ORDER BY id"))
+        result.push_back(task(row[0]));
+    return result;
+}
+std::vector<SessionRecord> Store::studentSessions(const std::string &student) {
+    std::vector<SessionRecord> result;
+    for (const Row &row :
+         db.query("SELECT id FROM sessions WHERE student_id=? ORDER BY rowid DESC", {student}))
+        result.push_back(session(row[0]));
+    return result;
+}
+int Store::helpCount(const std::string &id) {
+    return std::stoi(db.query("SELECT count(*) FROM help_events WHERE attempt_id=?", {id})[0][0]);
+}
+void Store::setPrerequisites(const std::string &skill, const std::vector<std::string> &parents) {
+    Transaction transaction(db);
+    db.query("DELETE FROM prerequisites WHERE skill_id=?", {skill});
+    for (const std::string &parent : parents)
+        db.query("INSERT INTO prerequisites VALUES(?,?)", {skill, parent});
+    transaction.commit();
+}
+void Store::saveSkillPosition(const std::string &skill, Point point) {
+    require(std::isfinite(point.x) && std::isfinite(point.y), "Неверное положение навыка");
+    db.query("INSERT INTO skill_positions VALUES(?,?,?) ON CONFLICT(skill_id) DO UPDATE SET "
+             "x=excluded.x,y=excluded.y",
+             {skill, std::to_string(point.x), std::to_string(point.y)});
+}
+void Store::saveSkillData(const SkillInfo &skill, const std::vector<std::string> &parents) {
+    Transaction transaction(db);
+    db.query("INSERT INTO skills VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET "
+             "name=excluded.name,topic_id=excluded.topic_id",
+             {skill.id, skill.topicId, skill.name});
+    db.query("DELETE FROM prerequisites WHERE skill_id=?", {skill.id});
+    for (const std::string &parent : parents)
+        db.query("INSERT INTO prerequisites VALUES(?,?)", {skill.id, parent});
     transaction.commit();
 }
 } // namespace exam
