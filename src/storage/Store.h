@@ -7,9 +7,11 @@ struct SessionRecord {
     std::string id, studentId;
     SessionSettings settings;
     std::vector<std::string> tasks;
+    bool closed;
+    SessionRecord() : closed(false) {}
 };
 struct AttemptRecord {
-    std::string id, sessionId, taskId;
+    std::string id, sessionId, taskId, selectionReason;
     int position, score;
     bool finished, provisional;
     AttemptRecord() : position(0), score(0), finished(false), provisional(true) {}
@@ -23,32 +25,38 @@ struct ResponseRecord {
 };
 class Store {
     Database db;
-public:
-    explicit Store(const std::string& path, const std::string& migrations = "db/migrations");
-    void saveProfile(const std::string& id, const std::string& name);
-    void saveTopic(const std::string& id, const std::string& name);
-    void saveSkill(const std::string& id, const std::string& topic, const std::string& name);
-    void savePrerequisite(const std::string& skill, const std::string& prerequisite);
-    std::map<std::string, std::vector<std::string> > skillGraph();
-    void saveDraft(const TaskVersion& task);
-    void publish(const std::string& id);
-    void archive(const std::string& id);
-    TaskVersion task(const std::string& id);
+
+  public:
+    explicit Store(const std::string &path, const std::string &migrations = "db/migrations");
+    void saveProfile(const std::string &id, const std::string &name);
+    void saveTopic(const std::string &id, const std::string &name);
+    void saveSkill(const std::string &id, const std::string &topic, const std::string &name);
+    void savePrerequisite(const std::string &skill, const std::string &prerequisite);
+    std::map<std::string, std::vector<std::string>> skillGraph();
+    void saveDraft(const TaskVersion &task);
+    void publish(const std::string &id);
+    void archive(const std::string &id);
+    TaskVersion task(const std::string &id);
     std::vector<TaskVersion> publishedTasks();
-    void createSession(const SessionRecord& session);
-    SessionRecord session(const std::string& id);
-    AttemptRecord openAttempt(const std::string& sessionId, int position, const std::string& taskId);
-    AttemptRecord attempt(const std::string& id);
-    std::vector<AttemptRecord> attempts(const std::string& sessionId);
-    bool response(const std::string& requestId, ResponseRecord& output);
-    void saveResponse(const ResponseRecord& response);
-    std::vector<ResponseRecord> responses(const std::string& attemptId);
-    void addHelp(const std::string& requestId, const std::string& attemptId, const std::string& partId, const std::string& kind);
-    bool usedHelp(const std::string& attemptId, const std::string& partId);
-    void finish(const std::string& attemptId, int score, bool provisional, const std::vector<Observation>& observations);
-    StudentSnapshot snapshot(const std::string& studentId);
-    StudentSnapshot attemptSnapshot(const std::string& attemptId);
-    int observationCount(const std::string& attemptId);
+    void createSession(const SessionRecord &session);
+    SessionRecord session(const std::string &id);
+    AttemptRecord openAttempt(const std::string &sessionId, int position, const std::string &taskId,
+                              const std::string &reason = "");
+    void closeSession(const std::string &sessionId);
+    AttemptRecord attempt(const std::string &id);
+    std::vector<AttemptRecord> attempts(const std::string &sessionId);
+    bool response(const std::string &requestId, ResponseRecord &output);
+    void saveResponse(const ResponseRecord &response);
+    std::vector<ResponseRecord> responses(const std::string &attemptId);
+    void addHelp(const std::string &requestId, const std::string &attemptId,
+                 const std::string &partId, const std::string &kind);
+    bool usedHelp(const std::string &attemptId, const std::string &partId);
+    void finish(const std::string &attemptId, int score, bool provisional,
+                const std::vector<Observation> &observations);
+    StudentSnapshot snapshot(const std::string &studentId);
+    StudentSnapshot attemptSnapshot(const std::string &attemptId);
+    int observationCount(const std::string &attemptId);
+    ModelParameters modelParameters(const std::string &version = "bkt-elo-1");
 };
-}
+} // namespace exam
 #endif

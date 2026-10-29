@@ -11,12 +11,12 @@ struct GenerationRequest {
     unsigned seed;
     int maxAttempts;
     std::set<std::string> previousExpressions;
-    GenerationRequest() : family(Family::Linear),seed(1),maxAttempts(32) {}
+    GenerationRequest() : family(Family::Linear), seed(1), maxAttempts(32) {}
 };
 class Generator {
-public:
-    TaskVersion generateTask(const GenerationRequest& request) const;
-    TaskVersion generateAndSave(Store& store,const GenerationRequest& request) const;
+  public:
+    TaskVersion generateTask(const GenerationRequest &request) const;
+    TaskVersion generateAndSave(Store &store, const GenerationRequest &request) const;
 };
-}
+} // namespace exam
 #endif
