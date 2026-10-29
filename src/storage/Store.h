@@ -3,6 +3,12 @@
 #include "Database.h"
 #include "core/Types.h"
 namespace exam {
+struct SkillInfo {
+    std::string id, topicId, name;
+    Point position;
+    bool placed;
+    SkillInfo() : placed(false) {}
+};
 struct SessionRecord {
     std::string id, studentId;
     SessionSettings settings;
@@ -57,6 +63,15 @@ class Store {
     StudentSnapshot attemptSnapshot(const std::string &attemptId);
     int observationCount(const std::string &attemptId);
     ModelParameters modelParameters(const std::string &version = "bkt-elo-1");
+    std::vector<std::pair<std::string, std::string>> profiles();
+    std::vector<std::pair<std::string, std::string>> topics();
+    std::vector<SkillInfo> skills();
+    std::vector<TaskVersion> allTasks();
+    std::vector<SessionRecord> studentSessions(const std::string &student);
+    int helpCount(const std::string &attemptId);
+    void setPrerequisites(const std::string &skill, const std::vector<std::string> &parents);
+    void saveSkillPosition(const std::string &skill, Point position);
+    void saveSkillData(const SkillInfo &skill, const std::vector<std::string> &parents);
 };
 } // namespace exam
 #endif

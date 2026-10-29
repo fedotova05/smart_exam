@@ -1,0 +1,135 @@
+<?xml version='1.0' encoding='utf-8'?>
+<CodeBlocks_project_file>
+  <FileVersion major="1" minor="6" />
+  <Project>
+    <Option title="SmartExam" />
+    <Option compiler="gcc" />
+    <Build>
+      <Target title="Debug">
+        <Option output="bin/Debug/smart_exam" prefix_auto="1" extension_auto="1" />
+        <Option object_output="obj/smart_exam/Debug/" />
+        <Option type="1" />
+        <Option projectLinkerOptionsRelation="2" />
+        <Option working_dir="." />
+        <Compiler>
+          <Add option="-g" />
+        </Compiler>
+        <Linker>
+          <Add library="sfml-graphics-s-d" />
+          <Add library="sfml-window-s-d" />
+          <Add library="sfml-system-s-d" />
+        </Linker>
+      </Target>
+      <Target title="Release">
+        <Option output="bin/Release/smart_exam" prefix_auto="1" extension_auto="1" />
+        <Option object_output="obj/smart_exam/Release/" />
+        <Option type="1" />
+        <Option projectLinkerOptionsRelation="2" />
+        <Option working_dir="." />
+        <Compiler>
+          <Add option="-O2" />
+        </Compiler>
+        <Linker>
+          <Add library="sfml-graphics-s" />
+          <Add library="sfml-window-s" />
+          <Add library="sfml-system-s" />
+        </Linker>
+      </Target>
+    </Build>
+    <Compiler>
+      <Add option="-std=c++11" />
+      <Add option="-Wall" />
+      <Add option="-Wextra" />
+      <Add option="-D_WIN32_WINNT=0x0600" />
+      <Add option="-finput-charset=UTF-8" />
+      <Add option="-fexec-charset=UTF-8" />
+      <Add directory="src" />
+      <Add directory="third_party/sqlite" />
+      <Add option="-DSFML_STATIC" />
+      <Add directory="C:/SFML-2.5.1/include" />
+    </Compiler>
+    <Linker>
+      <Add directory="C:/SFML-2.5.1/lib" />
+      <Add library="opengl32" />
+      <Add library="freetype" />
+      <Add library="winmm" />
+      <Add library="gdi32" />
+      <Add library="comdlg32" />
+    </Linker>
+    <Unit filename="src/adaptation/Adaptation.h" />
+    <Unit filename="src/application/Demo.h" />
+    <Unit filename="src/application/SchoolService.h" />
+    <Unit filename="src/application/session/SessionService.h" />
+    <Unit filename="src/core/GraphCodec.h" />
+    <Unit filename="src/core/Services.h" />
+    <Unit filename="src/core/Types.h" />
+    <Unit filename="src/generation/Generator.h" />
+    <Unit filename="src/graph_tasks/GeometryChecker.h" />
+    <Unit filename="src/graphics/GraphView.h" />
+    <Unit filename="src/io/Files.h" />
+    <Unit filename="src/io/Json.h" />
+    <Unit filename="src/io/packages/PackageService.h" />
+    <Unit filename="src/knowledge/SkillGraph.h" />
+    <Unit filename="src/math/checkers/EquationChecker.h" />
+    <Unit filename="src/math/numbers/Rational.h" />
+    <Unit filename="src/math/parser/Parser.h" />
+    <Unit filename="src/storage/Database.h" />
+    <Unit filename="src/storage/Store.h" />
+    <Unit filename="src/ui/App.h" />
+    <Unit filename="src/ui/AppContext.h" />
+    <Unit filename="src/ui/FileDialog.h" />
+    <Unit filename="src/ui/FormulaView.h" />
+    <Unit filename="src/ui/ImageView.h" />
+    <Unit filename="src/ui/Screen.h" />
+    <Unit filename="src/ui/screens/BankScreen.h" />
+    <Unit filename="src/ui/screens/HomeScreen.h" />
+    <Unit filename="src/ui/screens/KnowledgeScreen.h" />
+    <Unit filename="src/ui/screens/LessonScreen.h" />
+    <Unit filename="src/ui/screens/PackageScreen.h" />
+    <Unit filename="src/ui/SkillMap.h" />
+    <Unit filename="src/ui/Theme.h" />
+    <Unit filename="src/ui/widgets/Button.h" />
+    <Unit filename="src/ui/widgets/ListBox.h" />
+    <Unit filename="src/ui/widgets/TextField.h" />
+    <Unit filename="src/ui/widgets/TextPanel.h" />
+    <Unit filename="src/ui/widgets/Widget.h" />
+    <Unit filename="src/adaptation/Adaptation.cpp" />
+    <Unit filename="src/application/Demo.cpp" />
+    <Unit filename="src/application/SchoolService.cpp" />
+    <Unit filename="src/application/session/SessionService.cpp" />
+    <Unit filename="src/application/StarterContent.cpp" />
+    <Unit filename="src/generation/Generator.cpp" />
+    <Unit filename="src/graph_tasks/GeometryChecker.cpp" />
+    <Unit filename="src/graphics/GraphView.cpp" />
+    <Unit filename="src/io/Files.cpp" />
+    <Unit filename="src/io/Json.cpp" />
+    <Unit filename="src/io/packages/PackageService.cpp" />
+    <Unit filename="src/knowledge/SkillGraph.cpp" />
+    <Unit filename="src/math/checkers/EquationChecker.cpp" />
+    <Unit filename="src/math/numbers/Rational.cpp" />
+    <Unit filename="src/math/parser/Parser.cpp" />
+    <Unit filename="src/storage/Database.cpp" />
+    <Unit filename="src/storage/Store.cpp" />
+    <Unit filename="src/ui/App.cpp" />
+    <Unit filename="src/ui/AppContext.cpp" />
+    <Unit filename="src/ui/FileDialog.cpp" />
+    <Unit filename="src/ui/FormulaView.cpp" />
+    <Unit filename="src/ui/ImageView.cpp" />
+    <Unit filename="src/ui/Screen.cpp" />
+    <Unit filename="src/ui/screens/BankScreen.cpp" />
+    <Unit filename="src/ui/screens/HomeScreen.cpp" />
+    <Unit filename="src/ui/screens/KnowledgeScreen.cpp" />
+    <Unit filename="src/ui/screens/LessonScreen.cpp" />
+    <Unit filename="src/ui/screens/PackageScreen.cpp" />
+    <Unit filename="src/ui/SkillMap.cpp" />
+    <Unit filename="src/ui/Theme.cpp" />
+    <Unit filename="src/ui/widgets/Button.cpp" />
+    <Unit filename="src/ui/widgets/ListBox.cpp" />
+    <Unit filename="src/ui/widgets/TextField.cpp" />
+    <Unit filename="src/ui/widgets/TextPanel.cpp" />
+    <Unit filename="main.cpp" />
+    <Unit filename="third_party/sqlite/sqlite3.c">
+      <Option compilerVar="CC" />
+    </Unit>
+  </Project>
+</CodeBlocks_project_file>

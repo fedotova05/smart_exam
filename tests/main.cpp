@@ -24,7 +24,13 @@ int main() {
         std::cout << "OK: sessions\n";
         testAdaptation();
         std::cout << "OK: BKT, Elo and selection\n";
-        std::cout << "All 7 test groups passed\n";
+        testGeometry();
+        std::cout << "OK: graph geometry and coordinates\n";
+        testJsonPackages();
+        std::cout << "OK: JSON and package roundtrip\n";
+        testSchool();
+        std::cout << "OK: editor, knowledge and graphical sessions\n";
+        std::cout << "All 10 test groups passed\n";
         return 0;
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';

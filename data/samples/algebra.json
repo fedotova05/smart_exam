@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "id": "algebra-demo",
+  "skills": ["roots", "graphs"],
+  "tasks": [
+    {
+      "id": "parabola",
+      "title": "Корни и график функции",
+      "description": "Найдите нули функции и постройте её график.",
+      "function": "x^2-4",
+      "difficulty": 1000,
+      "resources": [],
+      "parts": [
+        {"id": "a", "kind": 1, "prompt": "Найдите корни", "expression": "x^2-4=0", "score": 1, "skills": ["roots"]},
+        {"id": "b", "kind": 3, "prompt": "Постройте параболу", "expression": "x^2-4", "score": 2, "skills": ["graphs"], "snap": 0.5, "tolerance": 0.0001}
+      ]
+    }
+  ]
+}

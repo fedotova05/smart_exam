@@ -53,11 +53,12 @@ void Database::script(const std::string &sql) {
 }
 void Database::migrate(const std::string &directory) {
     int version = std::stoi(query("PRAGMA user_version")[0][0]);
-    if (version > 3)
+    if (version > 5)
         throw std::runtime_error("Database version is newer than application");
     const char *files[] = {"001_initial.sql", "002_attempt_snapshot.sql",
-                           "003_session_completion.sql"};
-    for (int next = version; next < 3; ++next) {
+                           "003_session_completion.sql", "004_interface_data.sql",
+                           "005_graph_settings.sql"};
+    for (int next = version; next < 5; ++next) {
         std::ifstream input((directory + "/" + files[next]).c_str());
         if (!input)
             throw std::runtime_error("Migration file not found");

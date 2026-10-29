@@ -9,6 +9,7 @@
         <Option output="../bin/Debug/tests" prefix_auto="1" extension_auto="1" />
         <Option object_output="../obj/tests/Debug/" />
         <Option type="1" />
+        <Option projectLinkerOptionsRelation="2" />
         <Option working_dir=".." />
         <Compiler>
           <Add option="-g" />
@@ -18,6 +19,7 @@
         <Option output="../bin/Release/tests" prefix_auto="1" extension_auto="1" />
         <Option object_output="../obj/tests/Release/" />
         <Option type="1" />
+        <Option projectLinkerOptionsRelation="2" />
         <Option working_dir=".." />
         <Compiler>
           <Add option="-O2" />
@@ -36,11 +38,16 @@
     </Compiler>
     <Unit filename="../src/adaptation/Adaptation.h" />
     <Unit filename="../src/application/Demo.h" />
+    <Unit filename="../src/application/SchoolService.h" />
     <Unit filename="../src/application/session/SessionService.h" />
     <Unit filename="../src/core/GraphCodec.h" />
     <Unit filename="../src/core/Services.h" />
     <Unit filename="../src/core/Types.h" />
     <Unit filename="../src/generation/Generator.h" />
+    <Unit filename="../src/graph_tasks/GeometryChecker.h" />
+    <Unit filename="../src/io/Files.h" />
+    <Unit filename="../src/io/Json.h" />
+    <Unit filename="../src/io/packages/PackageService.h" />
     <Unit filename="../src/knowledge/SkillGraph.h" />
     <Unit filename="../src/math/checkers/EquationChecker.h" />
     <Unit filename="../src/math/numbers/Rational.h" />
@@ -49,8 +56,14 @@
     <Unit filename="../src/storage/Store.h" />
     <Unit filename="../src/adaptation/Adaptation.cpp" />
     <Unit filename="../src/application/Demo.cpp" />
+    <Unit filename="../src/application/SchoolService.cpp" />
     <Unit filename="../src/application/session/SessionService.cpp" />
+    <Unit filename="../src/application/StarterContent.cpp" />
     <Unit filename="../src/generation/Generator.cpp" />
+    <Unit filename="../src/graph_tasks/GeometryChecker.cpp" />
+    <Unit filename="../src/io/Files.cpp" />
+    <Unit filename="../src/io/Json.cpp" />
+    <Unit filename="../src/io/packages/PackageService.cpp" />
     <Unit filename="../src/knowledge/SkillGraph.cpp" />
     <Unit filename="../src/math/checkers/EquationChecker.cpp" />
     <Unit filename="../src/math/numbers/Rational.cpp" />
@@ -59,12 +72,13 @@
     <Unit filename="../src/storage/Store.cpp" />
     <Unit filename="../tests/adaptation/AdaptationTests.cpp" />
     <Unit filename="../tests/checker/CheckerTests.cpp" />
+    <Unit filename="../tests/Fixture.h" />
     <Unit filename="../tests/generation/GeneratorTests.cpp" />
+    <Unit filename="../tests/interface/InterfaceTests.cpp" />
     <Unit filename="../tests/main.cpp" />
     <Unit filename="../tests/math/ParserTests.cpp" />
     <Unit filename="../tests/session/SessionTests.cpp" />
     <Unit filename="../tests/storage/StorageTests.cpp" />
-    <Unit filename="../tests/Fixture.h" />
     <Unit filename="../tests/Test.h" />
     <Unit filename="../third_party/sqlite/sqlite3.c">
       <Option compilerVar="CC" />
