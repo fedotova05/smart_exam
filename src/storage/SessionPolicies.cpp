@@ -24,14 +24,16 @@ void Store::saveTemplate(const LessonTemplate &value) {
           "Пустой или слишком большой набор");
     Transaction transaction(db);
     db.query(
-        "INSERT INTO lesson_templates VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET "
+        "INSERT INTO lesson_templates VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET "
         "name=excluded.name,mode=excluded.mode,feedback=excluded.feedback,guided=excluded.guided,"
         "training=excluded.training,task_limit=excluded.task_limit,resume_policy=excluded.resume_"
         "policy,"
-        "time_limit=excluded.time_limit",
+        "time_limit=excluded.time_limit,help_allowed=excluded.help_allowed,diagnosis_allowed="
+        "excluded.diagnosis_allowed",
         {value.id, value.name, std::to_string(int(s.mode)), std::to_string(int(s.feedback)),
          std::to_string(s.guided), std::to_string(s.training), std::to_string(s.taskLimit),
-         std::to_string(int(s.resumePolicy)), std::to_string(s.timeLimitSeconds)});
+         std::to_string(int(s.resumePolicy)), std::to_string(s.timeLimitSeconds),
+         std::to_string(s.helpAllowed), std::to_string(s.diagnosisAllowed)});
     db.query("DELETE FROM template_tasks WHERE template_id=?", {value.id});
     db.query("DELETE FROM template_skills WHERE template_id=?", {value.id});
     for (std::size_t i = 0; i < value.tasks.size(); ++i) {
@@ -45,10 +47,11 @@ void Store::saveTemplate(const LessonTemplate &value) {
     transaction.commit();
 }
 LessonTemplate Store::lessonTemplate(const std::string &id) {
-    auto rows =
-        db.query("SELECT name,mode,feedback,guided,training,task_limit,resume_policy,time_limit "
-                 "FROM lesson_templates WHERE id=?",
-                 {id});
+    auto rows = db.query("SELECT "
+                         "name,mode,feedback,guided,training,task_limit,resume_policy,time_limit,"
+                         "help_allowed,diagnosis_allowed "
+                         "FROM lesson_templates WHERE id=?",
+                         {id});
     check(!rows.empty(), "Шаблон не найден");
     const Row &r = rows[0];
     LessonTemplate result;
@@ -61,12 +64,20 @@ LessonTemplate Store::lessonTemplate(const std::string &id) {
     result.settings.taskLimit = std::stoi(r[5]);
     result.settings.resumePolicy = static_cast<ResumePolicy>(std::stoi(r[6]));
     result.settings.timeLimitSeconds = std::stoi(r[7]);
+    result.settings.helpAllowed = r[8] == "1";
+    result.settings.diagnosisAllowed = r[9] == "1";
     for (const Row &row :
          db.query("SELECT task_id FROM template_tasks WHERE template_id=? ORDER BY position", {id}))
         result.tasks.push_back(row[0]);
     for (const Row &row : db.query(
              "SELECT skill_id FROM template_skills WHERE template_id=? ORDER BY skill_id", {id}))
         result.settings.targetSkills.push_back(row[0]);
+    return result;
+}
+std::vector<LessonTemplate> Store::lessonTemplates() {
+    std::vector<LessonTemplate> result;
+    for (const auto &row : db.query("SELECT id FROM lesson_templates ORDER BY name,id"))
+        result.push_back(lessonTemplate(row[0]));
     return result;
 }
 void Store::startTemplate(const std::string &templateId, const std::string &sessionId,

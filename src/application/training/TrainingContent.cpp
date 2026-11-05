@@ -19,13 +19,21 @@ void SchoolService::addTrainingContent() {
         {"b_sqrt", "basics", "Квадратный корень", {"b_square"}},
         {"b_fractions", "basics", "Вычисления с дробями", {"b_signs"}},
         {"q_coefficients", "quadratic_course", "Коэффициенты a, b, c", {}},
-        {"q_discriminant", "quadratic_course", "Вычисление дискриминанта", {"b_signs", "b_square", "q_coefficients"}},
-        {"q_formula", "quadratic_course", "Вычисление по формуле корней", {"b_fractions", "b_sqrt"}},
-        {"q_roots", "quadratic_course", "Решение квадратного уравнения", {"q_coefficients", "q_discriminant", "q_formula"}}
-    };
+        {"q_discriminant",
+         "quadratic_course",
+         "Вычисление дискриминанта",
+         {"b_signs", "b_square", "q_coefficients"}},
+        {"q_formula",
+         "quadratic_course",
+         "Вычисление по формуле корней",
+         {"b_fractions", "b_sqrt"}},
+        {"q_roots",
+         "quadratic_course",
+         "Решение квадратного уравнения",
+         {"q_coefficients", "q_discriminant", "q_formula"}}};
     std::set<std::string> skills, tasks;
-    const Point positions[] = {Point(15, 300), Point(210, 300), Point(210, 420), Point(15, 420),
-                               Point(405, 300), Point(405, 420), Point(15, 540), Point(405, 540)};
+    const Point positions[] = {Point(15, 300),  Point(210, 300), Point(210, 420), Point(15, 420),
+                               Point(405, 300), Point(405, 420), Point(15, 540),  Point(405, 540)};
     for (const auto &skill : storage.skills())
         skills.insert(skill.id);
     for (const auto &task : storage.allTasks())
@@ -42,7 +50,7 @@ void SchoolService::addTrainingContent() {
         if (tasks.count(task.id))
             return;
         storage.saveDraft(task);
-        publish(task.id);
+        storage.publish(task.id);
     };
     auto numeric = [&](const std::string &skill, const std::string &title,
                        const std::vector<std::string> &expressions, double difficulty) {
@@ -61,14 +69,21 @@ void SchoolService::addTrainingContent() {
             save(task);
         }
     };
-    numeric("b_signs", "Умножение со знаками", {"4*2*(-2)", "(-3)*5", "(-4)*(-6)", "6-(-8)", "-7-(-10)", "-2*(-3)*(-4)"}, 400);
-    numeric("b_square", "Квадрат отрицательного числа", {"(-3)^2", "(-5)^2", "(-7)^2", "(-2)^2"}, 450);
-    numeric("b_sqrt", "Точный квадратный корень", {"sqrt(25)", "sqrt(49)", "sqrt(81)", "sqrt(12)"}, 600);
-    numeric("b_fractions", "Действия с дробями", {"-2/4", "(3-7)/6", "1/2+1/3", "(5+1)/4", "(-8)/(-12)"}, 650);
-    numeric("q_formula", "Подстановка в формулу корней", {"(3+sqrt(25))/4", "(3-sqrt(25))/4", "(-2+sqrt(16))/6", "(5-sqrt(9))/4"}, 850);
+    numeric("b_signs", "Умножение со знаками",
+            {"4*2*(-2)", "(-3)*5", "(-4)*(-6)", "6-(-8)", "-7-(-10)", "-2*(-3)*(-4)"}, 400);
+    numeric("b_square", "Квадрат отрицательного числа", {"(-3)^2", "(-5)^2", "(-7)^2", "(-2)^2"},
+            450);
+    numeric("b_sqrt", "Точный квадратный корень", {"sqrt(25)", "sqrt(49)", "sqrt(81)", "sqrt(12)"},
+            600);
+    numeric("b_fractions", "Действия с дробями",
+            {"-2/4", "(3-7)/6", "1/2+1/3", "(5+1)/4", "(-8)/(-12)"}, 650);
+    numeric("q_formula", "Подстановка в формулу корней",
+            {"(3+sqrt(25))/4", "(3-sqrt(25))/4", "(-2+sqrt(16))/6", "(5-sqrt(9))/4"}, 850);
     const char *equations[] = {"2*x^2-3*x-2=0", "3*x^2+2*x-1=0", "x^2-5*x+6=0", "2*x^2+x-3=0"};
-    const char *coefficients[][3] = {{"2", "-3", "-2"}, {"3", "2", "-1"}, {"1", "-5", "6"}, {"2", "1", "-3"}};
-    const char *discriminants[] = {"(-3)^2-4*2*(-2)", "2^2-4*3*(-1)", "(-5)^2-4*1*6", "1^2-4*2*(-3)"};
+    const char *coefficients[][3] = {
+        {"2", "-3", "-2"}, {"3", "2", "-1"}, {"1", "-5", "6"}, {"2", "1", "-3"}};
+    const char *discriminants[] = {"(-3)^2-4*2*(-2)", "2^2-4*3*(-1)", "(-5)^2-4*1*6",
+                                   "1^2-4*2*(-3)"};
     for (int i = 0; i < 4; ++i) {
         TaskVersion task;
         task.id = "course-coefficients-" + std::to_string(i + 1);
@@ -78,7 +93,8 @@ void SchoolService::addTrainingContent() {
             TaskPart part;
             part.id = std::string(1, 'a' + k);
             part.kind = PartKind::Expression;
-            part.prompt = "Укажите коэффициент " + part.id + " в записи ax² + bx + c = 0. Сохраните знак числа.";
+            part.prompt = "Укажите коэффициент " + part.id +
+                          " в записи ax² + bx + c = 0. Сохраните знак числа.";
             part.expression = coefficients[i][k];
             part.displayExpression = equations[i];
             part.skills = {"q_coefficients"};
@@ -92,7 +108,8 @@ void SchoolService::addTrainingContent() {
         TaskPart part;
         part.id = "answer";
         part.kind = PartKind::Expression;
-        part.prompt = "Вычислите дискриминант этого уравнения по формуле D = b² − 4ac. Введите значение D.";
+        part.prompt =
+            "Вычислите дискриминант этого уравнения по формуле D = b² − 4ac. Введите значение D.";
         part.expression = discriminants[i];
         part.displayExpression = equations[i];
         part.skills = {"q_discriminant"};
@@ -119,8 +136,9 @@ void SchoolService::addTrainingDemo() {
     NextTask current = next();
     for (int i = 0; current.available && i < 16; ++i) {
         TrainingStep step = storage.trainingStep(current.attempt.id);
-        bool wrong = step.stage.empty() ||
-            (step.stage == "diagnosis" && (step.skill == "q_discriminant" || step.skill == "b_signs"));
+        bool wrong =
+            step.stage.empty() || (step.stage == "diagnosis" &&
+                                   (step.skill == "q_discriminant" || step.skill == "b_signs"));
         for (const auto &part : current.task.parts) {
             AnswerPayload answer;
             if (wrong)

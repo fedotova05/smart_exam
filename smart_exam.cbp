@@ -105,7 +105,9 @@
     <Unit filename="src/adaptation/Adaptation.cpp" />
     <Unit filename="src/application/answers/AnswerPolicy.cpp" />
     <Unit filename="src/application/Demo.cpp" />
+    <Unit filename="src/application/DemonstrationCourse.cpp" />
     <Unit filename="src/application/jobs/JobQueue.cpp" />
+    <Unit filename="src/application/review/TeacherReports.cpp" />
     <Unit filename="src/application/SchoolService.cpp" />
     <Unit filename="src/application/session/SessionService.cpp" />
     <Unit filename="src/application/StarterContent.cpp" />
@@ -125,6 +127,7 @@
     <Unit filename="src/storage/ReviewStore.cpp" />
     <Unit filename="src/storage/SessionPolicies.cpp" />
     <Unit filename="src/storage/Store.cpp" />
+    <Unit filename="src/storage/TeacherAccess.cpp" />
     <Unit filename="src/ui/App.cpp" />
     <Unit filename="src/ui/AppContext.cpp" />
     <Unit filename="src/ui/FileDialog.cpp" />
@@ -134,10 +137,13 @@
     <Unit filename="src/ui/screens/BankScreen.cpp" />
     <Unit filename="src/ui/screens/HomeScreen.cpp" />
     <Unit filename="src/ui/screens/KnowledgeScreen.cpp" />
+    <Unit filename="src/ui/screens/LessonOptions.cpp" />
     <Unit filename="src/ui/screens/LessonScreen.cpp" />
     <Unit filename="src/ui/screens/LessonSetupScreen.cpp" />
     <Unit filename="src/ui/screens/PackageScreen.cpp" />
+    <Unit filename="src/ui/screens/ProfileScreen.cpp" />
     <Unit filename="src/ui/screens/ProgressScreen.cpp" />
+    <Unit filename="src/ui/screens/ReviewScreen.cpp" />
     <Unit filename="src/ui/screens/TrainingDemoScreen.cpp" />
     <Unit filename="src/ui/screens/TrainingSetupScreen.cpp" />
     <Unit filename="src/ui/screens/WelcomeScreen.cpp" />

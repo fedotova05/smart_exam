@@ -224,6 +224,9 @@ std::vector<TaskVersion> Store::publishedTasks() {
     return result;
 }
 void Store::createSession(const SessionRecord &value) {
+    require(
+        db.query("SELECT 1 FROM archived_profiles WHERE profile_id=?", {value.studentId}).empty(),
+        "Восстановите профиль из архива перед назначением занятия");
     require(value.settings.timeLimitSeconds >= 0 && value.settings.timeLimitSeconds <= 86400 &&
                 static_cast<int>(value.settings.resumePolicy) >= 0 &&
                 static_cast<int>(value.settings.resumePolicy) <= 2,
@@ -237,12 +240,13 @@ void Store::createSession(const SessionRecord &value) {
     Transaction transaction(db);
     db.query("INSERT INTO "
              "sessions(id,student_id,mode,feedback,guided,task_limit,training,resume_policy,time_"
-             "limit) VALUES(?,?,?,?,?,?,?,?,?)",
+             "limit,help_allowed,diagnosis_allowed) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
              {value.id, value.studentId, number(static_cast<int>(value.settings.mode)),
               number(static_cast<int>(value.settings.feedback)), number(value.settings.guided),
               number(value.settings.taskLimit), number(value.settings.training),
               number(static_cast<int>(value.settings.resumePolicy)),
-              number(value.settings.timeLimitSeconds)});
+              number(value.settings.timeLimitSeconds), number(value.settings.helpAllowed),
+              number(value.settings.diagnosisAllowed)});
     for (const auto &skill : value.settings.targetSkills)
         db.query("INSERT INTO session_skills VALUES(?,?)", {value.id, skill});
     for (std::size_t i = 0; i < value.tasks.size(); ++i) {
@@ -254,10 +258,11 @@ void Store::createSession(const SessionRecord &value) {
     transaction.commit();
 }
 SessionRecord Store::session(const std::string &id) {
-    std::vector<Row> rows = db.query("SELECT "
-                                     "student_id,mode,feedback,guided,task_limit,closed,training,"
-                                     "resume_policy,time_limit FROM sessions WHERE id=?",
-                                     {id});
+    std::vector<Row> rows =
+        db.query("SELECT "
+                 "student_id,mode,feedback,guided,task_limit,closed,training,"
+                 "resume_policy,time_limit,help_allowed,diagnosis_allowed FROM sessions WHERE id=?",
+                 {id});
     require(!rows.empty(), "Session not found");
     const Row &r = rows[0];
     SessionRecord s;
@@ -271,6 +276,8 @@ SessionRecord Store::session(const std::string &id) {
     s.settings.training = r[6] == "1";
     s.settings.resumePolicy = static_cast<ResumePolicy>(std::stoi(r[7]));
     s.settings.timeLimitSeconds = std::stoi(r[8]);
+    s.settings.helpAllowed = r[9] == "1";
+    s.settings.diagnosisAllowed = r[10] == "1";
     for (const auto &row :
          db.query("SELECT skill_id FROM session_skills WHERE session_id=? ORDER BY skill_id", {id}))
         s.settings.targetSkills.push_back(row[0]);
@@ -519,7 +526,8 @@ void Store::closeSession(const std::string &id) {
 }
 std::vector<std::pair<std::string, std::string>> Store::profiles() {
     std::vector<std::pair<std::string, std::string>> result;
-    for (const Row &row : db.query("SELECT id,name FROM profiles ORDER BY name,id"))
+    for (const Row &row : db.query("SELECT id,name FROM profiles WHERE id NOT IN (SELECT "
+                                   "profile_id FROM archived_profiles) ORDER BY name,id"))
         result.push_back({row[0], row[1]});
     return result;
 }

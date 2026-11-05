@@ -70,6 +70,8 @@ struct SessionSettings {
     FeedbackPolicy feedback;
     bool guided;
     bool training;
+    bool helpAllowed = true;
+    bool diagnosisAllowed = true;
     std::vector<std::string> targetSkills;
     int taskLimit;
     ResumePolicy resumePolicy;

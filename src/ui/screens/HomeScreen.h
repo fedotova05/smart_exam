@@ -9,6 +9,10 @@ class HomeScreen : public Screen {
     void settings();
     void startShortLesson();
     void teacherHome();
+    void manageProfiles();
+    void reviewQueue(bool pendingOnly = true, bool allStudents = true);
+    void reviewDetail(const ReviewItem &item);
+    void reviewResource(const ReviewItem &item, int index);
 
   public:
     HomeScreen(const sf::Font &font, AppContext &state) : Screen(font), context(state) {}

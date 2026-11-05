@@ -61,7 +61,9 @@
     <Unit filename="../src/adaptation/Adaptation.cpp" />
     <Unit filename="../src/application/answers/AnswerPolicy.cpp" />
     <Unit filename="../src/application/Demo.cpp" />
+    <Unit filename="../src/application/DemonstrationCourse.cpp" />
     <Unit filename="../src/application/jobs/JobQueue.cpp" />
+    <Unit filename="../src/application/review/TeacherReports.cpp" />
     <Unit filename="../src/application/SchoolService.cpp" />
     <Unit filename="../src/application/session/SessionService.cpp" />
     <Unit filename="../src/application/StarterContent.cpp" />
@@ -80,11 +82,13 @@
     <Unit filename="../src/storage/ReviewStore.cpp" />
     <Unit filename="../src/storage/SessionPolicies.cpp" />
     <Unit filename="../src/storage/Store.cpp" />
+    <Unit filename="../src/storage/TeacherAccess.cpp" />
     <Unit filename="../tests/adaptation/AdaptationTests.cpp" />
     <Unit filename="../tests/answers/AnswerTests.cpp" />
     <Unit filename="../tests/checker/CheckerTests.cpp" />
     <Unit filename="../tests/Fixture.h" />
     <Unit filename="../tests/generation/GeneratorTests.cpp" />
+    <Unit filename="../tests/interface/DemonstrationTests.cpp" />
     <Unit filename="../tests/interface/InterfaceTests.cpp" />
     <Unit filename="../tests/jobs/JobTests.cpp" />
     <Unit filename="../tests/main.cpp" />
@@ -94,6 +98,7 @@
     <Unit filename="../tests/session/SessionTests.cpp" />
     <Unit filename="../tests/session/TrainingTests.cpp" />
     <Unit filename="../tests/storage/StorageTests.cpp" />
+    <Unit filename="../tests/storage/TeacherAccessTests.cpp" />
     <Unit filename="../tests/Test.h" />
     <Unit filename="../third_party/sqlite/sqlite3.c">
       <Option compilerVar="CC" />

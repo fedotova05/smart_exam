@@ -52,14 +52,20 @@ void LessonSetupScreen::refresh() {
         return;
     }
     text("Для кого: " + context.profileName, 0, 0, 18, 940, 1);
+    if (context.role == UserRole::Teacher)
+        button("Сохранённые занятия", 620, 73, 320, [this] { templates(); });
     note("1. ВЫБЕРИТЕ ЗАДАНИЯ     →     2. ПРОВЕРЬТЕ И ЗАПУСТИТЕ", 0, 38);
     const char *names[] = {"По темам", "Создать примеры",
-        context.role == UserRole::Teacher ? "По навыкам ученика" : "По моим навыкам"};
+                           context.role == UserRole::Teacher ? "По навыкам ученика"
+                                                             : "По моим навыкам"};
     for (int i = 0; i < 3; ++i)
-        button(names[i], i * 195.f, 73, 185, [this, i] {
-            source = i;
-            refresh();
-        }, source == i);
+        button(
+            names[i], i * 195.f, 73, 185,
+            [this, i] {
+                source = i;
+                refresh();
+            },
+            source == i);
     surface(599, 131, 1, 426, Theme::line);
     if (source == 0)
         bank();
@@ -126,8 +132,9 @@ void LessonSetupScreen::bank() {
     note("Готовые задания из банка. Выберите тему, затем задание справа.", 0, 434, 230);
     if (!tasks.empty()) {
         const auto &task = tasks[selected];
-        note("Частей: " + std::to_string(task.parts.size()) + ". Баллов: " +
-                 std::to_string(maximum(task)), 250, 445, 330);
+        note("Частей: " + std::to_string(task.parts.size()) +
+                 ". Баллов: " + std::to_string(maximum(task)),
+             250, 445, 330);
         FormulaView *formula = add(new FormulaView(headingFace(), 330, 60), 250, 471);
         formula->setFormula(task.parts.front().expression);
     }
@@ -148,56 +155,77 @@ void LessonSetupScreen::bank() {
 void LessonSetupScreen::generator() {
     text("Что создать?", 0, 137, 18);
     const std::vector<std::string> names = {"Действия с дробями", "Линейные уравнения",
-        "Квадратные уравнения", "Корни и прямая", "Корни и парабола"};
+                                            "Квадратные уравнения", "Корни и прямая",
+                                            "Корни и парабола"};
     const char *descriptions[] = {
         "Сложение двух дробей с новыми числами. Ответ — точное значение. Одна часть, 1 балл.",
         "Новое линейное уравнение. Найдите x. Одна часть, 1 балл.",
-        "Новое квадратное уравнение. Найдите все корни, в том числе с квадратным корнем. Одна часть, 1 балл.",
+        "Новое квадратное уравнение. Найдите все корни, в том числе с квадратным корнем. Одна "
+        "часть, 1 балл.",
         "Одна функция, два вопроса: найти корень и построить прямую. Две части, 2 балла.",
         "Одна функция, два вопроса: найти корни и построить параболу. Две части, 2 балла."};
     ListBox *families = list(names, 0, 170, 270, 200);
     families->select(family);
     families->onChange = [this](int value) {
-        defer([this, value] { family = value; refresh(); });
+        defer([this, value] {
+            family = value;
+            refresh();
+        });
     };
     text(descriptions[family], 295, 170, 17, 285, 7);
     text("Сколько новых заданий?", 295, 359, 17, 285, 2);
     TextField *count = field(amount, 295, 408, 100, 2);
     count->onChange = [this, count] { amount = count->getText(); };
     note("От 1 до 20", 413, 420, 167);
-    button("Создать и добавить в занятие →", 0, 475, 580, [this, names] {
-        const int count = taskCount();
-        if (selectedTasks.size() + count > 100)
-            throw std::runtime_error("В одном занятии не более 100 заданий");
-        std::set<std::string> expressions;
-        for (const auto &task : selectedTasks)
-            expressions.insert(task.parts.front().expression);
-        std::vector<TaskVersion> generated;
-        for (int i = 0; i < count; ++i) {
-            GenerationRequest request;
-            request.id = newId("practice");
-            request.family = static_cast<Family>(family);
-            request.seed = seed++;
-            request.previousExpressions = expressions;
-            TaskVersion task = Generator().generateTask(request);
-            task.title = names[family] + " · пример " + std::to_string(selectedTasks.size() + i + 1);
-            expressions.insert(task.parts.front().expression);
-            generated.push_back(task);
-        }
-        basketIndex = static_cast<int>(selectedTasks.size());
-        selectedTasks.insert(selectedTasks.end(), generated.begin(), generated.end());
-        refresh();
-    }, true);
-    note("Генератор создаёт новые условия. До запуска занятия их можно убрать из списка справа.",
-         0, 530, 580);
+    button(
+        "Создать и добавить в занятие →", 0, 475, 580,
+        [this, names] {
+            const int count = taskCount();
+            if (selectedTasks.size() + count > 100)
+                throw std::runtime_error("В одном занятии не более 100 заданий");
+            std::set<std::string> expressions;
+            for (const auto &task : selectedTasks)
+                expressions.insert(task.parts.front().expression);
+            std::vector<TaskVersion> generated;
+            for (int i = 0; i < count; ++i) {
+                GenerationRequest request;
+                request.id = newId("practice");
+                request.family = static_cast<Family>(family);
+                request.seed = seed++;
+                request.previousExpressions = expressions;
+                TaskVersion task = Generator().generateTask(request);
+                task.title =
+                    names[family] + " · пример " + std::to_string(selectedTasks.size() + i + 1);
+                expressions.insert(task.parts.front().expression);
+                generated.push_back(task);
+            }
+            basketIndex = static_cast<int>(selectedTasks.size());
+            selectedTasks.insert(selectedTasks.end(), generated.begin(), generated.end());
+            refresh();
+        },
+        true);
+    note("Генератор создаёт новые условия. До запуска занятия их можно убрать из списка справа.", 0,
+         530, 580);
 }
 void LessonSetupScreen::adaptive() {
     heading("Программа выбирает задания", 0, 148, 25);
     text("Из опубликованного банка — по истории выбранного ученика. Сначала неизвестные "
          "или слабые навыки, затем закрепление. Учитываются сложность и повторения.",
          0, 202, 19, 570, 5);
-    note("Точный список появится по ходу решения. Здесь не создаются новые условия: "
-         "они берутся из банка по всем темам.", 0, 330, 570);
+    auto skills = context.school.skills();
+    std::vector<std::string> names = {"Все навыки"};
+    int selected = 0;
+    for (std::size_t i = 0; i < skills.size(); ++i) {
+        names.push_back(skills[i].name);
+        if (skills[i].id == skill)
+            selected = static_cast<int>(i + 1);
+    }
+    ListBox *scope = list(names, 0, 310, 570, 100);
+    scope->select(selected);
+    scope->onChange = [this, skills](int index) {
+        skill = index == 0 ? "" : skills[index - 1].id;
+        context.settings.targetSkills.clear();
+    };
     text("Сколько заданий пройти?", 0, 420, 19);
     TextField *count = field(amount, 0, 460, 100, 2);
     count->onChange = [this, count] { amount = count->getText(); };
@@ -207,7 +235,8 @@ void LessonSetupScreen::basket() {
     if (source == 2) {
         text("Автоматический подбор", 620, 137, 22, 320, 2);
         text("Состав занятия зависит от ответов ученика.\n\nВыбранные вручную задания сохраняются "
-             "в черновике, но в этот режим не входят.", 620, 210, 16, 320, 7);
+             "в черновике, но в этот режим не входят.",
+             620, 210, 16, 320, 7);
         return;
     }
     text("В занятии: " + std::to_string(selectedTasks.size()), 620, 137, 22, 320, 1);
@@ -223,7 +252,10 @@ void LessonSetupScreen::basket() {
     ListBox *selected = list(rows, 620, 180, 320, 200);
     selected->select(rows.empty() ? -1 : basketIndex);
     selected->onChange = [this](int index) {
-        defer([this, index] { basketIndex = index; refresh(); });
+        defer([this, index] {
+            basketIndex = index;
+            refresh();
+        });
     };
     note("Максимум: " + std::to_string(points) + " балл. Порядок — как в списке.", 620, 393, 320);
     if (!selectedTasks.empty()) {
@@ -238,8 +270,17 @@ void LessonSetupScreen::basket() {
 }
 void LessonSetupScreen::review() {
     if (source != 2 && selectedTasks.empty())
-        throw std::runtime_error("Добавьте задания: выберите их по теме или создайте новые примеры");
+        throw std::runtime_error(
+            "Добавьте задания: выберите их по теме или создайте новые примеры");
     context.settings.guided = false;
+    if (source != 2) {
+        context.settings.training = false;
+        context.settings.targetSkills.clear();
+    } else if (!skill.empty())
+        context.settings.targetSkills = {skill};
+    else if (context.settings.training && context.settings.targetSkills.empty())
+        for (const auto &item : context.school.skills())
+            context.settings.targetSkills.push_back(item.id);
     context.settings.mode = source == 2 ? SessionMode::Dynamic : SessionMode::Fixed;
     context.settings.taskLimit = source == 2 ? taskCount() : static_cast<int>(selectedTasks.size());
     clear();
@@ -247,7 +288,8 @@ void LessonSetupScreen::review() {
     text("Ученик: " + context.profileName, 0, 0, 22, 940, 1);
     text("Заданий: " + std::to_string(context.settings.taskLimit), 0, 55, 22);
     note(source == 2 ? "Автоподбор из банка по истории ученика."
-                      : "Все задания уже выбраны. Порядок показан слева.", 0, 100, 550);
+                     : "Все задания уже выбраны. Порядок показан слева.",
+         0, 100, 550);
     std::vector<std::string> rows;
     int generated = 0;
     for (const auto &task : selectedTasks) {
@@ -258,33 +300,53 @@ void LessonSetupScreen::review() {
     if (source != 2)
         list(rows, 0, 150, 550, 280);
     else
-        text("Первое задание будет выбрано при начале решения. Следующие — после завершения предыдущих.",
+        text("Первое задание будет выбрано при начале решения. Следующие — после завершения "
+             "предыдущих.",
              0, 180, 21, 550, 5);
     text("Когда показывать проверку?", 600, 150, 20, 340, 2);
-    ListBox *feedback = list({"Сразу после ответа", "После задания", "После всего занятия"},
-                             600, 213, 340, 120);
+    ListBox *feedback =
+        list({"Сразу после ответа", "После задания", "После всего занятия"}, 600, 213, 340, 120);
     feedback->select(static_cast<int>(context.settings.feedback));
-    feedback->onChange = [this](int value) { context.settings.feedback = static_cast<FeedbackPolicy>(value); };
+    feedback->onChange = [this](int value) {
+        context.settings.feedback = static_cast<FeedbackPolicy>(value);
+    };
     note("Шаги необязательны и доступны только для линейных уравнений.", 600, 440, 340);
-    note("Сразу — удобно для тренировки.\nПосле занятия — для самостоятельной работы.", 600, 363, 340);
+    std::string exitRule = context.settings.resumePolicy == ResumePolicy::ActiveTime
+                               ? "Можно поставить на паузу."
+                           : context.settings.resumePolicy == ResumePolicy::Deadline
+                               ? "После выхода время продолжает идти."
+                               : "После закрытия программы продолжение запрещено.";
+    note((context.settings.timeLimitSeconds
+              ? "Лимит: " + std::to_string(context.settings.timeLimitSeconds / 60) + " мин. "
+              : "Без лимита времени. ") +
+             exitRule,
+         0, 470, 550);
+    note("Сразу — удобно для тренировки.\nПосле занятия — для самостоятельной работы.", 600, 363,
+         340);
     if (generated > 0 && source != 2)
-        note("Новых примеров: " + std::to_string(generated) + ". При запуске они сохранятся в банке.",
-             0, 460, 550);
+        note("Новых примеров: " + std::to_string(generated) +
+                 ". При запуске они сохранятся в банке.",
+             0, 435, 550);
     note(context.role == UserRole::Teacher
              ? "После подготовки ученик войдёт в свой профиль и нажмёт «Продолжить занятие»."
-             : "Результаты сохранятся в вашем профиле.", 0, 515, 940);
+             : "Результаты сохранятся в вашем профиле.",
+         0, 515, 940);
+    button("Условия и шаблоны", 270, 580, 310, [this] { options(); });
     button("← Изменить состав", 0, 580, 250, [this] { refresh(); });
-    button(context.role == UserRole::Teacher ? "Подготовить для ученика →" : "Начать решение →",
-           600, 580, 340, [this] { start(); }, true);
+    button(
+        context.role == UserRole::Teacher ? "Подготовить для ученика →" : "Начать решение →", 600,
+        580, 340, [this] { start(); }, true);
 }
 void LessonSetupScreen::start(bool replace) {
     SessionRecord previous = context.school.latestLesson(context.profile);
     if (!previous.id.empty() && !previous.closed)
         for (const auto &attempt : context.school.lessonAttempts(previous.id))
             if (!attempt.finished)
-                throw std::runtime_error("Есть незавершённое занятие. Сначала продолжите его с главной.");
+                throw std::runtime_error(
+                    "Есть незавершённое занятие. Сначала продолжите его с главной.");
     if (!previous.id.empty() && !previous.closed && !replace) {
-        ask("У ученика уже есть занятие. Закрыть его и заменить новым? Сохранённые ответы останутся в истории.",
+        ask("У ученика уже есть занятие. Закрыть его и заменить новым? Сохранённые ответы "
+            "останутся в истории.",
             [this] { start(true); });
         return;
     }
@@ -313,7 +375,8 @@ void LessonSetupScreen::start(bool replace) {
         heading("Теперь можно начинать.", 0, 40, 36);
         text("Ученик: " + context.profileName, 0, 112, 24, 900, 1);
         text("Ученик выбирает свой профиль при входе, затем нажимает «Продолжить занятие». "
-             "Вы сможете увидеть результаты в кабинете.", 0, 175, 21, 850, 4);
+             "Вы сможете увидеть результаты в кабинете.",
+             0, 175, 21, 850, 4);
         button("В кабинет учителя →", 0, 320, 320, [this] { context.page = "home"; }, true);
     } else {
         context.current = context.school.next();

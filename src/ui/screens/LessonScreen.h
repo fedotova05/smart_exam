@@ -20,6 +20,8 @@ class LessonScreen : public Screen {
     LessonScreen(const sf::Font &font, AppContext &state)
         : Screen(font), context(state), partIndex(0), stepMode(false) {}
     void refresh();
+    void tick() override;
+    sf::Clock timer;
 };
 } // namespace ui
 } // namespace exam

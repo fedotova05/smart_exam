@@ -15,6 +15,8 @@ class LessonSetupScreen : public Screen {
     void adaptive();
     void basket();
     void review();
+    void options();
+    void templates();
     void start(bool replace = false);
     int taskCount() const;
 

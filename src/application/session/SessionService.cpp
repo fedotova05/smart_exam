@@ -63,8 +63,11 @@ NextTask SessionService::next(const std::string &id) {
         std::vector<std::string> history;
         for (const AttemptRecord &attempt : attempts)
             history.push_back(attempt.taskId);
-        Selection selected = selector->selectNext(store.snapshot(session.studentId),
-                                                  store.publishedTasks(), history);
+        auto candidates = session.settings.targetSkills.empty()
+                              ? store.publishedTasks()
+                              : TrainingService(store).scopedTasks(session.settings.targetSkills);
+        Selection selected =
+            selector->selectNext(store.snapshot(session.studentId), candidates, history);
         result.reason = selected.reason;
         if (!selected.found) {
             store.closeSession(id);
@@ -162,6 +165,8 @@ CheckResult SessionService::submitResponse(const ResponseRecord &input) {
 }
 void SessionService::requestHelp(const std::string &request, const std::string &attempt,
                                  const std::string &part, const std::string &kind) {
+    if (!store.session(store.attempt(attempt).sessionId).settings.helpAllowed)
+        throw std::runtime_error("В этом занятии подсказки отключены");
     store.requireSessionAccess(store.attempt(attempt).sessionId);
     store.addHelp(request, attempt, part, kind);
 }

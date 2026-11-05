@@ -58,6 +58,16 @@ void PackageScreen::refresh() {
             importAsync();
         },
         true);
+    button("О загрузке из ФИПИ", 660, 550, 280, [this] {
+        clear();
+        title = "Загрузка из ФИПИ пока недоступна";
+        text("05.11.2026: страница ФИПИ открывается, но запрос к банку ОГЭ завершился тайм-аутом.",
+             0, 30, 23, 900, 3);
+        note("Формат карточек и условия автоматической загрузки пока не подтверждены. Учебные "
+             "примеры приложения составлены отдельно.",
+             0, 170, 900);
+        button("← Локальные JSON-пакеты", 0, 350, 380, [this] { refresh(); });
+    });
 }
 void PackageScreen::waiting() {
     clear();
@@ -93,18 +103,22 @@ void PackageScreen::importAsync() {
         jobs.reset(new JobQueue(context.school.databasePath()));
     leave();
     inspecting = false;
+    auto access = context.school.teacherSession();
     auto source = package;
     auto skillMapping = mapping;
-    requestId = jobs->submit(screenId, [source, skillMapping](Store &store, JobContext &job) {
-        SchoolService school(store);
-        PackageService packages(school);
-        auto report = packages.importPackage(source, skillMapping, [&job] { job.checkpoint(); });
-        std::string text;
-        for (const auto &item : report)
-            text += item.id + " · " + (item.imported ? "Добавлено: " : "Пропущено: ") +
-                    item.message + "\n";
-        return text;
-    });
+    requestId =
+        jobs->submit(screenId, [source, skillMapping, access](Store &store, JobContext &job) {
+            store.useTeacherAccess(access);
+            SchoolService school(store);
+            PackageService packages(school);
+            auto report =
+                packages.importPackage(source, skillMapping, [&job] { job.checkpoint(); });
+            std::string text;
+            for (const auto &item : report)
+                text += item.id + " · " + (item.imported ? "Добавлено: " : "Пропущено: ") +
+                        item.message + "\n";
+            return text;
+        });
     waiting();
 }
 void PackageScreen::leave() {

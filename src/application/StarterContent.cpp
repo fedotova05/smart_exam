@@ -1,7 +1,9 @@
 #include "SchoolService.h"
 #include <set>
 namespace exam {
-void SchoolService::addStarterContent() {
+void SchoolService::addStarterContent(bool includeHistory) {
+    if (!storage.allTasks().empty())
+        return;
     const char *ids[] = {"fractions", "linear", "quadratic", "line_graph", "parabola_graph"};
     const char *names[] = {"Действия с дробями", "Линейные уравнения", "Квадратные уравнения",
                            "График прямой", "График параболы"};
@@ -63,9 +65,11 @@ void SchoolService::addStarterContent() {
                 task.parts.push_back(part);
             }
             storage.saveDraft(task);
-            publish(task.id);
+            storage.publish(task.id);
         }
     addTrainingContent();
+    if (!includeHistory)
+        return;
     addTrainingDemo();
     for (const auto &profile : storage.profiles())
         if (profile.first == "demo-student")

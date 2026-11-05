@@ -1,6 +1,7 @@
 #include "../Test.h"
 #include "../Fixture.h"
 #include "application/review/ReviewService.h"
+#include "application/SchoolService.h"
 #include "application/session/SessionService.h"
 #include "adaptation/Adaptation.h"
 #include "math/checkers/EquationChecker.h"
@@ -30,6 +31,7 @@ void testReview() {
     double otherBefore = store.snapshot("other").skills["linear"].rating;
     store.replayModels();
     REQUIRE(store.snapshot("other").skills["linear"].rating == otherBefore);
+    loginTeacherForTest(store);
     ReviewService review(store);
     ReviewVerdict verdict;
     verdict.requestId = "review";
@@ -87,4 +89,22 @@ void testReview() {
     review.revise(verdict);
     REQUIRE(store.attempt(current.attempt.id).score == 1);
     REQUIRE(!store.snapshot("student").skills["linear"].known);
+    SchoolService school(store);
+    REQUIRE(school.reviewItems("other", true).empty());
+    REQUIRE(school.reviewItems("student", true).size() == 1);
+    REQUIRE(school.reviewItems("student", false).size() == 2);
+    store.saveProfile("student", "=1+1;\"Мария\"\nстрока");
+    std::string csv = school.reportCsv("student", false);
+    REQUIRE(csv.substr(0, 3) == "\xEF\xBB\xBF");
+    REQUIRE(csv.find("\"'=1+1;\"\"Мария\"\"\nстрока\"") != std::string::npos);
+    REQUIRE(csv.find("Нужна проверка") != std::string::npos);
+    REQUIRE(csv.find("Второй ученик") == std::string::npos);
+    store.logoutTeacher();
+    bool denied = false;
+    try {
+        school.reportCsv("", false);
+    } catch (const std::runtime_error &) {
+        denied = true;
+    }
+    REQUIRE(denied);
 }

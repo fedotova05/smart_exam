@@ -11,7 +11,7 @@ std::vector<std::pair<std::string, std::string>> SchoolService::profiles() {
     return storage.profiles();
 }
 std::string SchoolService::createProfile(const std::string &name) {
-    if (name.empty() || name.size() > 120)
+    if (name.find_first_not_of(" \t\r\n") == std::string::npos || name.size() > 120)
         throw std::invalid_argument("Имя профиля: от 1 до 120 байтов");
     std::string id = newId("student");
     storage.saveProfile(id, name);
@@ -109,9 +109,11 @@ std::vector<std::string> SchoolService::validate(const TaskVersion &task) const 
     return errors;
 }
 void SchoolService::saveDraft(const TaskVersion &task) {
+    storage.requireTeacher();
     storage.saveDraft(task);
 }
 void SchoolService::publish(const std::string &id) {
+    storage.requireTeacher();
     TaskVersion task = storage.task(id);
     std::vector<std::string> errors = validate(task);
     if (!errors.empty())
@@ -121,6 +123,7 @@ void SchoolService::publish(const std::string &id) {
     storage.publish(id);
 }
 void SchoolService::archive(const std::string &id) {
+    storage.requireTeacher();
     storage.archive(id);
 }
 TaskVersion SchoolService::newVersion(const std::string &id) {
@@ -140,11 +143,13 @@ std::map<std::string, std::vector<std::string>> SchoolService::skillGraph() {
     return storage.skillGraph();
 }
 void SchoolService::saveTopic(const std::string &id, const std::string &name) {
+    storage.requireTeacher();
     if (id.empty() || name.empty())
         throw std::invalid_argument("Заполните код и название темы");
     storage.saveTopic(id, name);
 }
 void SchoolService::saveSkill(const SkillInfo &skill, const std::vector<std::string> &parents) {
+    storage.requireTeacher();
     if (skill.id.empty() || skill.name.empty())
         throw std::invalid_argument("Заполните код и название навыка");
     auto graph = storage.skillGraph();
@@ -153,6 +158,7 @@ void SchoolService::saveSkill(const SkillInfo &skill, const std::vector<std::str
     storage.saveSkillData(skill, parents);
 }
 void SchoolService::placeSkill(const std::string &id, Point point) {
+    storage.requireTeacher();
     storage.saveSkillPosition(id, point);
 }
 StudentSnapshot SchoolService::snapshot(const std::string &profile) {
@@ -359,6 +365,7 @@ void SchoolService::closeLesson() {
     storage.closeSession(activeSession);
 }
 void SchoolService::addSampleBank() {
+    storage.requireTeacher();
     storage.saveTopic("algebra", "Алгебра");
     const char *ids[] = {"fractions", "linear", "quadratic", "line_graph", "parabola_graph"};
     const char *names[] = {"Дроби", "Линейные уравнения", "Квадратные уравнения", "Прямая",
