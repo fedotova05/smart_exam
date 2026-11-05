@@ -1,6 +1,7 @@
 #include "PackageScreen.h"
 #include "ui/FileDialog.h"
 #include <algorithm>
+#include <sstream>
 namespace exam {
 namespace ui {
 void PackageScreen::refresh() {
@@ -18,16 +19,12 @@ void PackageScreen::refresh() {
         std::string selected = choosePackage(false);
         if (!selected.empty()) {
             path = selected;
-            package = context.packages.inspect(path);
-            mapping.clear();
-            refresh();
+            inspectAsync();
         }
     });
     button("Прочитать", 0, 112, 200, [this, file] {
         path = file->getText();
-        package = context.packages.inspect(path);
-        mapping.clear();
-        refresh();
+        inspectAsync();
     });
     button("Экспорт заданий", 700, 112, 240, [this] { exportView(); });
     std::vector<std::string> rows;
@@ -58,17 +55,62 @@ void PackageScreen::refresh() {
         [this] {
             if (package.items.empty())
                 throw std::runtime_error("Сначала прочитайте пакет");
-            auto report = context.packages.importPackage(package, mapping);
-            clear();
-            title = "Отчёт импорта";
-            std::vector<std::string> rows;
-            for (const auto &item : report)
-                rows.push_back(item.id + " · " + (item.imported ? "Добавлено: " : "Пропущено: ") +
-                               item.message);
-            list(rows, 0, 0, 940, 480);
-            button("К пакетам", 0, 550, 240, [this] { refresh(); });
+            importAsync();
         },
         true);
+}
+void PackageScreen::waiting() {
+    clear(); title="Обработка пакета";
+    text("Операция выполняется. Можно отменить её или перейти на другую страницу.",0,20,22,900,3);
+    note("Уже сохранённые черновики остаются в банке даже после отмены.",0,130,900);
+    button("Отменить",0,230,240,[this] { jobs->cancel(requestId); status="Отмена запрошена"; });
+}
+void PackageScreen::inspectAsync() {
+    if (!jobs) jobs.reset(new JobQueue(context.school.databasePath()));
+    leave(); inspecting=true;
+    pendingPreview.reset(new PackagePreview);
+    auto output=pendingPreview;
+    std::string filePath=path;
+    requestId=jobs->submit(screenId,[filePath,output](Store &store,JobContext &job) {
+        SchoolService school(store); PackageService packages(school);
+        job.checkpoint(); *output=packages.inspect(filePath); job.checkpoint();
+        return std::string("Пакет прочитан");
+    });
+    waiting();
+}
+void PackageScreen::importAsync() {
+    if (!jobs) jobs.reset(new JobQueue(context.school.databasePath()));
+    leave(); inspecting=false;
+    auto source=package; auto skillMapping=mapping;
+    requestId=jobs->submit(screenId,[source,skillMapping](Store &store,JobContext &job) {
+        SchoolService school(store); PackageService packages(school);
+        auto report=packages.importPackage(source,skillMapping,[&job] { job.checkpoint(); });
+        std::string text;
+        for (const auto &item : report)
+            text+=item.id+" · "+(item.imported ? "Добавлено: " : "Пропущено: ")+item.message+"\n";
+        return text;
+    });
+    waiting();
+}
+void PackageScreen::leave() {
+    if (jobs) jobs->leaveScreen(screenId);
+    ++screenId; requestId=0; pendingPreview.reset();
+}
+void PackageScreen::tick() {
+    if (!jobs || !requestId) return;
+    JobResult result;
+    if (!jobs->poll(screenId,result) || result.id!=requestId) return;
+    requestId=0;
+    if (!result.success) { refresh(); status=result.text; return; }
+    if (inspecting) {
+        package=*pendingPreview; pendingPreview.reset(); mapping.clear(); refresh(); status=result.text;
+    } else {
+        clear(); title="Отчёт импорта";
+        std::vector<std::string> rows; std::istringstream input(result.text); std::string row;
+        while (std::getline(input,row)) rows.push_back(row);
+        list(rows,0,0,940,480);
+        button("К пакетам",0,550,240,[this] { refresh(); });
+    }
 }
 void PackageScreen::exportView() {
     clear();

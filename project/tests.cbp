@@ -38,6 +38,7 @@
     </Compiler>
     <Unit filename="../src/adaptation/Adaptation.h" />
     <Unit filename="../src/application/Demo.h" />
+    <Unit filename="../src/application/jobs/JobQueue.h" />
     <Unit filename="../src/application/review/ReviewService.h" />
     <Unit filename="../src/application/SchoolService.h" />
     <Unit filename="../src/application/session/SessionService.h" />
@@ -58,6 +59,7 @@
     <Unit filename="../src/storage/Store.h" />
     <Unit filename="../src/adaptation/Adaptation.cpp" />
     <Unit filename="../src/application/Demo.cpp" />
+    <Unit filename="../src/application/jobs/JobQueue.cpp" />
     <Unit filename="../src/application/SchoolService.cpp" />
     <Unit filename="../src/application/session/SessionService.cpp" />
     <Unit filename="../src/application/StarterContent.cpp" />
@@ -81,6 +83,7 @@
     <Unit filename="../tests/Fixture.h" />
     <Unit filename="../tests/generation/GeneratorTests.cpp" />
     <Unit filename="../tests/interface/InterfaceTests.cpp" />
+    <Unit filename="../tests/jobs/JobTests.cpp" />
     <Unit filename="../tests/main.cpp" />
     <Unit filename="../tests/math/ParserTests.cpp" />
     <Unit filename="../tests/recovery/RecoveryTests.cpp" />

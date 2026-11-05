@@ -168,10 +168,12 @@ AttemptResult SessionService::finishAttempt(const std::string &id) {
         evidence.push_back(item);
     }
     std::vector<Observation> observations;
+    Row revision=store.learningRevision();
     // Возврат к разобранному условию приносит баллы, но не новое независимое наблюдение.
     if (learning && store.trainingStep(id).stage != "return")
-        observations = learning->observe(store.attemptSnapshot(id), evidence, task.difficulty);
-    store.finish(id, score, provisional, observations);
+        observations = learning->observe(store.snapshot(store.session(attempt.sessionId).studentId),
+                                          evidence, store.taskRating(task.id));
+    store.finish(id, score, provisional, observations, revision);
     return result(id);
 }
 AttemptResult SessionService::result(const std::string &id) {

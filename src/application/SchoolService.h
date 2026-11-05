@@ -32,6 +32,7 @@ class SchoolService {
 
   public:
     explicit SchoolService(Store &store) : storage(store), checker(geometry) {}
+    const std::string &databasePath() const { return storage.path(); }
     std::vector<std::pair<std::string, std::string>> profiles();
     std::string createProfile(const std::string &name);
     std::vector<TaskVersion> tasks();

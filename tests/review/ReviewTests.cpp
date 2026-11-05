@@ -21,6 +21,8 @@ void testReview() {
     }
     auto original=store.attemptSnapshot("review-1:0");
     double otherBefore=store.snapshot("other").skills["linear"].rating;
+    store.replayModels();
+    REQUIRE(store.snapshot("other").skills["linear"].rating==otherBefore);
     ReviewService review(store); ReviewVerdict verdict;
     verdict.requestId="review"; verdict.attemptId="review-0:0"; verdict.partId="answer";
     verdict.reviewer="KChernmo"; verdict.reason="Исправление ошибочного автоматического вердикта";

@@ -4,10 +4,15 @@
 #include <stdexcept>
 #include <set>
 #include <cmath>
+#include <sstream>
+#include <iomanip>
 namespace exam {
 namespace {
 std::string number(int value) {
     return std::to_string(value);
+}
+std::string decimal(double value) {
+    std::ostringstream result; result << std::setprecision(17) << value; return result.str();
 }
 void require(bool condition, const std::string &message) {
     if (!condition)
@@ -42,7 +47,8 @@ ResponseRecord readResponse(const Row &row) {
 const std::string responseColumns =
     "request_id,attempt_id,part_id,text,graph,status,message,is_final,operation,operand";
 } // namespace
-Store::Store(const std::string &path, const std::string &migrations) : db(path), runtimeId(newId("run")) {
+Store::Store(const std::string &path, const std::string &migrations)
+    : db(path), runtimeId(newId("run")), databasePath(path) {
     db.migrate(migrations);
 }
 void Store::saveProfile(const std::string &id, const std::string &name) {
@@ -351,32 +357,41 @@ bool Store::usedHelp(const std::string &id, const std::string &part) {
                 .empty();
 }
 void Store::finish(const std::string &id, int score, bool provisional,
-                   const std::vector<Observation> &observations) {
+                   const std::vector<Observation> &observations, const Row &expectedRevision) {
     Transaction transaction(db);
     AttemptRecord a = attempt(id);
     if (a.finished) {
         transaction.commit();
         return;
     }
+    require(expectedRevision.empty() || expectedRevision==modelRevision(),
+            "История изменилась во время расчёта; повторите завершение задания");
     std::string student = session(a.sessionId).studentId;
     for (const Observation &o : observations) {
         db.query("INSERT INTO observations VALUES(?,?,?,?,?,?,?,?,?)",
                  {id, o.skill, number(o.correct), number(o.eligible),
-                  std::to_string(o.before.mastery), std::to_string(o.before.rating),
+                  decimal(o.before.mastery), decimal(o.before.rating),
                   number(o.before.known), number(o.before.observations), "bkt-elo-1"});
         if (o.eligible)
             db.query("INSERT INTO student_skills VALUES(?,?,?,?,?) ON "
                      "CONFLICT(student_id,skill_id) DO UPDATE SET "
                      "mastery=excluded.mastery,rating=excluded.rating,observations=excluded."
                      "observations",
-                     {student, o.skill, std::to_string(o.after.mastery),
-                      std::to_string(o.after.rating), number(o.after.observations)});
+                     {student, o.skill, decimal(o.after.mastery),
+                      decimal(o.after.rating), number(o.after.observations)});
     }
     db.query("UPDATE attempts SET finished=1,score=?,provisional=? WHERE id=?",
              {number(score), number(provisional), id});
     db.query("INSERT INTO learning_events(attempt_id,has_model) VALUES(?,?)",
              {id,number(!observations.empty())});
-    replayModelsInTransaction();
+    double change=0; int count=0;
+    for (const auto &o : observations)
+        if (o.eligible) { change+=o.after.rating-o.before.rating; ++count; }
+    if (count) {
+        double difficulty=std::max(0.0,std::min(3000.0,taskRating(a.taskId)-change/count));
+        db.query("INSERT INTO task_ratings VALUES(?,?) ON CONFLICT(task_id) DO UPDATE SET rating=excluded.rating",
+                 {a.taskId,decimal(difficulty)});
+    }
     transaction.commit();
 }
 StudentSnapshot Store::snapshot(const std::string &student) {

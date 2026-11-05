@@ -21,6 +21,8 @@ class Screen : public sf::Drawable, public sf::Transformable {
     std::string title, status;
     explicit Screen(const sf::Font &face) : headingFont(&face), focus(-1), font(face) {}
     virtual ~Screen() {}
+    virtual void tick() {}
+    virtual void leave() {}
     void clear();
     void setHeadingFont(const sf::Font &face) {
         headingFont = &face;

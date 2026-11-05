@@ -116,7 +116,8 @@ PackagePreview PackageService::inspect(const std::string &path) const {
 }
 std::vector<ImportReport>
 PackageService::importPackage(const PackagePreview &package,
-                              const std::map<std::string, std::string> &mapping) {
+                              const std::map<std::string, std::string> &mapping,
+                              const std::function<void()> &checkpoint) {
     std::set<std::string> known, existing;
     for (const SkillInfo &skill : school.skills())
         known.insert(skill.id);
@@ -129,6 +130,7 @@ PackageService::importPackage(const PackagePreview &package,
         existing.insert(task.id);
     std::vector<ImportReport> report;
     for (const PackageItem &item : package.items) {
+        if (checkpoint) checkpoint();
         ImportReport row;
         row.id = item.sourceId;
         row.imported = false;

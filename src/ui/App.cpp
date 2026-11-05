@@ -70,6 +70,7 @@ void App::buildNavigation() {
     }
 }
 void App::show(const std::string &requested) {
+    if (current) current->leave();
     window.setActive(true);
     std::string name = canOpen(context.role, requested) ? requested : "welcome";
     if (name == "welcome") {
@@ -328,6 +329,8 @@ int App::run(bool smoke, bool capture, bool widgets) {
         }
         if (!window.isOpen())
             break;
+        try { current->tick(); }
+        catch (const std::exception &error) { current->status=error.what(); }
         draw();
         if (smoke && clock.getElapsedTime().asSeconds() > 1)
             window.close();
