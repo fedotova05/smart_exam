@@ -258,6 +258,8 @@ AttemptRecord Store::openAttempt(const std::string &sessionId, int position,
         {id, s.studentId});
     if (step)
         db.query("INSERT INTO training_steps VALUES(?,?,?,?)", {id, step->origin, step->stage, step->skill});
+    db.query("INSERT INTO attempt_models SELECT ?,version,initial,learn,slip,guess,k "
+             "FROM model_parameters WHERE version='bkt-elo-1'", {id});
     transaction.commit();
     return attempt(id);
 }
@@ -372,6 +374,9 @@ void Store::finish(const std::string &id, int score, bool provisional,
     }
     db.query("UPDATE attempts SET finished=1,score=?,provisional=? WHERE id=?",
              {number(score), number(provisional), id});
+    db.query("INSERT INTO learning_events(attempt_id,has_model) VALUES(?,?)",
+             {id,number(!observations.empty())});
+    replayModelsInTransaction();
     transaction.commit();
 }
 StudentSnapshot Store::snapshot(const std::string &student) {

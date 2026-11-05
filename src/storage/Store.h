@@ -43,9 +43,15 @@ struct SessionTime {
     std::string message;
     SessionTime() : allowed(true), paused(false), remainingSeconds(-1) {}
 };
+struct ReviewVerdict {
+    std::string requestId, attemptId, partId, reviewer, reason;
+    CheckStatus status;
+    ReviewVerdict() : status(CheckStatus::Incomplete) {}
+};
 class Store {
     Database db;
     std::string runtimeId;
+    void replayModelsInTransaction();
 
   public:
     explicit Store(const std::string &path, const std::string &migrations = "db/migrations");
@@ -104,6 +110,10 @@ class Store {
     void saveAnswerDraft(const std::string &attempt, const std::string &part,
                          const AnswerPayload &answer);
     std::map<std::string, AnswerPayload> answerDrafts(const std::string &attempt);
+    void reviewPart(const ReviewVerdict &verdict);
+    std::vector<ReviewVerdict> reviewHistory(const std::string &attempt);
+    void replayModels();
+    double taskRating(const std::string &task);
 };
 } // namespace exam
 #endif

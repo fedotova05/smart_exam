@@ -20,4 +20,5 @@ void testJsonPackages();
 void testSchool();
 void testTraining();
 void testRecovery();
+void testReview();
 #endif

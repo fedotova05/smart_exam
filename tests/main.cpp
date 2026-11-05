@@ -34,6 +34,8 @@ int main() {
         std::cout << "OK: scoped training, diagnosis, return, resume and fixed assessment\n";
         testRecovery();
         std::cout << "OK: templates, drafts, restart and time policies\n";
+        testReview();
+        std::cout << "OK: review history, BKT and shared Elo replay\n";
         std::cout << "All test groups passed\n";
         return 0;
     } catch (const std::exception &error) {
