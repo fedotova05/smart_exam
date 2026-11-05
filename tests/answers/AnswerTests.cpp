@@ -6,6 +6,7 @@ using namespace exam;
 void testAnswers() {
     Store store(":memory:");
     prepareBank(store);
+    loginTeacherForTest(store);
     SchoolService school(store);
     UnavailableGraphChecker graph;
     EquationChecker checker(graph);

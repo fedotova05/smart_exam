@@ -71,8 +71,9 @@ std::vector<std::string> TrainingService::failedSkills(const std::string &attemp
 bool TrainingService::canSupport(const std::string &id) {
     auto attempt = store.attempt(id);
     auto lesson = store.session(attempt.sessionId);
-    return lesson.settings.training && !lesson.closed && store.supportOrigin(lesson.id).empty() &&
-           store.trainingStep(id).stage.empty() && !failedSkills(id).empty();
+    return lesson.settings.training && lesson.settings.diagnosisAllowed && !lesson.closed &&
+           store.supportOrigin(lesson.id).empty() && store.trainingStep(id).stage.empty() &&
+           !failedSkills(id).empty();
 }
 void TrainingService::beginSupport(const std::string &id) {
     if (!canSupport(id))

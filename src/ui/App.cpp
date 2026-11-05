@@ -78,6 +78,7 @@ void App::show(const std::string &requested) {
     std::string name = canOpen(context.role, requested) ? requested : "welcome";
     if (name == "welcome") {
         context.selectProfile("", "");
+        context.school.logoutTeacher();
         context.role = UserRole::Guest;
     }
     page = name;
@@ -172,7 +173,7 @@ int App::run(bool smoke, bool capture, bool widgets) {
         show("welcome");
         save("welcome");
         context.role = UserRole::Student;
-        context.selectProfile("demo-student", "Демонстрация");
+        context.selectProfile("demo-check", "Демонстрация");
         show("home");
         save("home");
         show("practice");
@@ -184,7 +185,7 @@ int App::run(bool smoke, bool capture, bool widgets) {
         context.selectProfile("demo-training", "Демонстрация: разбор ошибки");
         show("knowledge");
         save("training-skill-map");
-        context.selectProfile("demo-student", "Демонстрация");
+        context.selectProfile("demo-check", "Демонстрация");
         show("setup");
         save("setup-bank");
         click(230, 90);
@@ -226,6 +227,10 @@ int App::run(bool smoke, bool capture, bool widgets) {
         save("progress-one-answer");
         show("results");
         save("results");
+        if (!context.school.hasTeacherPassword())
+            context.school.setTeacherPassword("capture-password");
+        if (!context.school.loginTeacher("capture-password"))
+            throw std::runtime_error("Capture login failed");
         context.role = UserRole::Teacher;
         show("home");
         save("teacher");
@@ -258,7 +263,7 @@ int App::run(bool smoke, bool capture, bool widgets) {
         show("welcome");
         save("welcome-1024");
         context.role = UserRole::Student;
-        context.selectProfile("demo-student", "Демонстрация");
+        context.selectProfile("demo-check", "Демонстрация");
         show("setup");
         save("setup-1024");
         show("progress");
@@ -266,7 +271,7 @@ int App::run(bool smoke, bool capture, bool widgets) {
         window.setSize(sf::Vector2u(1600, 900));
         resize(1600, 900);
         context.role = UserRole::Student;
-        context.selectProfile("demo-student", "Демонстрация");
+        context.selectProfile("demo-check", "Демонстрация");
         show("home");
         save("home-1600");
         show("setup");

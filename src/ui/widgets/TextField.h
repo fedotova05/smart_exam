@@ -7,6 +7,10 @@ class TextField : public Widget {
     sf::String value, placeholder;
     std::size_t cursor, maximum;
     bool selectedAll;
+    bool password = false;
+    sf::String displayed() const {
+        return password ? sf::String(std::string(value.getSize(), '*')) : value;
+    }
     mutable sf::RenderTexture canvas;
     mutable float scroll;
     void changed();
@@ -15,6 +19,9 @@ class TextField : public Widget {
   public:
     std::function<void()> onChange, onEnter;
     TextField(const sf::Font &font, float width = 250, std::size_t limit = 512);
+    void setPassword(bool enabled) {
+        password = enabled;
+    }
     void setText(const std::string &text);
     std::string getText() const {
         return utf8(value);

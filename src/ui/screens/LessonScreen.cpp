@@ -38,7 +38,12 @@ void LessonScreen::route() {
     surface(-156, 455, 140, 1, Theme::line);
     text(std::to_string(completed) + " из " + std::to_string(total), -156, 477, 23, 140, 1);
     note("заданий завершено", -156, 515, 140);
-    button("К занятию", -156, 574, 140, [this] { context.page = "home"; });
+    button(lesson.settings.resumePolicy == ResumePolicy::ActiveTime ? "Пауза" : "К занятию", -156,
+           574, 140, [this, lesson] {
+               if (!lesson.closed && lesson.settings.resumePolicy == ResumePolicy::ActiveTime)
+                   context.school.pauseLesson();
+               context.page = "home";
+           });
 }
 void LessonScreen::send(bool finalAnswer, const std::string &operation,
                         const std::string &operand) {
@@ -267,16 +272,24 @@ void LessonScreen::refresh() {
     list(history, 630, 443, 310, 98);
     if (graphPart)
         button("Отправить ответ", 0, 566, 230, [this] { send(true); }, true);
-    button("Нужна подсказка?", graphPart ? 245 : 0, 574, 180, [this, part] {
-        context.school.help(attempt, part.id);
-        status = part.kind == PartKind::Equation
-                     ? "Выполняйте одно действие с обеими частями уравнения. Подставьте найденные "
-                       "корни для проверки."
-                 : part.kind == PartKind::Expression
-                     ? "Сначала действия в скобках, затем умножение и деление."
-                     : "Прямая задаётся двумя различными точками; у параболы коэффициент a не "
-                       "равен нулю.";
-    });
+    Button *hint = button(
+        context.settings.helpAllowed ? "Нужна подсказка?" : "Без подсказок", graphPart ? 245 : 0,
+        574, 180, [this, part] {
+            context.school.help(attempt, part.id);
+            status =
+                part.kind == PartKind::Equation
+                    ? "Для квадратного уравнения используйте D = b² − 4ac. Подставьте найденные "
+                      "корни для проверки. Для линейного выполняйте одно действие с обеими частями."
+                : (part.kind == PartKind::Expression || part.kind == PartKind::Number)
+                    ? "Сначала действия в скобках, затем умножение и деление."
+                : part.kind == PartKind::Choice ? "Проверьте каждый вариант отдельно. В ответе "
+                                                  "нужны номера всех верных вариантов."
+                : part.kind == PartKind::Polynomial
+                    ? "Раскройте скобки, затем сложите коэффициенты при одинаковых степенях x."
+                    : "Прямая задаётся двумя различными точками; у параболы коэффициент a не "
+                      "равен нулю.";
+        });
+    hint->setEnabled(context.settings.helpAllowed);
     if (!task.resources.empty())
         button("Рисунки", 415, 566, 185, [this] { resources(0); });
     button("Завершить задание →", 630, 574, 310, [this] {

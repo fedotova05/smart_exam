@@ -4,14 +4,14 @@
 #include <stdexcept>
 namespace exam {
 namespace ui {
-std::string choosePackage(bool save) {
+static std::string chooseFile(bool save, bool csv) {
     wchar_t path[32768] = {0};
     OPENFILENAMEW dialog = {};
     dialog.lStructSize = sizeof(dialog);
-    dialog.lpstrFilter = L"JSON (*.json)\0*.json\0";
+    dialog.lpstrFilter = csv ? L"CSV (*.csv)\0*.csv\0" : L"JSON (*.json)\0*.json\0";
     dialog.lpstrFile = path;
     dialog.nMaxFile = 32768;
-    dialog.lpstrDefExt = L"json";
+    dialog.lpstrDefExt = csv ? L"csv" : L"json";
     dialog.Flags =
         OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST | (save ? OFN_OVERWRITEPROMPT : OFN_FILEMUSTEXIST);
     BOOL selected = save ? GetSaveFileNameW(&dialog) : GetOpenFileNameW(&dialog);
@@ -25,6 +25,12 @@ std::string choosePackage(bool save) {
     WideCharToMultiByte(CP_UTF8, 0, path, -1, &result[0], size, 0, 0);
     result.resize(size - 1);
     return result;
+}
+std::string choosePackage(bool save) {
+    return chooseFile(save, false);
+}
+std::string chooseCsv() {
+    return chooseFile(true, true);
 }
 } // namespace ui
 } // namespace exam

@@ -11,9 +11,17 @@ int main(int argc, char **argv) {
     std::string option = argc > 1 ? argv[1] : "";
     try {
         exam::makeDirectories("data");
-        exam::Store store(option == "--capture" ? ":memory:" : "data/smart_exam.db");
+        if (option == "--create-demo" && exam::fileExists("data/demo-preview.db"))
+            throw std::runtime_error("data/demo-preview.db уже существует");
+        exam::Store store(option == "--capture"       ? ":memory:"
+                          : option == "--create-demo" ? "data/demo-preview.db"
+                                                      : "data/smart_exam.db");
         exam::SchoolService school(store);
-        school.addStarterContent();
+        school.addDemonstrationCourse();
+        if (option == "--create-demo") {
+            std::cout << "Demo database created: " << school.tasks().size() << " tasks\n";
+            return 0;
+        }
         exam::ui::App app(school);
         return app.run(option == "--smoke", option == "--capture", option == "--widgets");
     } catch (const std::exception &error) {

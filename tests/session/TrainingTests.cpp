@@ -38,6 +38,7 @@ void testTraining() {
         }
         for (std::size_t i = 0; i + 1 < chain.size(); ++i)
             store.setPrerequisites(chain[i], {chain[i + 1]});
+        loginTeacherForTest(store);
         SchoolService school(store);
         school.startTopics("student", {"root"}, true, 1);
         NextTask current = school.next();
@@ -85,6 +86,7 @@ void testTraining() {
     std::string profile, original, interrupted;
     {
         Store store(path);
+        loginTeacherForTest(store);
         SchoolService school(store);
         school.addStarterContent();
         auto demo = school.history("demo-training");
@@ -131,6 +133,7 @@ void testTraining() {
     }
     {
         Store store(path);
+        loginTeacherForTest(store);
         SchoolService school(store);
         REQUIRE(school.resume(profile));
         NextTask current = school.next();
@@ -199,6 +202,7 @@ void testTraining() {
     std::remove(path.c_str());
     {
         Store store(":memory:");
+        loginTeacherForTest(store);
         SchoolService school(store);
         school.addStarterContent();
         std::string learner = school.createProfile("Ограничение повторов");
@@ -230,6 +234,7 @@ void testTraining() {
     {
         Store upgraded(migration);
         REQUIRE(upgraded.profiles()[0].first == "old");
+        loginTeacherForTest(upgraded);
         SchoolService school(upgraded);
         school.addStarterContent();
         REQUIRE(school.task("course-coefficients-1").parts[0].displayExpression == "2*x^2-3*x-2=0");

@@ -21,6 +21,11 @@ struct LessonProgress {
         : totalTasks(0), finishedTasks(0), score(0), maximumScore(0), hidden(false),
           provisional(false) {}
 };
+struct ReviewItem {
+    std::string student, studentName, lesson, attempt, task, title, part;
+    CheckStatus automatic, effective;
+    bool reviewed;
+};
 class SchoolService {
     Store &storage;
     GeometryChecker geometry;
@@ -29,9 +34,35 @@ class SchoolService {
     std::unique_ptr<SessionService> session;
     std::string activeSession;
     void prepareSession();
+    void addTrainingContent();
+    void addTrainingDemo();
 
   public:
     explicit SchoolService(Store &store) : storage(store), checker(geometry) {}
+    bool hasTeacherPassword() {
+        return storage.hasTeacherPassword();
+    }
+    void setTeacherPassword(const std::string &password) {
+        storage.setTeacherPassword(password);
+    }
+    bool loginTeacher(const std::string &password) {
+        return storage.loginTeacher(password);
+    }
+    void logoutTeacher() {
+        storage.logoutTeacher();
+    }
+    void requireTeacher() const {
+        storage.requireTeacher();
+    }
+    std::shared_ptr<TeacherAccess> teacherSession() const {
+        return storage.teacherSession();
+    }
+    void archiveProfile(const std::string &id, bool archived) {
+        storage.archiveProfile(id, archived);
+    }
+    std::vector<std::pair<std::string, std::string>> archivedProfiles() {
+        return storage.archivedProfiles();
+    }
     const std::string &databasePath() const {
         return storage.path();
     }
@@ -52,6 +83,11 @@ class SchoolService {
     void placeSkill(const std::string &id, Point point);
     StudentSnapshot snapshot(const std::string &profile);
     std::vector<HistoryEntry> history(const std::string &profile);
+    std::vector<ReviewItem> reviewItems(const std::string &student = "", bool pendingOnly = true);
+    std::vector<ReviewVerdict> reviewHistory(const std::string &attempt);
+    std::vector<ResponseRecord> reviewResponses(const std::string &attempt);
+    void revise(const ReviewVerdict &verdict);
+    std::string reportCsv(const std::string &student, bool pendingOnly);
     SessionRecord latestLesson(const std::string &profile);
     std::vector<AttemptRecord> lessonAttempts(const std::string &lesson);
     LessonProgress progress(const std::string &profile);
@@ -66,6 +102,23 @@ class SchoolService {
     void help(const std::string &attempt, const std::string &part);
     AttemptResult finish(const std::string &attempt);
     void closeLesson();
+    SessionTime lessonTime() {
+        return storage.sessionTime(activeSession);
+    }
+    void pauseLesson() {
+        storage.pauseSession(activeSession);
+    }
+    void continueLesson() {
+        storage.resumeSession(activeSession);
+    }
+    std::vector<LessonTemplate> lessonTemplates() {
+        storage.requireTeacher();
+        return storage.lessonTemplates();
+    }
+    void saveTemplate(const LessonTemplate &value) {
+        storage.requireTeacher();
+        storage.saveTemplate(value);
+    }
     void saveAnswerDraft(const std::string &attempt, const std::string &part,
                          const AnswerPayload &answer) {
         storage.saveAnswerDraft(attempt, part, answer);
@@ -74,9 +127,8 @@ class SchoolService {
         return storage.answerDrafts(attempt);
     }
     void addSampleBank();
-    void addStarterContent();
-    void addTrainingContent();
-    void addTrainingDemo();
+    void addStarterContent(bool includeHistory = true);
+    void addDemonstrationCourse();
     void startTopics(const std::string &profile, const std::vector<std::string> &skills,
                      bool training, int count);
     bool canSupport(const std::string &attempt);

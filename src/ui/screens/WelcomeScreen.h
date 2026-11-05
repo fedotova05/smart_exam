@@ -7,6 +7,7 @@ namespace ui {
 class WelcomeScreen : public Screen {
     AppContext &context;
     void profiles();
+    void teacherLogin();
     void enter(const std::string &id, const std::string &name);
 
   public:

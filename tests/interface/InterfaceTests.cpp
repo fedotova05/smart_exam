@@ -102,6 +102,7 @@ void testJsonPackages() {
     makeDirectories(folder + "/target");
     Store first(":memory:");
     prepareBank(first);
+    loginTeacherForTest(first);
     SchoolService school(first);
     TaskVersion task = graphTask();
     task.parts[0].displayExpression = "x^2=4";
@@ -113,6 +114,7 @@ void testJsonPackages() {
     exporter.exportPackage(folder + "/export/tasks.json", {task.id});
     Store second(":memory:");
     prepareBank(second);
+    loginTeacherForTest(second);
     SchoolService target(second);
     PackageService importer(target, folder + "/target");
     PackagePreview preview = importer.inspect(folder + "/export/tasks.json");
@@ -145,6 +147,7 @@ void testJsonPackages() {
 void testSchool() {
     {
         Store progressStore(":memory:");
+        loginTeacherForTest(progressStore);
         SchoolService school(progressStore);
         school.addStarterContent();
         const std::string student = school.createProfile("Проверка прогресса");
@@ -195,6 +198,7 @@ void testSchool() {
             maximum += part.maxScore;
         REQUIRE(school.progress(student).maximumScore == maximum);
         // Настройки восстанавливаются при возвращении в другой профиль.
+        loginTeacherForTest(progressStore);
         SchoolService reopened(progressStore);
         REQUIRE(reopened.resume(student));
         REQUIRE(reopened.latestLesson(student).settings.feedback == FeedbackPolicy::AfterSet);
@@ -202,6 +206,7 @@ void testSchool() {
     }
     {
         Store demoStore(":memory:");
+        loginTeacherForTest(demoStore);
         SchoolService demo(demoStore);
         demo.addStarterContent();
         auto taskCount = demo.tasks().size();
@@ -218,6 +223,7 @@ void testSchool() {
     }
     Store store(":memory:");
     prepareBank(store);
+    loginTeacherForTest(store);
     SchoolService school(store);
     TaskVersion task = graphTask();
     school.saveDraft(task);

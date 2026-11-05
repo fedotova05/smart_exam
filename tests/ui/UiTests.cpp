@@ -116,6 +116,7 @@ int main() {
         REQUIRE(GeometryChecker().check(line, graph.getAnswer()).status == CheckStatus::Correct);
         Store store(":memory:");
         prepareBank(store);
+        loginTeacherForTest(store);
         SchoolService school(store);
         school.addStarterContent();
         AppContext context(school);
@@ -132,6 +133,11 @@ int main() {
         welcome.refresh();
         capture(welcome, "entry-screen");
         click(welcome, 570, 395);
+        REQUIRE(context.role == UserRole::Guest);
+        capture(welcome, "teacher-login");
+        click(welcome, 20, 190);
+        type(welcome, "test-password");
+        click(welcome, 30, 365);
         REQUIRE(context.role == UserRole::Teacher);
         REQUIRE(context.profile.empty());
         REQUIRE(canOpen(context.role, "bank"));
@@ -156,6 +162,7 @@ int main() {
         BankScreen bank(font, context);
         bank.refresh();
         REQUIRE(bank.title == "Банк заданий доступен учителю");
+        loginTeacherForTest(store);
         context.role = UserRole::Teacher;
         bank.refresh();
         click(bank, 300, 465);
@@ -221,6 +228,7 @@ int main() {
         PackageScreen packages(font, context);
         packages.refresh();
         REQUIRE(packages.title == "Учебные пакеты доступны учителю");
+        loginTeacherForTest(store);
         context.role = UserRole::Teacher;
         packages.refresh();
         capture(packages, "packages-screen");
@@ -228,7 +236,8 @@ int main() {
         home.refresh();
         click(home, 60, 340);
         REQUIRE(context.page == "practice");
-        school.start(context.profile, SessionSettings(), {"intro-fractions", "intro-linear", "intro-parabola"});
+        school.start(context.profile, SessionSettings(),
+                     {"intro-fractions", "intro-linear", "intro-parabola"});
         home.refresh();
         click(home, 60, 340);
         REQUIRE(context.page == "lesson" && context.current.available);
@@ -253,7 +262,8 @@ int main() {
         click(lesson, 50, 340);
         type(lesson, "4");
         click(lesson, 470, 340);
-        REQUIRE(school.responses(context.current.attempt.id).back().result.status == CheckStatus::Incomplete);
+        REQUIRE(school.responses(context.current.attempt.id).back().result.status ==
+                CheckStatus::Incomplete);
         REQUIRE(school.finish(context.current.attempt.id).score == 1);
         school.closeLesson();
         // Поле шага не заменяет итоговый ответ; выбранное действие действительно проверяется.
@@ -271,13 +281,15 @@ int main() {
         click(lesson, 650, 370);
         type(lesson, "3");
         click(lesson, 770, 370);
-        REQUIRE(school.responses(context.current.attempt.id).back().result.status == CheckStatus::Correct);
+        REQUIRE(school.responses(context.current.attempt.id).back().result.status ==
+                CheckStatus::Correct);
         REQUIRE(context.drafts["a"].text == "4");
         click(lesson, 470, 340);
         REQUIRE(school.responses(context.current.attempt.id).back().finalAnswer);
         REQUIRE(school.finish(context.current.attempt.id).score == 1);
         school.closeLesson();
         // Поиск по теме/названию и сборка занятия без записи черновиков до старта.
+        loginTeacherForTest(store);
         context.role = UserRole::Teacher;
         LessonSetupScreen setup(font, context);
         setup.refresh();
@@ -300,9 +312,30 @@ int main() {
         REQUIRE(setup.title == "Проверьте занятие");
         REQUIRE(context.settings.taskLimit == 4);
         REQUIRE(!context.settings.guided);
+        click(setup, 300, 595);
+        REQUIRE(setup.title == "Условия занятия");
+        click(setup, 30, 60);
+        key(setup, sf::Keyboard::A, true);
+        type(setup, "5");
+        click(setup, 620, 245);
+        type(setup, "Пять минут");
+        click(setup, 620, 310);
+        REQUIRE(school.lessonTemplates().size() == 1);
+        REQUIRE(school.lessonTemplates()[0].settings.timeLimitSeconds == 300);
+        capture(setup, "lesson-options");
+        click(setup, 30, 565);
         click(setup, 680, 595);
         REQUIRE(setup.title == "Занятие подготовлено");
         REQUIRE(school.tasks().size() == beforeGeneration + 3);
+        home.refresh();
+        click(home, 350, 565);
+        REQUIRE(home.title == "Проверка решений");
+        capture(home, "review-queue");
+        click(home, 30, 15);
+        click(home, 30, 120);
+        click(home, 30, 565);
+        REQUIRE(home.title == "Ручная проверка");
+        capture(home, "review-detail");
         REQUIRE(school.latestLesson(context.profile).tasks.size() == 4);
         context.role = UserRole::Student;
         home.refresh();
@@ -337,7 +370,8 @@ int main() {
         REQUIRE(lesson.title != "Ответ пока неверный");
         click(lesson, 470, 340);
         click(lesson, 100, 475);
-        REQUIRE(context.current.task.parts.front().skills == std::vector<std::string>({"q_coefficients"}));
+        REQUIRE(context.current.task.parts.front().skills ==
+                std::vector<std::string>({"q_coefficients"}));
         graphics.setActive(true);
         std::cout
             << "OK: Unicode, cursor, focus, dialog, scroll, formula, graph and student workflow\n";

@@ -23,4 +23,6 @@ void testRecovery();
 void testReview();
 void testJobs();
 void testAnswers();
+void testTeacherAccess();
+void testDemonstration();
 #endif

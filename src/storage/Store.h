@@ -3,7 +3,15 @@
 #include "Database.h"
 #include "core/Types.h"
 #include <functional>
+#include <atomic>
+#include <memory>
 namespace exam {
+class TeacherAccess {
+    friend class Store;
+    std::atomic<bool> valid;
+    std::string database;
+    explicit TeacherAccess(const std::string &path) : valid(true), database(path) {}
+};
 struct SkillInfo {
     std::string id, topicId, name;
     Point position;
@@ -51,6 +59,7 @@ struct ReviewVerdict {
 };
 class Store {
     Database db;
+    std::shared_ptr<TeacherAccess> teacherAccess;
     std::string runtimeId, databasePath;
     struct ReplayData {
         std::map<std::string, StudentSnapshot> students;
@@ -65,6 +74,18 @@ class Store {
     void saveReplay(const ReplayData &data);
 
   public:
+    bool hasTeacherPassword();
+    void setTeacherPassword(const std::string &password);
+    bool loginTeacher(const std::string &password);
+    void logoutTeacher();
+    void requireTeacher() const;
+    std::shared_ptr<TeacherAccess> teacherSession() const {
+        requireTeacher();
+        return teacherAccess;
+    }
+    void useTeacherAccess(const std::shared_ptr<TeacherAccess> &access);
+    void archiveProfile(const std::string &id, bool archived);
+    std::vector<std::pair<std::string, std::string>> archivedProfiles();
     explicit Store(const std::string &path, const std::string &migrations = "db/migrations");
     const std::string &path() const {
         return databasePath;
@@ -119,6 +140,7 @@ class Store {
                                       const TrainingStep &step);
     void saveTemplate(const LessonTemplate &value);
     LessonTemplate lessonTemplate(const std::string &id);
+    std::vector<LessonTemplate> lessonTemplates();
     void startTemplate(const std::string &templateId, const std::string &sessionId,
                        const std::string &student);
     SessionTime sessionTime(const std::string &id, long long now = -1);

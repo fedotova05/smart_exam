@@ -42,7 +42,7 @@ bool TextField::handle(const sf::Event &event, sf::Vector2f mouse) {
     if (event.type == sf::Event::MouseButtonPressed &&
         event.mouseButton.button == sf::Mouse::Left && contains(mouse)) {
         float x = getInverseTransform().transformPoint(mouse).x - 8 + scroll;
-        sf::Text text(value, font, 18);
+        sf::Text text(displayed(), font, 18);
         cursor = 0;
         while (cursor < value.getSize() && text.findCharacterPos(cursor + 1).x < x)
             ++cursor;
@@ -64,7 +64,7 @@ bool TextField::handle(const sf::Event &event, sf::Vector2f mouse) {
         return true;
     }
     if (event.key.control && event.key.code == sf::Keyboard::C) {
-        if (selectedAll)
+        if (selectedAll && !password)
             sf::Clipboard::setString(value);
         return true;
     }
@@ -120,9 +120,9 @@ void TextField::draw(sf::RenderTarget &target, sf::RenderStates states) const {
     rectangle(target, states, size, enabled ? Theme::white : Theme::pale, sf::Vector2f(),
               focused ? Theme::accent : Theme::line);
     canvas.clear(enabled ? Theme::white : Theme::pale);
-    sf::Text text = label(font, value.isEmpty() ? placeholder : value, 18, 0, 7,
+    sf::Text text = label(font, value.isEmpty() ? placeholder : displayed(), 18, 0, 7,
                           value.isEmpty() ? Theme::muted : Theme::ink);
-    sf::Text measure(value, font, 18);
+    sf::Text measure(displayed(), font, 18);
     float caret = measure.findCharacterPos(cursor).x;
     if (caret - scroll > size.x - 24)
         scroll = caret - size.x + 24;

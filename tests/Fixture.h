@@ -1,6 +1,12 @@
 #ifndef SMARTEXAM_FIXTURE_H
 #define SMARTEXAM_FIXTURE_H
 #include "storage/Store.h"
+inline void loginTeacherForTest(exam::Store &store) {
+    if (!store.hasTeacherPassword())
+        store.setTeacherPassword("test-password");
+    if (!store.loginTeacher("test-password"))
+        throw std::runtime_error("Test login failed");
+}
 inline void prepareBank(exam::Store &store) {
     store.saveProfile("student", "Тестовая ученица");
     store.saveTopic("algebra", "Алгебра");

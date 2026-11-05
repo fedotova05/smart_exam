@@ -4,6 +4,7 @@
 namespace exam {
 namespace ui {
 std::string choosePackage(bool save);
-}
+std::string chooseCsv();
+} // namespace ui
 } // namespace exam
 #endif
