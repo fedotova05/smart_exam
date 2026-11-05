@@ -57,6 +57,7 @@ struct TaskVersion {
 };
 enum class SessionMode { Fixed, Dynamic };
 enum class FeedbackPolicy { AfterStep, AfterTask, AfterSet };
+enum class ResumePolicy { ActiveTime, Deadline, NoResume };
 struct SessionSettings {
     SessionMode mode;
     FeedbackPolicy feedback;
@@ -64,9 +65,11 @@ struct SessionSettings {
     bool training;
     std::vector<std::string> targetSkills;
     int taskLimit;
+    ResumePolicy resumePolicy;
+    int timeLimitSeconds;
     SessionSettings()
         : mode(SessionMode::Fixed), feedback(FeedbackPolicy::AfterStep), guided(false), training(false),
-          taskLimit(10) {}
+          taskLimit(10), resumePolicy(ResumePolicy::ActiveTime), timeLimitSeconds(0) {}
 };
 struct SkillState {
     bool known;

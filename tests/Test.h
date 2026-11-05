@@ -19,4 +19,5 @@ void testGeometry();
 void testJsonPackages();
 void testSchool();
 void testTraining();
+void testRecovery();
 #endif

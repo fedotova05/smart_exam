@@ -14,6 +14,17 @@ void SessionService::start(const SessionRecord &session) {
 }
 NextTask SessionService::next(const std::string &id) {
     SessionRecord session = store.session(id);
+    SessionTime time = store.sessionTime(id);
+    if (!time.allowed) {
+        NextTask stopped;
+        stopped.reason = time.message;
+        if (!session.closed && !time.paused) {
+            for (const auto &value : store.attempts(id))
+                if (!value.finished) finishAttempt(value.id);
+            store.closeSession(id);
+        }
+        return stopped;
+    }
     if (session.settings.training)
         return TrainingService(store).next(id);
     std::vector<AttemptRecord> attempts = store.attempts(id);
@@ -95,6 +106,7 @@ CheckResult SessionService::submitResponse(const ResponseRecord &input) {
     }
     if (attempt.finished)
         throw std::runtime_error("Попытка уже завершена");
+    store.requireSessionAccess(attempt.sessionId);
     if (response.answer.text.size() > 512)
         throw std::invalid_argument("Ответ длиннее 512 байтов");
     TaskVersion task = store.task(attempt.taskId);

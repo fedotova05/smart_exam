@@ -63,6 +63,12 @@ class SchoolService {
     void help(const std::string &attempt, const std::string &part);
     AttemptResult finish(const std::string &attempt);
     void closeLesson();
+    void saveAnswerDraft(const std::string &attempt, const std::string &part, const AnswerPayload &answer) {
+        storage.saveAnswerDraft(attempt, part, answer);
+    }
+    std::map<std::string, AnswerPayload> answerDrafts(const std::string &attempt) {
+        return storage.answerDrafts(attempt);
+    }
     void addSampleBank();
     void addStarterContent();
     void addTrainingContent();

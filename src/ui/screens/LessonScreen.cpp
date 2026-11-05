@@ -86,6 +86,8 @@ void LessonScreen::refresh() {
         for (const auto &response : context.school.responses(attempt))
             if (response.finalAnswer)
                 context.drafts[response.partId] = response.answer;
+        for (const auto &draft : context.school.answerDrafts(attempt))
+            context.drafts[draft.first] = draft.second;
     }
     if (partIndex >= static_cast<int>(task.parts.size()))
         partIndex = 0;
@@ -125,6 +127,7 @@ void LessonScreen::refresh() {
         graph->setSnapStep(part.graphSnap);
         graph->onChange = [this, graph, part] {
             context.drafts[part.id].graph = graph->getAnswer();
+            context.school.saveAnswerDraft(attempt, part.id, context.drafts[part.id]);
         };
         Toggle *snap = add(new Toggle(font, "Привязка", 180), 0, 503);
         snap->setValue(true);
@@ -148,10 +151,12 @@ void LessonScreen::refresh() {
                     throw std::runtime_error("Для параболы a не равно нулю");
                 graph->setAnswer(part.kind, answer);
                 context.drafts[part.id].graph = answer;
+                context.school.saveAnswerDraft(attempt, part.id, context.drafts[part.id]);
             });
         } else {
             button("Сбросить точки", 190, 503, 180, [this, graph, part] {
                 context.drafts[part.id].graph = GraphAnswer();
+                context.school.saveAnswerDraft(attempt, part.id, context.drafts[part.id]);
                 graph->setAnswer(part.kind, GraphAnswer());
             });
             button("Исходный вид", 380, 503, 220, [graph] { graph->resetView(); });
@@ -168,6 +173,7 @@ void LessonScreen::refresh() {
         preview->setFormula(answer->getText());
         answer->onChange = [this, answer, preview, part] {
             context.drafts[part.id].text = answer->getText();
+            context.school.saveAnswerDraft(attempt, part.id, context.drafts[part.id]);
             preview->setFormula(answer->getText());
         };
         const char *inserts[] = {"x", "^2", "sqrt(", "(", ")", "/"};

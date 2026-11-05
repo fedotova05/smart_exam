@@ -32,8 +32,20 @@ struct ResponseRecord {
 struct TrainingStep {
     std::string origin, stage, skill;
 };
+struct LessonTemplate {
+    std::string id, name;
+    SessionSettings settings;
+    std::vector<std::string> tasks;
+};
+struct SessionTime {
+    bool allowed, paused;
+    long long remainingSeconds;
+    std::string message;
+    SessionTime() : allowed(true), paused(false), remainingSeconds(-1) {}
+};
 class Store {
     Database db;
+    std::string runtimeId;
 
   public:
     explicit Store(const std::string &path, const std::string &migrations = "db/migrations");
@@ -81,6 +93,17 @@ class Store {
     TrainingStep trainingStep(const std::string &attempt);
     AttemptRecord openTrainingAttempt(const std::string &session, int position,
         const std::string &task, const std::string &reason, const TrainingStep &step);
+    void saveTemplate(const LessonTemplate &value);
+    LessonTemplate lessonTemplate(const std::string &id);
+    void startTemplate(const std::string &templateId, const std::string &sessionId,
+                       const std::string &student);
+    SessionTime sessionTime(const std::string &id, long long now = -1);
+    void pauseSession(const std::string &id, long long now = -1);
+    void resumeSession(const std::string &id, long long now = -1);
+    void requireSessionAccess(const std::string &id);
+    void saveAnswerDraft(const std::string &attempt, const std::string &part,
+                         const AnswerPayload &answer);
+    std::map<std::string, AnswerPayload> answerDrafts(const std::string &attempt);
 };
 } // namespace exam
 #endif

@@ -1,5 +1,6 @@
 #include "Store.h"
 #include "core/GraphCodec.h"
+#include "io/Files.h"
 #include <stdexcept>
 #include <set>
 #include <cmath>
@@ -41,7 +42,7 @@ ResponseRecord readResponse(const Row &row) {
 const std::string responseColumns =
     "request_id,attempt_id,part_id,text,graph,status,message,is_final,operation,operand";
 } // namespace
-Store::Store(const std::string &path, const std::string &migrations) : db(path) {
+Store::Store(const std::string &path, const std::string &migrations) : db(path), runtimeId(newId("run")) {
     db.migrate(migrations);
 }
 void Store::saveProfile(const std::string &id, const std::string &name) {
@@ -169,6 +170,9 @@ std::vector<TaskVersion> Store::publishedTasks() {
     return result;
 }
 void Store::createSession(const SessionRecord &value) {
+    require(value.settings.timeLimitSeconds >= 0 && value.settings.timeLimitSeconds <= 86400 &&
+            static_cast<int>(value.settings.resumePolicy) >= 0 &&
+            static_cast<int>(value.settings.resumePolicy) <= 2, "Неверное ограничение времени");
     require(!value.id.empty() && value.settings.taskLimit > 0 && value.settings.taskLimit <= 1000,
             "Invalid session");
     require(value.settings.mode != SessionMode::Fixed ||
@@ -177,10 +181,11 @@ void Store::createSession(const SessionRecord &value) {
             "Invalid fixed set");
     Transaction transaction(db);
     db.query(
-        "INSERT INTO sessions(id,student_id,mode,feedback,guided,task_limit,training) VALUES(?,?,?,?,?,?,?)",
+        "INSERT INTO sessions(id,student_id,mode,feedback,guided,task_limit,training,resume_policy,time_limit) VALUES(?,?,?,?,?,?,?,?,?)",
         {value.id, value.studentId, number(static_cast<int>(value.settings.mode)),
          number(static_cast<int>(value.settings.feedback)), number(value.settings.guided),
-         number(value.settings.taskLimit), number(value.settings.training)});
+         number(value.settings.taskLimit), number(value.settings.training),
+         number(static_cast<int>(value.settings.resumePolicy)), number(value.settings.timeLimitSeconds)});
     for (const auto &skill : value.settings.targetSkills)
         db.query("INSERT INTO session_skills VALUES(?,?)", {value.id, skill});
     for (std::size_t i = 0; i < value.tasks.size(); ++i) {
@@ -193,7 +198,7 @@ void Store::createSession(const SessionRecord &value) {
 }
 SessionRecord Store::session(const std::string &id) {
     std::vector<Row> rows = db.query(
-        "SELECT student_id,mode,feedback,guided,task_limit,closed,training FROM sessions WHERE id=?", {id});
+        "SELECT student_id,mode,feedback,guided,task_limit,closed,training,resume_policy,time_limit FROM sessions WHERE id=?", {id});
     require(!rows.empty(), "Session not found");
     const Row &r = rows[0];
     SessionRecord s;
@@ -205,6 +210,8 @@ SessionRecord Store::session(const std::string &id) {
     s.settings.taskLimit = std::stoi(r[4]);
     s.closed = r[5] == "1";
     s.settings.training = r[6] == "1";
+    s.settings.resumePolicy = static_cast<ResumePolicy>(std::stoi(r[7]));
+    s.settings.timeLimitSeconds = std::stoi(r[8]);
     for (const auto &row : db.query("SELECT skill_id FROM session_skills WHERE session_id=? ORDER BY skill_id", {id}))
         s.settings.targetSkills.push_back(row[0]);
     for (const Row &t :
@@ -214,6 +221,7 @@ SessionRecord Store::session(const std::string &id) {
 }
 AttemptRecord Store::openAttempt(const std::string &sessionId, int position,
                                  const std::string &taskId, const std::string &reason, const TrainingStep *step) {
+    requireSessionAccess(sessionId);
     Transaction transaction(db);
     SessionRecord s = session(sessionId);
     require(position >= 0 && !s.closed, "Занятие завершено или позиция неверна");
@@ -302,6 +310,8 @@ void Store::saveResponse(const ResponseRecord &r) {
              {r.requestId, r.attemptId, r.partId, r.answer.text, r.graph,
               number(static_cast<int>(r.result.status)), r.result.message, number(r.finalAnswer),
               r.operation, r.operand});
+    if (r.finalAnswer)
+        db.query("DELETE FROM answer_drafts WHERE attempt_id=? AND part_id=?", {r.attemptId,r.partId});
     transaction.commit();
 }
 std::vector<ResponseRecord> Store::responses(const std::string &id) {

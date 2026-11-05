@@ -32,7 +32,9 @@ int main() {
         std::cout << "OK: editor, knowledge and graphical sessions\n";
         testTraining();
         std::cout << "OK: scoped training, diagnosis, return, resume and fixed assessment\n";
-        std::cout << "All 11 test groups passed\n";
+        testRecovery();
+        std::cout << "OK: templates, drafts, restart and time policies\n";
+        std::cout << "All test groups passed\n";
         return 0;
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';
