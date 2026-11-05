@@ -202,6 +202,15 @@ Roots solve(const Polynomial &p) {
                                 Radical(-root.a / denominator));
     return result;
 }
+bool isLinearEquation(const std::string &text) {
+    try {
+        Equation equation = parseEquation(text);
+        Polynomial left = polynomial(equation.left), right = polynomial(equation.right);
+        return left.degree() <= 1 && right.degree() <= 1 && (left - right).degree() == 1;
+    } catch (const std::exception &) {
+        return false;
+    }
+}
 Roots solveEquation(const std::string &text) {
     Equation e = parseEquation(text);
     return solve(polynomial(e.left) - polynomial(e.right));

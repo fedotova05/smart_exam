@@ -6,6 +6,7 @@ TextPanel::TextPanel(const sf::Font &font, const std::string &value, float width
     : Widget(font, width, height),
       text(label(font, wrap(font, unicode(value), 18, width - 24, 2000), 18, 10, 8)), scroll(0) {
     canvas.create(static_cast<unsigned>(width), static_cast<unsigned>(height));
+    canvas.setSmooth(true);
 }
 bool TextPanel::handle(const sf::Event &event, sf::Vector2f mouse) {
     float delta = 0;

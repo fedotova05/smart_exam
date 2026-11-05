@@ -1,14 +1,21 @@
 #include "SessionService.h"
 #include "core/GraphCodec.h"
+#include "math/checkers/EquationChecker.h"
+#include "application/training/TrainingService.h"
 #include <stdexcept>
 namespace exam {
 void SessionService::start(const SessionRecord &session) {
+    if (session.settings.training && (session.settings.mode != SessionMode::Dynamic ||
+        session.settings.feedback != FeedbackPolicy::AfterStep || session.settings.targetSkills.empty()))
+        throw std::invalid_argument("Тренировка требует выбранных навыков, подбора заданий и немедленной проверки");
     if (session.settings.mode == SessionMode::Dynamic && !selector)
         throw std::runtime_error("Динамический подбор ещё не подключён");
     store.createSession(session);
 }
 NextTask SessionService::next(const std::string &id) {
     SessionRecord session = store.session(id);
+    if (session.settings.training)
+        return TrainingService(store).next(id);
     std::vector<AttemptRecord> attempts = store.attempts(id);
     NextTask result;
     if (session.closed) {
@@ -97,21 +104,11 @@ CheckResult SessionService::submitResponse(const ResponseRecord &input) {
             part = &value;
     if (!part)
         throw std::runtime_error("Часть задания не найдена");
-    if (response.finalAnswer) {
-        bool needsStep =
-            store.session(attempt.sessionId).settings.guided && part->kind == PartKind::Equation;
-        bool hasStep = false;
-        for (const ResponseRecord &old : store.responses(attempt.id))
-            if (old.partId == part->id && !old.finalAnswer &&
-                old.result.status == CheckStatus::Correct)
-                hasStep = true;
-        response.result = needsStep && !hasStep
-                              ? CheckResult(CheckStatus::Incomplete,
-                                            "Сначала выполните шаг с выбранным действием")
-                              : checker.checkAnswer(*part, response.answer);
-    } else if (part->kind != PartKind::Equation)
-        response.result =
-            CheckResult(CheckStatus::Unsupported, "Шаги поддерживаются для уравнений");
+    if (response.finalAnswer)
+        response.result = checker.checkAnswer(*part, response.answer);
+    else if (part->kind != PartKind::Equation || !isLinearEquation(part->expression))
+        response.result = CheckResult(CheckStatus::Unsupported,
+                                      "Шаги доступны только для линейных уравнений. Введите итоговый ответ.");
     else {
         std::string before = part->expression;
         for (const ResponseRecord &old : store.responses(attempt.id)) {
@@ -119,14 +116,8 @@ CheckResult SessionService::submitResponse(const ResponseRecord &input) {
                 old.result.status == CheckStatus::Correct)
                 before = old.answer.text;
         }
-        SessionRecord session = store.session(attempt.sessionId);
-        if (session.settings.guided && response.operation.empty())
-            response.result =
-                CheckResult(CheckStatus::Incomplete, "Выберите действие над уравнением");
-        else
-            response.result = checker.checkStep(before, response.answer.text,
-                                                session.settings.guided ? response.operation : "",
-                                                session.settings.guided ? response.operand : "");
+        response.result = checker.checkStep(before, response.answer.text,
+                                            response.operation, response.operand);
     }
     store.saveResponse(response);
     return feedbackVisible(attempt) ? response.result
@@ -165,7 +156,8 @@ AttemptResult SessionService::finishAttempt(const std::string &id) {
         evidence.push_back(item);
     }
     std::vector<Observation> observations;
-    if (learning)
+    // Возврат к разобранному условию приносит баллы, но не новое независимое наблюдение.
+    if (learning && store.trainingStep(id).stage != "return")
         observations = learning->observe(store.attemptSnapshot(id), evidence, task.difficulty);
     store.finish(id, score, provisional, observations);
     return result(id);

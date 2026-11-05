@@ -68,6 +68,7 @@ void GraphView::draw(sf::RenderTarget &target, sf::RenderStates states) const {
     if (canvas.getSize() !=
         sf::Vector2u(static_cast<unsigned>(size.x), static_cast<unsigned>(size.y)))
         canvas.create(static_cast<unsigned>(size.x), static_cast<unsigned>(size.y));
+    canvas.setSmooth(true);
     canvas.clear(Theme::paper);
     auto line = [this](float x1, float y1, float x2, float y2, sf::Color color) {
         sf::Vertex points[] = {sf::Vertex(sf::Vector2f(x1, y1), color),

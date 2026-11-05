@@ -60,6 +60,7 @@
     <Unit filename="src/application/Demo.h" />
     <Unit filename="src/application/SchoolService.h" />
     <Unit filename="src/application/session/SessionService.h" />
+    <Unit filename="src/application/training/TrainingService.h" />
     <Unit filename="src/core/GraphCodec.h" />
     <Unit filename="src/core/Services.h" />
     <Unit filename="src/core/Types.h" />
@@ -85,7 +86,11 @@
     <Unit filename="src/ui/screens/HomeScreen.h" />
     <Unit filename="src/ui/screens/KnowledgeScreen.h" />
     <Unit filename="src/ui/screens/LessonScreen.h" />
+    <Unit filename="src/ui/screens/LessonSetupScreen.h" />
     <Unit filename="src/ui/screens/PackageScreen.h" />
+    <Unit filename="src/ui/screens/ProgressScreen.h" />
+    <Unit filename="src/ui/screens/TrainingDemoScreen.h" />
+    <Unit filename="src/ui/screens/TrainingSetupScreen.h" />
     <Unit filename="src/ui/screens/WelcomeScreen.h" />
     <Unit filename="src/ui/SkillMap.h" />
     <Unit filename="src/ui/Theme.h" />
@@ -99,6 +104,8 @@
     <Unit filename="src/application/SchoolService.cpp" />
     <Unit filename="src/application/session/SessionService.cpp" />
     <Unit filename="src/application/StarterContent.cpp" />
+    <Unit filename="src/application/training/TrainingContent.cpp" />
+    <Unit filename="src/application/training/TrainingService.cpp" />
     <Unit filename="src/generation/Generator.cpp" />
     <Unit filename="src/graph_tasks/GeometryChecker.cpp" />
     <Unit filename="src/graphics/GraphView.cpp" />
@@ -121,7 +128,11 @@
     <Unit filename="src/ui/screens/HomeScreen.cpp" />
     <Unit filename="src/ui/screens/KnowledgeScreen.cpp" />
     <Unit filename="src/ui/screens/LessonScreen.cpp" />
+    <Unit filename="src/ui/screens/LessonSetupScreen.cpp" />
     <Unit filename="src/ui/screens/PackageScreen.cpp" />
+    <Unit filename="src/ui/screens/ProgressScreen.cpp" />
+    <Unit filename="src/ui/screens/TrainingDemoScreen.cpp" />
+    <Unit filename="src/ui/screens/TrainingSetupScreen.cpp" />
     <Unit filename="src/ui/screens/WelcomeScreen.cpp" />
     <Unit filename="src/ui/SkillMap.cpp" />
     <Unit filename="src/ui/Theme.cpp" />

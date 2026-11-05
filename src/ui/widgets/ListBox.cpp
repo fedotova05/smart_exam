@@ -5,6 +5,7 @@ namespace ui {
 ListBox::ListBox(const sf::Font &face, float width, float height)
     : Widget(face, width, height), selected(-1), first(0), rowHeight(40) {
     canvas.create(static_cast<unsigned>(width), static_cast<unsigned>(height));
+    canvas.setSmooth(true);
 }
 void ListBox::setItems(const std::vector<std::string> &values) {
     items = values;

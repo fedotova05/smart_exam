@@ -29,6 +29,9 @@ struct ResponseRecord {
     bool finalAnswer;
     ResponseRecord() : finalAnswer(true) {}
 };
+struct TrainingStep {
+    std::string origin, stage, skill;
+};
 class Store {
     Database db;
 
@@ -47,7 +50,7 @@ class Store {
     void createSession(const SessionRecord &session);
     SessionRecord session(const std::string &id);
     AttemptRecord openAttempt(const std::string &sessionId, int position, const std::string &taskId,
-                              const std::string &reason = "");
+                              const std::string &reason = "", const TrainingStep *step = 0);
     void closeSession(const std::string &sessionId);
     AttemptRecord attempt(const std::string &id);
     std::vector<AttemptRecord> attempts(const std::string &sessionId);
@@ -72,6 +75,12 @@ class Store {
     void setPrerequisites(const std::string &skill, const std::vector<std::string> &parents);
     void saveSkillPosition(const std::string &skill, Point position);
     void saveSkillData(const SkillInfo &skill, const std::vector<std::string> &parents);
+    std::string supportOrigin(const std::string &session);
+    void beginSupport(const std::string &session, const std::string &attempt);
+    void endSupport(const std::string &session);
+    TrainingStep trainingStep(const std::string &attempt);
+    AttemptRecord openTrainingAttempt(const std::string &session, int position,
+        const std::string &task, const std::string &reason, const TrainingStep &step);
 };
 } // namespace exam
 #endif

@@ -30,7 +30,9 @@ int main() {
         std::cout << "OK: JSON and package roundtrip\n";
         testSchool();
         std::cout << "OK: editor, knowledge and graphical sessions\n";
-        std::cout << "All 10 test groups passed\n";
+        testTraining();
+        std::cout << "OK: scoped training, diagnosis, return, resume and fixed assessment\n";
+        std::cout << "All 11 test groups passed\n";
         return 0;
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';

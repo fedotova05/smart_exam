@@ -34,6 +34,7 @@ struct TaskPart {
     PartKind kind;
     std::string prompt;
     std::string expression;
+    std::string displayExpression;
     std::vector<std::string> skills;
     int maxScore;
     double graphSnap, graphTolerance;
@@ -60,9 +61,11 @@ struct SessionSettings {
     SessionMode mode;
     FeedbackPolicy feedback;
     bool guided;
+    bool training;
+    std::vector<std::string> targetSkills;
     int taskLimit;
     SessionSettings()
-        : mode(SessionMode::Fixed), feedback(FeedbackPolicy::AfterStep), guided(false),
+        : mode(SessionMode::Fixed), feedback(FeedbackPolicy::AfterStep), guided(false), training(false),
           taskLimit(10) {}
 };
 struct SkillState {

@@ -8,6 +8,7 @@ class KnowledgeScreen : public Screen {
     AppContext &context;
     std::string topic, selected;
     void editSkill(bool create);
+    void explain();
 
   public:
     KnowledgeScreen(const sf::Font &font, AppContext &state) : Screen(font), context(state) {}

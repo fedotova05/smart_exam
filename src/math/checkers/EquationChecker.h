@@ -34,6 +34,7 @@ struct Roots {
     Roots() : kind(RootKind::Finite) {}
 };
 Roots solve(const Polynomial &value);
+bool isLinearEquation(const std::string &text);
 Roots solveEquation(const std::string &text);
 bool sameRoots(const Roots &left, const Roots &right);
 class EquationChecker : public Checker {

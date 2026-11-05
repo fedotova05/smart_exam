@@ -6,7 +6,6 @@ namespace exam {
 namespace ui {
 class HomeScreen : public Screen {
     AppContext &context;
-    std::vector<std::string> fixedTasks;
     void settings();
     void startShortLesson();
     void teacherHome();
@@ -17,6 +16,7 @@ class HomeScreen : public Screen {
 };
 class ResultsScreen : public Screen {
     AppContext &context;
+    std::string selectedAttempt;
 
   public:
     ResultsScreen(const sf::Font &font, AppContext &state) : Screen(font), context(state) {}

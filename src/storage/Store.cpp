@@ -95,10 +95,10 @@ void Store::saveDraft(const TaskVersion &value) {
     int partPosition = 0;
     for (const TaskPart &part : value.parts) {
         require(!part.id.empty() && part.maxScore > 0 && part.maxScore <= 100, "Invalid task part");
-        db.query("INSERT INTO parts VALUES(?,?,?,?,?,?,?,?,?)",
+        db.query("INSERT INTO parts VALUES(?,?,?,?,?,?,?,?,?,?)",
                  {value.id, part.id, number(static_cast<int>(part.kind)), part.prompt,
                   part.expression, number(part.maxScore), number(partPosition++),
-                  std::to_string(part.graphSnap), std::to_string(part.graphTolerance)});
+                  std::to_string(part.graphSnap), std::to_string(part.graphTolerance), part.displayExpression});
         for (const std::string &skill : part.skills)
             db.query("INSERT INTO part_skills VALUES(?,?,?)", {value.id, part.id, skill});
     }
@@ -141,7 +141,7 @@ TaskVersion Store::task(const std::string &id) {
          db.query("SELECT path FROM task_resources WHERE task_id=? ORDER BY path", {id}))
         t.resources.push_back(path[0]);
     for (const Row &p :
-         db.query("SELECT id,kind,prompt,expression,max_score,graph_snap,graph_tolerance FROM "
+         db.query("SELECT id,kind,prompt,expression,max_score,graph_snap,graph_tolerance,display_expression FROM "
                   "parts WHERE task_id=? ORDER BY position,id",
                   {id})) {
         TaskPart part;
@@ -152,6 +152,7 @@ TaskVersion Store::task(const std::string &id) {
         part.maxScore = std::stoi(p[4]);
         part.graphSnap = std::stod(p[5]);
         part.graphTolerance = std::stod(p[6]);
+        part.displayExpression = p[7];
         for (const Row &s : db.query(
                  "SELECT skill_id FROM part_skills WHERE task_id=? AND part_id=? ORDER BY skill_id",
                  {id, part.id}))
@@ -176,10 +177,12 @@ void Store::createSession(const SessionRecord &value) {
             "Invalid fixed set");
     Transaction transaction(db);
     db.query(
-        "INSERT INTO sessions(id,student_id,mode,feedback,guided,task_limit) VALUES(?,?,?,?,?,?)",
+        "INSERT INTO sessions(id,student_id,mode,feedback,guided,task_limit,training) VALUES(?,?,?,?,?,?,?)",
         {value.id, value.studentId, number(static_cast<int>(value.settings.mode)),
          number(static_cast<int>(value.settings.feedback)), number(value.settings.guided),
-         number(value.settings.taskLimit)});
+         number(value.settings.taskLimit), number(value.settings.training)});
+    for (const auto &skill : value.settings.targetSkills)
+        db.query("INSERT INTO session_skills VALUES(?,?)", {value.id, skill});
     for (std::size_t i = 0; i < value.tasks.size(); ++i) {
         TaskVersion t = task(value.tasks[i]);
         require(t.published && !t.archived, "Task unavailable");
@@ -190,7 +193,7 @@ void Store::createSession(const SessionRecord &value) {
 }
 SessionRecord Store::session(const std::string &id) {
     std::vector<Row> rows = db.query(
-        "SELECT student_id,mode,feedback,guided,task_limit,closed FROM sessions WHERE id=?", {id});
+        "SELECT student_id,mode,feedback,guided,task_limit,closed,training FROM sessions WHERE id=?", {id});
     require(!rows.empty(), "Session not found");
     const Row &r = rows[0];
     SessionRecord s;
@@ -201,13 +204,16 @@ SessionRecord Store::session(const std::string &id) {
     s.settings.guided = r[3] == "1";
     s.settings.taskLimit = std::stoi(r[4]);
     s.closed = r[5] == "1";
+    s.settings.training = r[6] == "1";
+    for (const auto &row : db.query("SELECT skill_id FROM session_skills WHERE session_id=? ORDER BY skill_id", {id}))
+        s.settings.targetSkills.push_back(row[0]);
     for (const Row &t :
          db.query("SELECT task_id FROM session_tasks WHERE session_id=? ORDER BY position", {id}))
         s.tasks.push_back(t[0]);
     return s;
 }
 AttemptRecord Store::openAttempt(const std::string &sessionId, int position,
-                                 const std::string &taskId, const std::string &reason) {
+                                 const std::string &taskId, const std::string &reason, const TrainingStep *step) {
     Transaction transaction(db);
     SessionRecord s = session(sessionId);
     require(position >= 0 && !s.closed, "Занятие завершено или позиция неверна");
@@ -217,7 +223,8 @@ AttemptRecord Store::openAttempt(const std::string &sessionId, int position,
         transaction.commit();
         return old[position];
     }
-    require(position == static_cast<int>(old.size()) && position < s.settings.taskLimit,
+    require(position == static_cast<int>(old.size()) &&
+                position < (s.settings.training ? 1000 : s.settings.taskLimit),
             "Invalid attempt position");
     require(old.empty() || old.back().finished, "Finish current attempt first");
     require(db.query("SELECT 1 FROM attempts a JOIN sessions s ON s.id=a.session_id WHERE "
@@ -241,6 +248,8 @@ AttemptRecord Store::openAttempt(const std::string &sessionId, int position,
         "END,COALESCE(s.mastery,0.2),COALESCE(s.rating,1000),COALESCE(s.observations,0),'bkt-elo-1'"
         " FROM skills k LEFT JOIN student_skills s ON s.skill_id=k.id AND s.student_id=?",
         {id, s.studentId});
+    if (step)
+        db.query("INSERT INTO training_steps VALUES(?,?,?,?)", {id, step->origin, step->stage, step->skill});
     transaction.commit();
     return attempt(id);
 }
@@ -477,5 +486,30 @@ void Store::saveSkillData(const SkillInfo &skill, const std::vector<std::string>
     for (const std::string &parent : parents)
         db.query("INSERT INTO prerequisites VALUES(?,?)", {skill.id, parent});
     transaction.commit();
+}
+std::string Store::supportOrigin(const std::string &session) {
+    auto rows = db.query("SELECT origin_attempt FROM support_routes WHERE session_id=? AND active=1", {session});
+    return rows.empty() ? "" : rows.front()[0];
+}
+void Store::beginSupport(const std::string &session, const std::string &attempt) {
+    db.query("INSERT INTO support_routes VALUES(?,?,1) ON CONFLICT(session_id) DO UPDATE SET "
+             "origin_attempt=excluded.origin_attempt,active=1", {session, attempt});
+}
+void Store::endSupport(const std::string &session) {
+    db.query("UPDATE support_routes SET active=0 WHERE session_id=?", {session});
+}
+TrainingStep Store::trainingStep(const std::string &attempt) {
+    TrainingStep step;
+    auto rows = db.query("SELECT origin_attempt,stage,skill_id FROM training_steps WHERE attempt_id=?", {attempt});
+    if (!rows.empty()) {
+        step.origin = rows[0][0];
+        step.stage = rows[0][1];
+        step.skill = rows[0][2];
+    }
+    return step;
+}
+AttemptRecord Store::openTrainingAttempt(const std::string &session, int position,
+        const std::string &task, const std::string &reason, const TrainingStep &step) {
+    return openAttempt(session, position, task, reason, &step);
 }
 } // namespace exam

@@ -1,5 +1,6 @@
 #include "SchoolService.h"
 #include "generation/Generator.h"
+#include "training/TrainingService.h"
 #include "io/Files.h"
 #include <algorithm>
 #include <cmath>
@@ -66,6 +67,14 @@ std::vector<std::string> SchoolService::validate(const TaskVersion &task) const 
             if (!knownSkills.count(skill) || !used.insert(skill).second)
                 errors.push_back(label + "неизвестный или повторный навык");
         try {
+            if (!part.displayExpression.empty()) {
+                if (part.displayExpression.size() > 512 || containsNull(part.displayExpression))
+                    errors.push_back(label + "неверная формула условия");
+                else if (part.displayExpression.find('=') != std::string::npos)
+                    parseEquation(part.displayExpression);
+                else
+                    parseExpression(part.displayExpression);
+            }
             if (part.kind == PartKind::Expression)
                 evaluateExact(parseExpression(part.expression));
             else if (part.kind == PartKind::Equation) {
@@ -149,10 +158,17 @@ std::vector<HistoryEntry> SchoolService::history(const std::string &profile) {
             HistoryEntry entry;
             entry.attemptId = attempt.id;
             entry.taskId = attempt.taskId;
-            entry.title = storage.task(attempt.taskId).title;
+            const TaskVersion task = storage.task(attempt.taskId);
+            entry.title = task.title;
+            for (const auto &part : task.parts)
+                entry.maximumScore += part.maxScore;
             entry.reason = attempt.selectionReason;
             entry.result = reader.result(attempt.id);
             entry.help = storage.helpCount(attempt.id);
+            if (entry.result.visible)
+                for (const auto &response : storage.responses(attempt.id))
+                    if (response.result.status == CheckStatus::Incorrect)
+                        entry.hadErrors = true;
             result.push_back(entry);
         }
     return result;
@@ -168,6 +184,107 @@ SessionRecord SchoolService::latestLesson(const std::string &profile) {
 }
 std::vector<AttemptRecord> SchoolService::lessonAttempts(const std::string &lesson) {
     return lesson.empty() ? std::vector<AttemptRecord>() : storage.attempts(lesson);
+}
+LessonProgress SchoolService::progress(const std::string &profile) {
+    LessonProgress result;
+    result.lesson = latestLesson(profile);
+    if (result.lesson.id.empty())
+        return result;
+    bool fixed = result.lesson.settings.mode == SessionMode::Fixed;
+    result.totalTasks = fixed
+        ? std::min(result.lesson.settings.taskLimit, static_cast<int>(result.lesson.tasks.size()))
+        : result.lesson.settings.taskLimit;
+    if (fixed)
+        for (int i = 0; i < result.totalTasks; ++i)
+            for (const auto &part : storage.task(result.lesson.tasks[i]).parts)
+                result.maximumScore += part.maxScore;
+    SessionService reader(storage, checker);
+    for (const auto &attempt : storage.attempts(result.lesson.id)) {
+        if (result.lesson.settings.training && !storage.trainingStep(attempt.id).stage.empty())
+            ++result.totalTasks;
+        if (!fixed)
+            for (const auto &part : storage.task(attempt.taskId).parts)
+                result.maximumScore += part.maxScore;
+        if (!attempt.finished)
+            continue;
+        ++result.finishedTasks;
+        const AttemptResult value = reader.result(attempt.id);
+        if (!value.visible)
+            result.hidden = true;
+        else {
+            result.score += value.score;
+            result.provisional = result.provisional || value.provisional;
+        }
+    }
+    // Не раскрываем даже частичную сумму до разрешённого момента проверки.
+    if (result.hidden)
+        result.score = 0;
+    if (result.lesson.settings.training && result.lesson.closed)
+        result.totalTasks = result.finishedTasks;
+    return result;
+}
+void SchoolService::startTopics(const std::string &profile, const std::vector<std::string> &skills,
+                               bool training, int count) {
+    if (skills.empty())
+        throw std::runtime_error("Выберите хотя бы одну тему или навык");
+    if (count < 1 || count > 20)
+        throw std::runtime_error("Число основных заданий: от 1 до 20");
+    std::set<std::string> unique(skills.begin(), skills.end());
+    auto graph = storage.skillGraph();
+    for (const auto &skill : unique)
+        if (!graph.count(skill))
+            throw std::runtime_error("Неизвестный навык: " + skill);
+    SessionSettings settings;
+    settings.targetSkills.assign(unique.begin(), unique.end());
+    settings.training = training;
+    settings.mode = training ? SessionMode::Dynamic : SessionMode::Fixed;
+    settings.feedback = training ? FeedbackPolicy::AfterStep : FeedbackPolicy::AfterSet;
+    settings.taskLimit = count;
+    auto candidates = TrainingService(storage).scopedTasks(settings.targetSkills);
+    if (candidates.empty())
+        throw std::runtime_error("По выбранным навыкам нет опубликованных заданий");
+    if (!training && candidates.size() < static_cast<std::size_t>(count))
+        throw std::runtime_error("В банке только " + std::to_string(candidates.size()) +
+                                 " подходящих заданий. Уменьшите число заданий.");
+    std::vector<std::string> tasks;
+    if (!training) {
+        // Набор определяется до старта и больше не зависит от ответов.
+        Adaptation selector(storage.modelParameters(), SkillGraph(graph));
+        for (int i = 0; i < count; ++i) {
+            auto choice = selector.selectNext(storage.snapshot(profile), candidates, tasks);
+            tasks.push_back(choice.task.id);
+            candidates.erase(std::remove_if(candidates.begin(), candidates.end(), [&](const TaskVersion &task) {
+                return task.id == choice.task.id;
+            }), candidates.end());
+        }
+    }
+    start(profile, settings, tasks);
+}
+bool SchoolService::canSupport(const std::string &attempt) {
+    return TrainingService(storage).canSupport(attempt);
+}
+std::vector<std::string> SchoolService::reviewSkills(const std::string &profile) {
+    const SessionRecord lesson = latestLesson(profile);
+    if (lesson.id.empty() || !lesson.closed)
+        return {};
+    std::set<std::string> skills;
+    for (const auto &attempt : storage.attempts(lesson.id)) {
+        std::set<std::string> wrongParts;
+        for (const auto &response : storage.responses(attempt.id))
+            if (response.result.status == CheckStatus::Incorrect)
+                wrongParts.insert(response.partId);
+        for (const auto &part : storage.task(attempt.taskId).parts)
+            if (wrongParts.count(part.id))
+                skills.insert(part.skills.begin(), part.skills.end());
+    }
+    return std::vector<std::string>(skills.begin(), skills.end());
+}
+NextTask SchoolService::startSupport(const std::string &attempt) {
+    if (!canSupport(attempt))
+        throw std::runtime_error("Разбор сейчас недоступен");
+    session->finishAttempt(attempt);
+    TrainingService(storage).beginSupport(attempt);
+    return next();
 }
 void SchoolService::start(const std::string &profile, const SessionSettings &settings,
                           const std::vector<std::string> &tasks) {

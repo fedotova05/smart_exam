@@ -77,6 +77,7 @@ PackagePreview PackageService::inspect(const std::string &path) const {
                 part.kind = static_cast<PartKind>(kind);
                 part.prompt = partValue.field("prompt").text();
                 part.expression = partValue.field("expression").text();
+                part.displayExpression = optionalText(partValue, "display_expression");
                 part.maxScore = partValue.field("score").integer();
                 if (partValue.object.count("snap")) {
                     const Json &value = partValue.field("snap");
@@ -197,6 +198,7 @@ void PackageService::exportPackage(const std::string &path,
             value.object["kind"] = Json(static_cast<double>(static_cast<int>(part.kind)));
             value.object["prompt"] = Json(part.prompt);
             value.object["expression"] = Json(part.expression);
+            value.object["display_expression"] = Json(part.displayExpression);
             value.object["score"] = Json(static_cast<double>(part.maxScore));
             value.object["skills"] = texts(part.skills);
             skillIds.insert(part.skills.begin(), part.skills.end());

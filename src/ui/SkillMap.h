@@ -10,7 +10,9 @@ class SkillMap : public Widget {
     StudentSnapshot snapshot;
     int dragged;
     bool editable;
+    bool resultsHidden;
     float scroll;
+    float originY;
     sf::Vector2f offset;
     mutable sf::RenderTexture canvas;
     void draw(sf::RenderTarget &target, sf::RenderStates states) const override;
@@ -22,6 +24,7 @@ class SkillMap : public Widget {
              const StudentSnapshot &state);
     bool handle(const sf::Event &event, sf::Vector2f mouse) override;
     void setEditable(bool value) { editable = value; }
+    void setResultsHidden(bool value) { resultsHidden = value; }
 };
 } // namespace ui
 } // namespace exam

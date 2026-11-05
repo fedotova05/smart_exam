@@ -9,7 +9,17 @@ namespace exam {
 struct HistoryEntry {
     std::string attemptId, taskId, title, reason;
     AttemptResult result;
-    int help;
+    int help, maximumScore;
+    bool hadErrors;
+    HistoryEntry() : help(0), maximumScore(0), hadErrors(false) {}
+};
+struct LessonProgress {
+    SessionRecord lesson;
+    int totalTasks, finishedTasks, score, maximumScore;
+    bool hidden, provisional;
+    LessonProgress()
+        : totalTasks(0), finishedTasks(0), score(0), maximumScore(0),
+          hidden(false), provisional(false) {}
 };
 class SchoolService {
     Store &storage;
@@ -41,6 +51,7 @@ class SchoolService {
     std::vector<HistoryEntry> history(const std::string &profile);
     SessionRecord latestLesson(const std::string &profile);
     std::vector<AttemptRecord> lessonAttempts(const std::string &lesson);
+    LessonProgress progress(const std::string &profile);
     void start(const std::string &profile, const SessionSettings &settings,
                const std::vector<std::string> &tasks);
     bool resume(const std::string &profile);
@@ -54,6 +65,13 @@ class SchoolService {
     void closeLesson();
     void addSampleBank();
     void addStarterContent();
+    void addTrainingContent();
+    void addTrainingDemo();
+    void startTopics(const std::string &profile, const std::vector<std::string> &skills,
+                     bool training, int count);
+    bool canSupport(const std::string &attempt);
+    NextTask startSupport(const std::string &attempt);
+    std::vector<std::string> reviewSkills(const std::string &profile);
 };
 } // namespace exam
 #endif

@@ -32,6 +32,7 @@ class Screen : public sf::Drawable, public sf::Transformable {
     void note(const std::string &value, float x, float y, float width = 900,
               sf::Color color = Theme::muted);
     void surface(float x, float y, float width, float height, sf::Color color);
+    void progressBar(float value, float x, float y, float width);
     void text(const std::string &value, float x, float y, unsigned size = 18, float width = 900,
               int lines = 3);
     template <class T> T *add(T *widget, float x, float y) {

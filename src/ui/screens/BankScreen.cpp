@@ -169,9 +169,9 @@ void BankScreen::editor() {
     type->onChange = [this](int value) {
         draft.parts[partIndex].kind = static_cast<PartKind>(value);
     };
-    button("Настройка графика", 0, 566, 240, [this] {
+    button("Дополнительно", 0, 566, 240, [this] {
         clear();
-        title = "Настройка графической части";
+        title = "Настройки части задания";
         text("Шаг привязки (0.01–10)", 0, 0);
         TextField *snap = field(std::to_string(draft.parts[partIndex].graphSnap), 0, 30, 350, 20);
         text("Относительный допуск коэффициентов (0.000001–0.1)", 0, 100);
@@ -180,19 +180,23 @@ void BankScreen::editor() {
         text("Допуск применяется к математическим коэффициентам. Масштаб экрана не влияет на "
              "проверку.",
              0, 220, 18, 700, 3);
+        text("Формула для показа ученику (пусто — показывать основную)", 0, 300, 18, 900, 1);
+        TextField *display = field(draft.parts[partIndex].displayExpression, 0, 340, 900, 512);
+        note("Для вопросов о коэффициентах здесь укажите уравнение. Основная формула хранит проверяемое значение.", 0, 400, 900);
         button(
-            "Применить", 0, 330, 240,
-            [this, snap, tolerance] {
+            "Применить", 0, 490, 240,
+            [this, snap, tolerance, display] {
                 double step = readNumber(snap->getText()),
                        precision = readNumber(tolerance->getText());
                 if (step < 0.01 || step > 10 || precision < 0.000001 || precision > 0.1)
                     throw std::runtime_error("Значения вне указанных границ");
                 draft.parts[partIndex].graphSnap = step;
                 draft.parts[partIndex].graphTolerance = precision;
+                draft.parts[partIndex].displayExpression = display->getText();
                 editor();
             },
             true);
-        button("Отмена", 260, 330, 200, [this] { editor(); });
+        button("Отмена", 260, 490, 200, [this] { editor(); });
     });
     text("Условие выбранной части", 270, 228, 16);
     TextField *prompt = field(part.prompt, 270, 252, 670, 2048);
@@ -265,7 +269,7 @@ void BankScreen::preview() {
     const TaskPart &part = draft.parts[partIndex];
     text(part.prompt, 0, 95, 22, 900, 3);
     FormulaView *formula = add(new FormulaView(font, 940, 180), 0, 200);
-    formula->setFormula(part.expression);
+    formula->setFormula(part.displayExpression.empty() ? part.expression : part.displayExpression);
     text("Часть " + part.id + " · " + kindName(part.kind) + " · " + std::to_string(part.maxScore) +
              " балл.",
          0, 410, 18);

@@ -28,7 +28,7 @@ void WelcomeScreen::refresh() {
     });
     note("Выбор роли на этом компьютере, без пароля и регистрации в интернете.", 0, 485);
     button("Посмотреть демонстрацию →", 0, 540, 350,
-           [this] { enter("demo-student", "Демонстрация"); });
+           [this] { enter("demo-training", "Демонстрация: разбор ошибки"); context.page = "training-demo"; });
 }
 void WelcomeScreen::profiles() {
     clear();
@@ -37,7 +37,7 @@ void WelcomeScreen::profiles() {
     std::vector<std::pair<std::string, std::string>> students;
     std::vector<std::string> names;
     for (const auto &profile : all)
-        if (profile.first != "demo-student") {
+        if (profile.first != "demo-student" && profile.first != "demo-training") {
             students.push_back(profile);
             names.push_back(profile.second);
         }

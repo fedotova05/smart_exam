@@ -65,6 +65,8 @@ void SchoolService::addStarterContent() {
             storage.saveDraft(task);
             publish(task.id);
         }
+    addTrainingContent();
+    addTrainingDemo();
     for (const auto &profile : storage.profiles())
         if (profile.first == "demo-student")
             return;
