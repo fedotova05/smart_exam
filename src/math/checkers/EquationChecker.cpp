@@ -267,11 +267,13 @@ Roots readRoots(std::string text) {
 }
 } // namespace
 CheckResult EquationChecker::checkAnswer(const TaskPart &task, const AnswerPayload &answer) const {
-    if (task.kind==PartKind::Number || task.kind==PartKind::Choice || task.kind==PartKind::Polynomial ||
-        (task.kind==PartKind::Expression && (task.decimalPlaces>=0 || task.answerTolerance>0)))
-        return checkStructuredAnswer(task,answer);
-    if (int(task.kind)<0 || int(task.kind)>6)
-        return CheckResult(CheckStatus::Unsupported,"Неподдерживаемый формат ответа");
+    if (task.kind == PartKind::Number || task.kind == PartKind::Choice ||
+        task.kind == PartKind::Polynomial ||
+        (task.kind == PartKind::Expression &&
+         (task.decimalPlaces >= 0 || task.answerTolerance > 0)))
+        return checkStructuredAnswer(task, answer);
+    if (int(task.kind) < 0 || int(task.kind) > 6)
+        return CheckResult(CheckStatus::Unsupported, "Неподдерживаемый формат ответа");
     if (task.kind == PartKind::Line || task.kind == PartKind::Parabola)
         return graphChecker.check(task, answer.graph);
     if (trim(answer.text).empty())

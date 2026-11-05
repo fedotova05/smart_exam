@@ -52,7 +52,9 @@ class Screen : public sf::Drawable, public sf::Transformable {
         pending = action;
     }
     void ask(const std::string &message, const std::function<void()> &action);
-    bool hasDialog() const { return !dialog.empty(); }
+    bool hasDialog() const {
+        return !dialog.empty();
+    }
     void handle(const sf::Event &event, sf::Vector2f mouse);
     void update();
 };

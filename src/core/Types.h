@@ -43,8 +43,9 @@ struct TaskPart {
     double answerTolerance;
     std::vector<std::string> choices;
     std::vector<int> correctChoices;
-    TaskPart() : kind(PartKind::Equation), maxScore(1), graphSnap(0.5), graphTolerance(0.0001),
-        requireSteps(false), decimalPlaces(-1), answerTolerance(0) {}
+    TaskPart()
+        : kind(PartKind::Equation), maxScore(1), graphSnap(0.5), graphTolerance(0.0001),
+          requireSteps(false), decimalPlaces(-1), answerTolerance(0) {}
 };
 struct TaskVersion {
     std::string id;
@@ -74,8 +75,9 @@ struct SessionSettings {
     ResumePolicy resumePolicy;
     int timeLimitSeconds;
     SessionSettings()
-        : mode(SessionMode::Fixed), feedback(FeedbackPolicy::AfterStep), guided(false), training(false),
-          taskLimit(10), resumePolicy(ResumePolicy::ActiveTime), timeLimitSeconds(0) {}
+        : mode(SessionMode::Fixed), feedback(FeedbackPolicy::AfterStep), guided(false),
+          training(false), taskLimit(10), resumePolicy(ResumePolicy::ActiveTime),
+          timeLimitSeconds(0) {}
 };
 struct SkillState {
     bool known;

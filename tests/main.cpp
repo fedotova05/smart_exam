@@ -40,7 +40,7 @@ int main() {
         std::cout << "OK: worker, cancellation, stale results and failed writes\n";
         testAnswers();
         std::cout << "OK: structured answers, precision, mandatory steps and package roundtrip\n";
-        std::cout << "All test groups passed\n";
+        std::cout << "All 15 test groups passed\n";
         return 0;
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';

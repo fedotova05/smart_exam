@@ -127,10 +127,10 @@ std::string resourcePath(const std::string &base, const std::string &relative) {
 std::string newId(const std::string &prefix) {
     FILETIME time;
     GetSystemTimeAsFileTime(&time);
-    static unsigned counter = 0;
+    static volatile LONG counter = 0;
     std::ostringstream result;
     result << prefix << '-' << std::hex << time.dwHighDateTime << '-' << time.dwLowDateTime << '-'
-           << GetCurrentProcessId() << '-' << ++counter;
+           << GetCurrentProcessId() << '-' << InterlockedIncrement(&counter);
     return result.str();
 }
 } // namespace exam

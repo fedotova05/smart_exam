@@ -5,5 +5,5 @@ namespace exam {
 std::string answerPolicyError(const TaskPart &part);
 CheckResult checkStructuredAnswer(const TaskPart &part, const AnswerPayload &answer);
 bool solvedLinearStep(const std::string &equation);
-}
+} // namespace exam
 #endif

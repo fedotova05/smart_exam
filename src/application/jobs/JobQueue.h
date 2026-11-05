@@ -9,7 +9,9 @@
 #include <windows.h>
 namespace exam {
 class JobCancelled : public std::runtime_error {
-  public: JobCancelled() : std::runtime_error("Операция отменена; уже сохранённые данные остаются в базе") {}
+  public:
+    JobCancelled()
+        : std::runtime_error("Операция отменена; уже сохранённые данные остаются в базе") {}
 };
 struct JobContext {
     std::atomic<bool> cancelled;
@@ -36,9 +38,10 @@ class JobQueue {
     unsigned nextId;
     std::deque<Request> requests;
     std::deque<JobResult> results;
-    std::map<unsigned,Request> active;
+    std::map<unsigned, Request> active;
     static DWORD WINAPI entry(void *self);
     void run();
+
   public:
     explicit JobQueue(const std::string &databasePath);
     ~JobQueue();
@@ -50,5 +53,5 @@ class JobQueue {
     void leaveScreen(unsigned screen);
     bool poll(unsigned screen, JobResult &result);
 };
-}
+} // namespace exam
 #endif

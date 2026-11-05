@@ -9,8 +9,8 @@ bool canOpen(UserRole role, const std::string &page) {
         return true;
     if (role == UserRole::Guest)
         return false;
-    if (page == "home" || page == "results" || page == "knowledge" ||
-        page == "setup" || page == "progress" || page == "practice" || page == "training-demo")
+    if (page == "home" || page == "results" || page == "knowledge" || page == "setup" ||
+        page == "progress" || page == "practice" || page == "training-demo")
         return true;
     if (page == "lesson")
         return role == UserRole::Student;
@@ -41,9 +41,12 @@ std::string kindName(PartKind kind) {
     switch (kind) {
     case PartKind::Expression:
         return "Значение";
-    case PartKind::Number: return "Число";
-    case PartKind::Choice: return "Выбор вариантов";
-    case PartKind::Polynomial: return "Выражение с x";
+    case PartKind::Number:
+        return "Число";
+    case PartKind::Choice:
+        return "Выбор вариантов";
+    case PartKind::Polynomial:
+        return "Выражение с x";
     case PartKind::Equation:
         return "Уравнение";
     case PartKind::Line:

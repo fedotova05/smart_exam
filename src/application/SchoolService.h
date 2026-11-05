@@ -18,8 +18,8 @@ struct LessonProgress {
     int totalTasks, finishedTasks, score, maximumScore;
     bool hidden, provisional;
     LessonProgress()
-        : totalTasks(0), finishedTasks(0), score(0), maximumScore(0),
-          hidden(false), provisional(false) {}
+        : totalTasks(0), finishedTasks(0), score(0), maximumScore(0), hidden(false),
+          provisional(false) {}
 };
 class SchoolService {
     Store &storage;
@@ -32,7 +32,9 @@ class SchoolService {
 
   public:
     explicit SchoolService(Store &store) : storage(store), checker(geometry) {}
-    const std::string &databasePath() const { return storage.path(); }
+    const std::string &databasePath() const {
+        return storage.path();
+    }
     std::vector<std::pair<std::string, std::string>> profiles();
     std::string createProfile(const std::string &name);
     std::vector<TaskVersion> tasks();
@@ -64,7 +66,8 @@ class SchoolService {
     void help(const std::string &attempt, const std::string &part);
     AttemptResult finish(const std::string &attempt);
     void closeLesson();
-    void saveAnswerDraft(const std::string &attempt, const std::string &part, const AnswerPayload &answer) {
+    void saveAnswerDraft(const std::string &attempt, const std::string &part,
+                         const AnswerPayload &answer) {
         storage.saveAnswerDraft(attempt, part, answer);
     }
     std::map<std::string, AnswerPayload> answerDrafts(const std::string &attempt) {

@@ -80,20 +80,25 @@ PackagePreview PackageService::inspect(const std::string &path) const {
                 part.displayExpression = optionalText(partValue, "display_expression");
                 part.maxScore = partValue.field("score").integer();
                 if (partValue.object.count("require_steps")) {
-                    int required=partValue.field("require_steps").integer();
-                    if (required!=0 && required!=1) throw std::runtime_error("require_steps: только 0 или 1");
-                    part.requireSteps=required==1;
+                    int required = partValue.field("require_steps").integer();
+                    if (required != 0 && required != 1)
+                        throw std::runtime_error("require_steps: только 0 или 1");
+                    part.requireSteps = required == 1;
                 }
-                if (partValue.object.count("decimal_places")) part.decimalPlaces=partValue.field("decimal_places").integer();
+                if (partValue.object.count("decimal_places"))
+                    part.decimalPlaces = partValue.field("decimal_places").integer();
                 if (partValue.object.count("answer_tolerance")) {
-                    const Json &tolerance=partValue.field("answer_tolerance");
-                    if (tolerance.type!=Json::Number) throw std::runtime_error("Числовой допуск должен быть числом");
-                    part.answerTolerance=tolerance.number;
+                    const Json &tolerance = partValue.field("answer_tolerance");
+                    if (tolerance.type != Json::Number)
+                        throw std::runtime_error("Числовой допуск должен быть числом");
+                    part.answerTolerance = tolerance.number;
                 }
                 if (partValue.object.count("choices"))
-                    for (const Json &choice : array(partValue.field("choices"))) part.choices.push_back(choice.text());
+                    for (const Json &choice : array(partValue.field("choices")))
+                        part.choices.push_back(choice.text());
                 if (partValue.object.count("correct_choices"))
-                    for (const Json &choice : array(partValue.field("correct_choices"))) part.correctChoices.push_back(choice.integer());
+                    for (const Json &choice : array(partValue.field("correct_choices")))
+                        part.correctChoices.push_back(choice.integer());
                 if (partValue.object.count("snap")) {
                     const Json &value = partValue.field("snap");
                     if (value.type != Json::Number)
@@ -145,7 +150,8 @@ PackageService::importPackage(const PackagePreview &package,
         existing.insert(task.id);
     std::vector<ImportReport> report;
     for (const PackageItem &item : package.items) {
-        if (checkpoint) checkpoint();
+        if (checkpoint)
+            checkpoint();
         ImportReport row;
         row.id = item.sourceId;
         row.imported = false;
@@ -216,13 +222,14 @@ void PackageService::exportPackage(const std::string &path,
             value.object["prompt"] = Json(part.prompt);
             value.object["expression"] = Json(part.expression);
             value.object["display_expression"] = Json(part.displayExpression);
-            value.object["require_steps"]=Json(double(part.requireSteps));
-            value.object["decimal_places"]=Json(double(part.decimalPlaces));
-            value.object["answer_tolerance"]=Json(part.answerTolerance);
-            value.object["choices"]=texts(part.choices);
-            Json correct=Json::makeArray();
-            for (int choice : part.correctChoices) correct.array.push_back(Json(double(choice)));
-            value.object["correct_choices"]=correct;
+            value.object["require_steps"] = Json(double(part.requireSteps));
+            value.object["decimal_places"] = Json(double(part.decimalPlaces));
+            value.object["answer_tolerance"] = Json(part.answerTolerance);
+            value.object["choices"] = texts(part.choices);
+            Json correct = Json::makeArray();
+            for (int choice : part.correctChoices)
+                correct.array.push_back(Json(double(choice)));
+            value.object["correct_choices"] = correct;
             value.object["score"] = Json(static_cast<double>(part.maxScore));
             value.object["skills"] = texts(part.skills);
             skillIds.insert(part.skills.begin(), part.skills.end());

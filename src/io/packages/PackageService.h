@@ -25,9 +25,10 @@ class PackageService {
     PackageService(SchoolService &services, const std::string &data = "data")
         : school(services), dataDirectory(data) {}
     PackagePreview inspect(const std::string &path) const;
-    std::vector<ImportReport> importPackage(const PackagePreview &package,
-                                            const std::map<std::string, std::string> &skillMapping,
-                                            const std::function<void()> &checkpoint = std::function<void()>());
+    std::vector<ImportReport>
+    importPackage(const PackagePreview &package,
+                  const std::map<std::string, std::string> &skillMapping,
+                  const std::function<void()> &checkpoint = std::function<void()>());
     void exportPackage(const std::string &path, const std::vector<std::string> &taskIds) const;
 };
 } // namespace exam

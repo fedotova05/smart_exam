@@ -62,10 +62,10 @@ void Database::migrate(const std::string &directory) {
     int version = std::stoi(query("PRAGMA user_version")[0][0]);
     if (version > 9)
         throw std::runtime_error("Database version is newer than application");
-    const char *files[] = {"001_initial.sql", "002_attempt_snapshot.sql",
-                           "003_session_completion.sql", "004_interface_data.sql",
-                           "005_graph_settings.sql", "006_training.sql", "007_session_policies.sql",
-                           "008_manual_review.sql", "009_answer_policies.sql"};
+    const char *files[] = {
+        "001_initial.sql",          "002_attempt_snapshot.sql", "003_session_completion.sql",
+        "004_interface_data.sql",   "005_graph_settings.sql",   "006_training.sql",
+        "007_session_policies.sql", "008_manual_review.sql",    "009_answer_policies.sql"};
     for (int next = version; next < 9; ++next) {
         std::ifstream input((directory + "/" + files[next]).c_str());
         if (!input)

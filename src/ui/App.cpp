@@ -62,15 +62,18 @@ void App::buildNavigation() {
         button->setNavigation(true);
         std::string id = navigationPages[i];
         button->onClick = [this, id] { context.page = id; };
-        bool selected = page == id || ((page == "lesson" || page == "setup" || page == "practice") && id == "home") ||
-                        (page == "knowledge" && id == "progress") ||
-                        (context.role == UserRole::Teacher && page == "results" && id == "home");
+        bool selected =
+            page == id ||
+            ((page == "lesson" || page == "setup" || page == "practice") && id == "home") ||
+            (page == "knowledge" && id == "progress") ||
+            (context.role == UserRole::Teacher && page == "results" && id == "home");
         button->setSelected(selected);
         navigation.push_back(std::move(button));
     }
 }
 void App::show(const std::string &requested) {
-    if (current) current->leave();
+    if (current)
+        current->leave();
     window.setActive(true);
     std::string name = canOpen(context.role, requested) ? requested : "welcome";
     if (name == "welcome") {
@@ -113,15 +116,14 @@ void App::resize(unsigned width, unsigned height) {
     float scale = std::min(1.f, std::min(width / 1200.f, height / 800.f));
     float viewportWidth = 1200.f * scale / width;
     float viewportHeight = 800.f * scale / height;
-    view.setViewport(sf::FloatRect((1 - viewportWidth) / 2, (1 - viewportHeight) / 2,
-                                  viewportWidth, viewportHeight));
+    view.setViewport(sf::FloatRect((1 - viewportWidth) / 2, (1 - viewportHeight) / 2, viewportWidth,
+                                   viewportHeight));
     window.setView(view);
 }
 void App::draw() {
     window.clear(Theme::background);
     window.draw(label(font, unicode("SmartExam"), 25, 52, 27));
-    rectangle(window, sf::RenderStates(), sf::Vector2f(1096, 1), Theme::line,
-              sf::Vector2f(52, 66));
+    rectangle(window, sf::RenderStates(), sf::Vector2f(1096, 1), Theme::line, sf::Vector2f(52, 66));
     for (const auto &button : navigation)
         window.draw(*button);
     window.draw(*current);
@@ -229,10 +231,14 @@ int App::run(bool smoke, bool capture, bool widgets) {
         save("teacher");
         show("bank");
         save("bank");
+        click(300, 460);
+        click(80, 580);
+        save("answer-settings");
         show("packages");
         save("packages");
         context.role = UserRole::Student;
-        context.selectProfile(context.school.createProfile("Отложенная проверка"), "Отложенная проверка");
+        context.selectProfile(context.school.createProfile("Отложенная проверка"),
+                              "Отложенная проверка");
         settings.feedback = FeedbackPolicy::AfterSet;
         settings.taskLimit = 2;
         context.school.start(context.profile, settings, {"intro-fractions", "intro-linear"});
@@ -271,7 +277,8 @@ int App::run(bool smoke, bool capture, bool widgets) {
         save("progress-1920");
         window.setSize(sf::Vector2u(1200, 800));
         resize(1200, 800);
-        context.selectProfile(context.school.createProfile("Квадратные уравнения"), "Квадратные уравнения");
+        context.selectProfile(context.school.createProfile("Квадратные уравнения"),
+                              "Квадратные уравнения");
         settings.feedback = FeedbackPolicy::AfterStep;
         settings.guided = false;
         context.school.start(context.profile, settings, {"intro-quadratic"});
@@ -329,8 +336,11 @@ int App::run(bool smoke, bool capture, bool widgets) {
         }
         if (!window.isOpen())
             break;
-        try { current->tick(); }
-        catch (const std::exception &error) { current->status=error.what(); }
+        try {
+            current->tick();
+        } catch (const std::exception &error) {
+            current->status = error.what();
+        }
         draw();
         if (smoke && clock.getElapsedTime().asSeconds() > 1)
             window.close();

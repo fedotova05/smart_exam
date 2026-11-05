@@ -53,7 +53,8 @@ std::vector<std::string> SchoolService::validate(const TaskVersion &task) const 
             errors.push_back("Идентификаторы частей должны быть уникальными");
         if (part.prompt.empty() || part.prompt.size() > 4096)
             errors.push_back(label + "нужно условие до 4096 байтов");
-        if ((part.expression.empty() && part.kind!=PartKind::Choice) || part.expression.size() > 512)
+        if ((part.expression.empty() && part.kind != PartKind::Choice) ||
+            part.expression.size() > 512)
             errors.push_back(label + "нужна формула до 512 байтов");
         if (part.maxScore < 1 || part.maxScore > 100)
             errors.push_back(label + "балл должен быть от 1 до 100");
@@ -76,9 +77,11 @@ std::vector<std::string> SchoolService::validate(const TaskVersion &task) const 
                 else
                     parseExpression(part.displayExpression);
             }
-            std::string policyError=answerPolicyError(part);
-            if (!policyError.empty()) errors.push_back(label+policyError);
-            if (part.kind==PartKind::Number || part.kind==PartKind::Choice || part.kind==PartKind::Polynomial) {
+            std::string policyError = answerPolicyError(part);
+            if (!policyError.empty())
+                errors.push_back(label + policyError);
+            if (part.kind == PartKind::Number || part.kind == PartKind::Choice ||
+                part.kind == PartKind::Polynomial) {
                 // Общая проверка формата выполнена выше.
             } else if (part.kind == PartKind::Expression)
                 evaluateExact(parseExpression(part.expression));
@@ -196,9 +199,9 @@ LessonProgress SchoolService::progress(const std::string &profile) {
     if (result.lesson.id.empty())
         return result;
     bool fixed = result.lesson.settings.mode == SessionMode::Fixed;
-    result.totalTasks = fixed
-        ? std::min(result.lesson.settings.taskLimit, static_cast<int>(result.lesson.tasks.size()))
-        : result.lesson.settings.taskLimit;
+    result.totalTasks = fixed ? std::min(result.lesson.settings.taskLimit,
+                                         static_cast<int>(result.lesson.tasks.size()))
+                              : result.lesson.settings.taskLimit;
     if (fixed)
         for (int i = 0; i < result.totalTasks; ++i)
             for (const auto &part : storage.task(result.lesson.tasks[i]).parts)
@@ -229,7 +232,7 @@ LessonProgress SchoolService::progress(const std::string &profile) {
     return result;
 }
 void SchoolService::startTopics(const std::string &profile, const std::vector<std::string> &skills,
-                               bool training, int count) {
+                                bool training, int count) {
     if (skills.empty())
         throw std::runtime_error("Выберите хотя бы одну тему или навык");
     if (count < 1 || count > 20)
@@ -258,9 +261,10 @@ void SchoolService::startTopics(const std::string &profile, const std::vector<st
         for (int i = 0; i < count; ++i) {
             auto choice = selector.selectNext(storage.snapshot(profile), candidates, tasks);
             tasks.push_back(choice.task.id);
-            candidates.erase(std::remove_if(candidates.begin(), candidates.end(), [&](const TaskVersion &task) {
-                return task.id == choice.task.id;
-            }), candidates.end());
+            candidates.erase(
+                std::remove_if(candidates.begin(), candidates.end(),
+                               [&](const TaskVersion &task) { return task.id == choice.task.id; }),
+                candidates.end());
         }
     }
     start(profile, settings, tasks);

@@ -55,18 +55,20 @@ class Store {
     struct ReplayData {
         std::map<std::string, StudentSnapshot> students;
         std::map<std::string, double> difficulties;
-        std::map<std::string, std::pair<int,bool>> grades;
+        std::map<std::string, std::pair<int, bool>> grades;
         std::vector<std::pair<std::string, Observation>> observations;
         Row revision;
     };
     Row modelRevision();
     ReplayData calculateReplay(const ReviewVerdict *pending = 0,
-                              const std::function<void()> &checkpoint = std::function<void()>());
+                               const std::function<void()> &checkpoint = std::function<void()>());
     void saveReplay(const ReplayData &data);
 
   public:
     explicit Store(const std::string &path, const std::string &migrations = "db/migrations");
-    const std::string &path() const { return databasePath; }
+    const std::string &path() const {
+        return databasePath;
+    }
     void saveProfile(const std::string &id, const std::string &name);
     void saveTopic(const std::string &id, const std::string &name);
     void saveSkill(const std::string &id, const std::string &topic, const std::string &name);
@@ -92,7 +94,9 @@ class Store {
     bool usedHelp(const std::string &attemptId, const std::string &partId);
     void finish(const std::string &attemptId, int score, bool provisional,
                 const std::vector<Observation> &observations, const Row &expectedRevision = Row());
-    Row learningRevision() { return modelRevision(); }
+    Row learningRevision() {
+        return modelRevision();
+    }
     StudentSnapshot snapshot(const std::string &studentId);
     StudentSnapshot attemptSnapshot(const std::string &attemptId);
     int observationCount(const std::string &attemptId);
@@ -111,7 +115,8 @@ class Store {
     void endSupport(const std::string &session);
     TrainingStep trainingStep(const std::string &attempt);
     AttemptRecord openTrainingAttempt(const std::string &session, int position,
-        const std::string &task, const std::string &reason, const TrainingStep &step);
+                                      const std::string &task, const std::string &reason,
+                                      const TrainingStep &step);
     void saveTemplate(const LessonTemplate &value);
     LessonTemplate lessonTemplate(const std::string &id);
     void startTemplate(const std::string &templateId, const std::string &sessionId,

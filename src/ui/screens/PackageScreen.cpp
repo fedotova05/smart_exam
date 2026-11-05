@@ -60,56 +60,88 @@ void PackageScreen::refresh() {
         true);
 }
 void PackageScreen::waiting() {
-    clear(); title="Обработка пакета";
-    text("Операция выполняется. Можно отменить её или перейти на другую страницу.",0,20,22,900,3);
-    note("Уже сохранённые черновики остаются в банке даже после отмены.",0,130,900);
-    button("Отменить",0,230,240,[this] { jobs->cancel(requestId); status="Отмена запрошена"; });
+    clear();
+    title = "Обработка пакета";
+    text("Операция выполняется. Можно отменить её или перейти на другую страницу.", 0, 20, 22, 900,
+         3);
+    note("Уже сохранённые черновики остаются в банке даже после отмены.", 0, 130, 900);
+    button("Отменить", 0, 230, 240, [this] {
+        jobs->cancel(requestId);
+        status = "Отмена запрошена";
+    });
 }
 void PackageScreen::inspectAsync() {
-    if (!jobs) jobs.reset(new JobQueue(context.school.databasePath()));
-    leave(); inspecting=true;
+    if (!jobs)
+        jobs.reset(new JobQueue(context.school.databasePath()));
+    leave();
+    inspecting = true;
     pendingPreview.reset(new PackagePreview);
-    auto output=pendingPreview;
-    std::string filePath=path;
-    requestId=jobs->submit(screenId,[filePath,output](Store &store,JobContext &job) {
-        SchoolService school(store); PackageService packages(school);
-        job.checkpoint(); *output=packages.inspect(filePath); job.checkpoint();
+    auto output = pendingPreview;
+    std::string filePath = path;
+    requestId = jobs->submit(screenId, [filePath, output](Store &store, JobContext &job) {
+        SchoolService school(store);
+        PackageService packages(school);
+        job.checkpoint();
+        *output = packages.inspect(filePath);
+        job.checkpoint();
         return std::string("Пакет прочитан");
     });
     waiting();
 }
 void PackageScreen::importAsync() {
-    if (!jobs) jobs.reset(new JobQueue(context.school.databasePath()));
-    leave(); inspecting=false;
-    auto source=package; auto skillMapping=mapping;
-    requestId=jobs->submit(screenId,[source,skillMapping](Store &store,JobContext &job) {
-        SchoolService school(store); PackageService packages(school);
-        auto report=packages.importPackage(source,skillMapping,[&job] { job.checkpoint(); });
+    if (!jobs)
+        jobs.reset(new JobQueue(context.school.databasePath()));
+    leave();
+    inspecting = false;
+    auto source = package;
+    auto skillMapping = mapping;
+    requestId = jobs->submit(screenId, [source, skillMapping](Store &store, JobContext &job) {
+        SchoolService school(store);
+        PackageService packages(school);
+        auto report = packages.importPackage(source, skillMapping, [&job] { job.checkpoint(); });
         std::string text;
         for (const auto &item : report)
-            text+=item.id+" · "+(item.imported ? "Добавлено: " : "Пропущено: ")+item.message+"\n";
+            text += item.id + " · " + (item.imported ? "Добавлено: " : "Пропущено: ") +
+                    item.message + "\n";
         return text;
     });
     waiting();
 }
 void PackageScreen::leave() {
-    if (jobs) jobs->leaveScreen(screenId);
-    ++screenId; requestId=0; pendingPreview.reset();
+    if (jobs)
+        jobs->leaveScreen(screenId);
+    ++screenId;
+    requestId = 0;
+    pendingPreview.reset();
 }
 void PackageScreen::tick() {
-    if (!jobs || !requestId) return;
+    if (!jobs || !requestId)
+        return;
     JobResult result;
-    if (!jobs->poll(screenId,result) || result.id!=requestId) return;
-    requestId=0;
-    if (!result.success) { refresh(); status=result.text; return; }
+    if (!jobs->poll(screenId, result) || result.id != requestId)
+        return;
+    requestId = 0;
+    if (!result.success) {
+        refresh();
+        status = result.text;
+        return;
+    }
     if (inspecting) {
-        package=*pendingPreview; pendingPreview.reset(); mapping.clear(); refresh(); status=result.text;
+        package = *pendingPreview;
+        pendingPreview.reset();
+        mapping.clear();
+        refresh();
+        status = result.text;
     } else {
-        clear(); title="Отчёт импорта";
-        std::vector<std::string> rows; std::istringstream input(result.text); std::string row;
-        while (std::getline(input,row)) rows.push_back(row);
-        list(rows,0,0,940,480);
-        button("К пакетам",0,550,240,[this] { refresh(); });
+        clear();
+        title = "Отчёт импорта";
+        std::vector<std::string> rows;
+        std::istringstream input(result.text);
+        std::string row;
+        while (std::getline(input, row))
+            rows.push_back(row);
+        list(rows, 0, 0, 940, 480);
+        button("К пакетам", 0, 550, 240, [this] { refresh(); });
     }
 }
 void PackageScreen::exportView() {

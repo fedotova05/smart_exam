@@ -1,4 +1,5 @@
 #include "../Test.h"
+#include "../Fixture.h"
 #include "application/SchoolService.h"
 #include "application/training/TrainingService.h"
 #include "io/Files.h"
@@ -23,8 +24,62 @@ void answer(SchoolService &school, const NextTask &task, bool correct) {
         school.submit(task.attempt.id, part.id, value, true);
     }
 }
-}
+} // namespace
 void testTraining() {
+    // Ошибки ниже третьего уровня не должны возвращать бесконечное повторение темы.
+    {
+        Store store(":memory:");
+        prepareBank(store);
+        std::vector<std::string> chain = {"root", "middle", "lower", "basic", "elementary"};
+        for (const auto &skill : chain) {
+            store.saveSkill(skill, "algebra", skill);
+            for (int i = 0; i < 6; ++i)
+                addTask(store, skill + std::to_string(i), "x=1", skill, 800 + i);
+        }
+        for (std::size_t i = 0; i + 1 < chain.size(); ++i)
+            store.setPrerequisites(chain[i], {chain[i + 1]});
+        SchoolService school(store);
+        school.startTopics("student", {"root"}, true, 1);
+        NextTask current = school.next();
+        answer(school, current, false);
+        current = school.startSupport(current.attempt.id);
+        // Сначала нижний навык проходит диагностику, но ошибка на закреплении среднего
+        // снова направляет к его предпосылкам, уже на других заданиях.
+        REQUIRE(store.trainingStep(current.attempt.id).skill == "middle");
+        answer(school, current, false);
+        school.finish(current.attempt.id);
+        current = school.next();
+        REQUIRE(store.trainingStep(current.attempt.id).skill == "lower");
+        answer(school, current, true);
+        school.finish(current.attempt.id);
+        current = school.next();
+        REQUIRE(store.trainingStep(current.attempt.id).stage == "practice");
+        REQUIRE(store.trainingStep(current.attempt.id).skill == "middle");
+        answer(school, current, false);
+        school.finish(current.attempt.id);
+        current = school.next();
+        for (const std::string &skill : {"lower", "basic", "elementary"}) {
+            REQUIRE(current.available && store.trainingStep(current.attempt.id).skill == skill);
+            answer(school, current, false);
+            school.finish(current.attempt.id);
+            current = school.next();
+        }
+        REQUIRE(store.trainingStep(current.attempt.id).skill == "elementary");
+        REQUIRE(store.trainingStep(current.attempt.id).stage == "practice");
+        for (int i = 0; i < 2; ++i) {
+            answer(school, current, true);
+            school.finish(current.attempt.id);
+            current = school.next();
+        }
+        for (const std::string &skill : {"basic", "lower", "middle"}) {
+            REQUIRE(store.trainingStep(current.attempt.id).stage == "bridge");
+            REQUIRE(store.trainingStep(current.attempt.id).skill == skill);
+            answer(school, current, true);
+            school.finish(current.attempt.id);
+            current = school.next();
+        }
+        REQUIRE(store.trainingStep(current.attempt.id).stage == "return");
+    }
     const std::string path = "bin/training-test.db";
     std::remove(path.c_str());
     std::string profile, original, interrupted;
@@ -80,7 +135,8 @@ void testTraining() {
         REQUIRE(school.resume(profile));
         NextTask current = school.next();
         REQUIRE(current.attempt.id == interrupted);
-        REQUIRE(school.latestLesson(profile).settings.targetSkills == std::vector<std::string>({"q_roots"}));
+        REQUIRE(school.latestLesson(profile).settings.targetSkills ==
+                std::vector<std::string>({"q_roots"}));
         for (int i = 0; i < 2; ++i) {
             REQUIRE(store.trainingStep(current.attempt.id).stage == "practice");
             answer(school, current, true);
@@ -91,14 +147,16 @@ void testTraining() {
         answer(school, current, true);
         school.finish(current.attempt.id);
         current = school.next();
-        REQUIRE(current.task.id == original && store.trainingStep(current.attempt.id).stage == "return");
+        REQUIRE(current.task.id == original &&
+                store.trainingStep(current.attempt.id).stage == "return");
         int observations = school.snapshot(profile).skills["q_roots"].observations;
         answer(school, current, false);
         answer(school, current, true);
         school.finish(current.attempt.id);
         REQUIRE(school.snapshot(profile).skills["q_roots"].observations == observations);
         current = school.next();
-        REQUIRE(store.trainingStep(current.attempt.id).stage == "verify" && current.task.id != original);
+        REQUIRE(store.trainingStep(current.attempt.id).stage == "verify" &&
+                current.task.id != original);
         answer(school, current, true);
         school.finish(current.attempt.id);
         REQUIRE(!school.next().available);
@@ -155,7 +213,7 @@ void testTraining() {
             current = school.next();
             ++steps;
         }
-        REQUIRE(!current.available && steps == 5);
+        REQUIRE(!current.available && steps == 2);
         REQUIRE(current.reason.find("перерыв") != std::string::npos);
     }
     // Обновление базы пятой версии сохраняет старые данные и добавляет пустую формулу условия.
@@ -163,7 +221,9 @@ void testTraining() {
     std::remove(migration.c_str());
     {
         Database db(migration);
-        for (const std::string &file : {"001_initial.sql", "002_attempt_snapshot.sql", "003_session_completion.sql", "004_interface_data.sql", "005_graph_settings.sql"})
+        for (const std::string &file :
+             {"001_initial.sql", "002_attempt_snapshot.sql", "003_session_completion.sql",
+              "004_interface_data.sql", "005_graph_settings.sql"})
             db.script(readFile("db/migrations/" + file));
         db.query("INSERT INTO profiles VALUES('old','Старый профиль')");
     }
