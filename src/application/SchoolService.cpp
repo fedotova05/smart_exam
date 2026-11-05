@@ -2,6 +2,7 @@
 #include "generation/Generator.h"
 #include "training/TrainingService.h"
 #include "io/Files.h"
+#include "answers/AnswerPolicy.h"
 #include <algorithm>
 #include <cmath>
 #include <set>
@@ -52,7 +53,7 @@ std::vector<std::string> SchoolService::validate(const TaskVersion &task) const 
             errors.push_back("Идентификаторы частей должны быть уникальными");
         if (part.prompt.empty() || part.prompt.size() > 4096)
             errors.push_back(label + "нужно условие до 4096 байтов");
-        if (part.expression.empty() || part.expression.size() > 512)
+        if ((part.expression.empty() && part.kind!=PartKind::Choice) || part.expression.size() > 512)
             errors.push_back(label + "нужна формула до 512 байтов");
         if (part.maxScore < 1 || part.maxScore > 100)
             errors.push_back(label + "балл должен быть от 1 до 100");
@@ -75,7 +76,11 @@ std::vector<std::string> SchoolService::validate(const TaskVersion &task) const 
                 else
                     parseExpression(part.displayExpression);
             }
-            if (part.kind == PartKind::Expression)
+            std::string policyError=answerPolicyError(part);
+            if (!policyError.empty()) errors.push_back(label+policyError);
+            if (part.kind==PartKind::Number || part.kind==PartKind::Choice || part.kind==PartKind::Polynomial) {
+                // Общая проверка формата выполнена выше.
+            } else if (part.kind == PartKind::Expression)
                 evaluateExact(parseExpression(part.expression));
             else if (part.kind == PartKind::Equation) {
                 Equation equation = parseEquation(part.expression);

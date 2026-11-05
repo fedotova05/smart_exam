@@ -22,4 +22,5 @@ void testTraining();
 void testRecovery();
 void testReview();
 void testJobs();
+void testAnswers();
 #endif

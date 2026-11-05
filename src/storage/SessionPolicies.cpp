@@ -94,6 +94,7 @@ SessionTime Store::sessionTime(const std::string &id, long long now) {
              {std::to_string(std::max(now,last)),std::to_string(elapsed),runtimeId,stopped,id});
     transaction.commit();
     result.allowed = stopped.empty() && !result.paused;
+    if (!stopped.empty()) result.paused=false;
     result.message = stopped.empty() ? (result.paused ? "Занятие на паузе" : "") : stopped;
     return result;
 }

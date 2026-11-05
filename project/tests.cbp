@@ -37,6 +37,7 @@
       <Add directory="../third_party/sqlite" />
     </Compiler>
     <Unit filename="../src/adaptation/Adaptation.h" />
+    <Unit filename="../src/application/answers/AnswerPolicy.h" />
     <Unit filename="../src/application/Demo.h" />
     <Unit filename="../src/application/jobs/JobQueue.h" />
     <Unit filename="../src/application/review/ReviewService.h" />
@@ -58,6 +59,7 @@
     <Unit filename="../src/storage/Database.h" />
     <Unit filename="../src/storage/Store.h" />
     <Unit filename="../src/adaptation/Adaptation.cpp" />
+    <Unit filename="../src/application/answers/AnswerPolicy.cpp" />
     <Unit filename="../src/application/Demo.cpp" />
     <Unit filename="../src/application/jobs/JobQueue.cpp" />
     <Unit filename="../src/application/SchoolService.cpp" />
@@ -79,6 +81,7 @@
     <Unit filename="../src/storage/SessionPolicies.cpp" />
     <Unit filename="../src/storage/Store.cpp" />
     <Unit filename="../tests/adaptation/AdaptationTests.cpp" />
+    <Unit filename="../tests/answers/AnswerTests.cpp" />
     <Unit filename="../tests/checker/CheckerTests.cpp" />
     <Unit filename="../tests/Fixture.h" />
     <Unit filename="../tests/generation/GeneratorTests.cpp" />

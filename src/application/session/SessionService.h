@@ -32,7 +32,7 @@ class SessionService {
     CheckResult submitResponse(const ResponseRecord &response);
     void requestHelp(const std::string &requestId, const std::string &attemptId,
                      const std::string &partId, const std::string &kind);
-    AttemptResult finishAttempt(const std::string &attemptId);
+    AttemptResult finishAttempt(const std::string &attemptId, bool timeExpired = false);
     AttemptResult result(const std::string &attemptId);
     std::vector<ResponseRecord> history(const std::string &attemptId);
 };

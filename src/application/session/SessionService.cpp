@@ -2,7 +2,9 @@
 #include "core/GraphCodec.h"
 #include "math/checkers/EquationChecker.h"
 #include "application/training/TrainingService.h"
+#include "application/answers/AnswerPolicy.h"
 #include <stdexcept>
+#include <chrono>
 namespace exam {
 void SessionService::start(const SessionRecord &session) {
     if (session.settings.training && (session.settings.mode != SessionMode::Dynamic ||
@@ -20,7 +22,7 @@ NextTask SessionService::next(const std::string &id) {
         stopped.reason = time.message;
         if (!session.closed && !time.paused) {
             for (const auto &value : store.attempts(id))
-                if (!value.finished) finishAttempt(value.id);
+                if (!value.finished) finishAttempt(value.id,true);
             store.closeSession(id);
         }
         return stopped;
@@ -116,8 +118,20 @@ CheckResult SessionService::submitResponse(const ResponseRecord &input) {
             part = &value;
     if (!part)
         throw std::runtime_error("Часть задания не найдена");
-    if (response.finalAnswer)
+    if (response.operation.size()>32 || response.operand.size()>100)
+        throw std::invalid_argument("Слишком длинная запись действия");
+    auto checkStarted=std::chrono::steady_clock::now();
+    if (response.finalAnswer) {
         response.result = checker.checkAnswer(*part, response.answer);
+        if (part->requireSteps && response.result.status==CheckStatus::Correct) {
+            bool solved=false;
+            for (const auto &old : store.responses(attempt.id))
+                if (old.partId==part->id && !old.finalAnswer && old.result.status==CheckStatus::Correct &&
+                    !old.operation.empty() && solvedLinearStep(old.answer.text)) solved=true;
+            if (!solved) response.result=CheckResult(CheckStatus::Incomplete,
+                "Ответ верный, но требуется решение: выполните преобразования до x = число и отправьте итог снова");
+        }
+    }
     else if (part->kind != PartKind::Equation || !isLinearEquation(part->expression))
         response.result = CheckResult(CheckStatus::Unsupported,
                                       "Шаги доступны только для линейных уравнений. Введите итоговый ответ.");
@@ -131,6 +145,8 @@ CheckResult SessionService::submitResponse(const ResponseRecord &input) {
         response.result = checker.checkStep(before, response.answer.text,
                                             response.operation, response.operand);
     }
+    if (std::chrono::steady_clock::now()-checkStarted > std::chrono::milliseconds(200))
+        response.result=CheckResult(CheckStatus::Unsupported,"Проверка превысила отведённое время");
     store.saveResponse(response);
     return feedbackVisible(attempt) ? response.result
                                     : CheckResult(CheckStatus::Incomplete,
@@ -138,9 +154,10 @@ CheckResult SessionService::submitResponse(const ResponseRecord &input) {
 }
 void SessionService::requestHelp(const std::string &request, const std::string &attempt,
                                  const std::string &part, const std::string &kind) {
+    store.requireSessionAccess(store.attempt(attempt).sessionId);
     store.addHelp(request, attempt, part, kind);
 }
-AttemptResult SessionService::finishAttempt(const std::string &id) {
+AttemptResult SessionService::finishAttempt(const std::string &id, bool timeExpired) {
     AttemptRecord attempt = store.attempt(id);
     if (attempt.finished)
         return result(id);
@@ -161,6 +178,8 @@ AttemptResult SessionService::finishAttempt(const std::string &id) {
             if (response.result.status == CheckStatus::Incorrect)
                 item.hadError = true;
         }
+        if (part.requireSteps && item.finalStatus==CheckStatus::Incomplete && !timeExpired)
+            throw std::runtime_error("В части «"+part.id+"» требуется решение и отправленный итоговый ответ");
         if (item.finalStatus == CheckStatus::Correct)
             score += part.maxScore;
         else if (item.finalStatus != CheckStatus::Incorrect)

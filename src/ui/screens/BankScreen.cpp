@@ -2,6 +2,7 @@
 #include "ui/FormulaView.h"
 #include "io/Files.h"
 #include <algorithm>
+#include <sstream>
 namespace exam {
 namespace ui {
 void BankScreen::createTask(bool combined) {
@@ -164,7 +165,7 @@ void BankScreen::editor() {
     if (draft.parts.empty())
         return;
     TaskPart &part = draft.parts[partIndex];
-    ListBox *type = list({"Значение", "Уравнение", "Прямая", "Парабола"}, 0, 430, 240, 120);
+    ListBox *type = list({"Значение", "Уравнение", "Прямая", "Парабола", "Число", "Выбор вариантов", "Выражение с x"}, 0, 430, 240, 120);
     type->select(static_cast<int>(part.kind));
     type->onChange = [this](int value) {
         draft.parts[partIndex].kind = static_cast<PartKind>(value);
@@ -172,31 +173,49 @@ void BankScreen::editor() {
     button("Дополнительно", 0, 566, 240, [this] {
         clear();
         title = "Настройки части задания";
-        text("Шаг привязки (0.01–10)", 0, 0);
-        TextField *snap = field(std::to_string(draft.parts[partIndex].graphSnap), 0, 30, 350, 20);
-        text("Относительный допуск коэффициентов (0.000001–0.1)", 0, 100);
-        TextField *tolerance =
-            field(std::to_string(draft.parts[partIndex].graphTolerance), 0, 130, 350, 20);
-        text("Допуск применяется к математическим коэффициентам. Масштаб экрана не влияет на "
-             "проверку.",
-             0, 220, 18, 700, 3);
-        text("Формула для показа ученику (пусто — показывать основную)", 0, 300, 18, 900, 1);
-        TextField *display = field(draft.parts[partIndex].displayExpression, 0, 340, 900, 512);
-        note("Для вопросов о коэффициентах здесь укажите уравнение. Основная формула хранит проверяемое значение.", 0, 400, 900);
-        button(
-            "Применить", 0, 490, 240,
-            [this, snap, tolerance, display] {
-                double step = readNumber(snap->getText()),
-                       precision = readNumber(tolerance->getText());
-                if (step < 0.01 || step > 10 || precision < 0.000001 || precision > 0.1)
-                    throw std::runtime_error("Значения вне указанных границ");
-                draft.parts[partIndex].graphSnap = step;
-                draft.parts[partIndex].graphTolerance = precision;
-                draft.parts[partIndex].displayExpression = display->getText();
-                editor();
-            },
-            true);
-        button("Отмена", 260, 490, 200, [this] { editor(); });
+        const auto &part=draft.parts[partIndex];
+        text("Привязка графика: 0.01–10",0,0,16);
+        auto snap=field(std::to_string(part.graphSnap),0,26,300,20);
+        text("Допуск графика: 0.000001–0.1",350,0,16);
+        auto tolerance=field(std::to_string(part.graphTolerance),350,26,300,20);
+        text("Округление: -1 — точное, 0–6 — знаки",0,86,16);
+        auto places=field(std::to_string(part.decimalPlaces),0,112,300,2);
+        text("Числовая погрешность: 0–1",350,86,16);
+        auto numeric=field(std::to_string(part.answerTolerance),350,112,300,20);
+        note("Округление и числовая погрешность действуют только для числового ответа.",0,170,900);
+        text("Формула для ученика (необязательно)",0,215,16);
+        auto display=field(part.displayExpression,0,241,900,512);
+        auto steps=add(new Toggle(font,"Обязательное решение линейного уравнения",650),0,305);
+        steps->setValue(part.requireSteps);
+        std::string options,correct;
+        for (const auto &value : part.choices) { if (!options.empty()) options+="|"; options+=value; }
+        for (int value : part.correctChoices) { if (!correct.empty()) correct+=";"; correct+=std::to_string(value); }
+        text("Варианты ответа через | (только для выбора вариантов)",0,365,16);
+        auto choices=field(options,0,391,900,2048);
+        text("Номера правильных вариантов через ;",0,451,16);
+        auto correctField=field(correct,0,477,900,100);
+        button("Применить",0,566,240,[this,snap,tolerance,places,numeric,display,steps,choices,correctField] {
+            TaskPart &part=draft.parts[partIndex];
+            double digits=readNumber(places->getText());
+            if (digits < -1 || digits>6 || digits!=int(digits))
+                throw std::runtime_error("Округление: целое от -1 до 6");
+            std::vector<std::string> options; std::vector<int> correct;
+            std::string token; std::istringstream texts(choices->getText()), numbers(correctField->getText());
+            while (std::getline(texts,token,'|')) options.push_back(token);
+            while (std::getline(numbers,token,';')) {
+                double id=readNumber(token);
+                if (id<1 || id>12 || id!=int(id)) throw std::runtime_error("Номер варианта: целое от 1 до 12");
+                correct.push_back(int(id));
+            }
+            double step=readNumber(snap->getText()), precision=readNumber(tolerance->getText()), allowed=readNumber(numeric->getText());
+            if (step<0.01 || step>10 || precision<0.000001 || precision>0.1 || allowed<0 || allowed>1)
+                throw std::runtime_error("Допуск или привязка вне указанных границ");
+            part.graphSnap=step; part.graphTolerance=precision; part.decimalPlaces=int(digits);
+            part.answerTolerance=allowed; part.requireSteps=steps->getValue();
+            part.displayExpression=display->getText(); part.choices=options; part.correctChoices=correct;
+            editor();
+        },true);
+        button("Отмена",260,566,200,[this] { editor(); });
     });
     text("Условие выбранной части", 270, 228, 16);
     TextField *prompt = field(part.prompt, 270, 252, 670, 2048);

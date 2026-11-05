@@ -100,6 +100,9 @@ void LessonScreen::refresh() {
     std::string conditionText = task.description.empty() ? part.prompt : task.description + "\n" + part.prompt;
     if (context.settings.training)
         conditionText = context.current.reason + "\n" + conditionText;
+    if (part.requireSteps) conditionText+="\nНужно решение по шагам до x = число.";
+    if (part.decimalPlaces>=0) conditionText+="\nОкруглите до "+std::to_string(part.decimalPlaces)+" знаков после запятой.";
+    if (part.answerTolerance>0) conditionText+="\nДопустимая погрешность: "+std::to_string(part.answerTolerance);
     add(new TextPanel(
             font, conditionText,
             600, 110),
@@ -121,6 +124,12 @@ void LessonScreen::refresh() {
     FormulaView *condition = add(new FormulaView(headingFace(), 600, graphPart ? 90 : 150), 0, 118);
     condition->setFeatured(true);
     condition->setFormula(part.displayExpression.empty() ? part.expression : part.displayExpression);
+    if (part.kind==PartKind::Choice) {
+        std::vector<std::string> options;
+        for (std::size_t i=0;i<part.choices.size();++i)
+            options.push_back(std::to_string(i+1)+". "+part.choices[i]);
+        list(options,0,118,600,150);
+    }
     if (graphPart) {
         GraphView *graph = add(new GraphView(font, 600, 270), 0, 220);
         graph->setAnswer(part.kind, context.drafts[part.id].graph);
@@ -186,7 +195,7 @@ void LessonScreen::refresh() {
              std::string("Предпросмотр: колесо — прокрутка, Ctrl + колесо — масштаб."),
              0, 522, 13, 600, 2);
         if (linearSteps)
-            button(stepMode ? "Скрыть шаги ↑" : "Шаги (необязательно) ↓", 630, 166, 310, [this] {
+            button(stepMode ? "Скрыть шаги ↑" : part.requireSteps ? "Шаги (обязательно) ↓" : "Шаги (необязательно) ↓", 630, 166, 310, [this] {
                 stepMode = !stepMode;
                 refresh();
             });
@@ -210,8 +219,11 @@ void LessonScreen::refresh() {
         } else {
             note("КАК ОТВЕТИТЬ", 630, 236, 310);
             std::string instruction = "Вычислите значение и введите его слева. Дробь можно записать через /.";
+            if (part.kind==PartKind::Choice) instruction="Введите номера выбранных вариантов через ;. Например: 1;3. Порядок не важен.";
+            if (part.kind==PartKind::Polynomial) instruction="Введите выражение с x. Например: x^2+2*x+1. Равносильные записи принимаются.";
             if (linearSteps)
-                instruction = "Введите значение x слева. По желанию проверьте преобразования в разделе шагов.";
+                instruction = part.requireSteps ? "В разделе шагов преобразуйте уравнение до x = число. Затем отправьте итоговый ответ слева."
+                    : "Введите значение x слева. По желанию проверьте преобразования в разделе шагов.";
             else if (part.kind == PartKind::Equation)
                 instruction = "Решите на бумаге, например через дискриминант. Введите все корни слева "
                               "через точку с запятой. Шаги здесь не проверяются.";

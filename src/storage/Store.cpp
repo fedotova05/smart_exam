@@ -1,6 +1,8 @@
 #include "Store.h"
 #include "core/GraphCodec.h"
 #include "io/Files.h"
+#include "application/answers/AnswerPolicy.h"
+#include <algorithm>
 #include <stdexcept>
 #include <set>
 #include <cmath>
@@ -102,10 +104,20 @@ void Store::saveDraft(const TaskVersion &value) {
     int partPosition = 0;
     for (const TaskPart &part : value.parts) {
         require(!part.id.empty() && part.maxScore > 0 && part.maxScore <= 100, "Invalid task part");
+        std::set<int> selected;
+        require(part.choices.size()<=12, "Не более 12 вариантов");
+        for (int choice : part.correctChoices)
+            require(choice>=1 && choice<=int(part.choices.size()) && selected.insert(choice).second,
+                    "Неверный или повторный номер правильного варианта");
         db.query("INSERT INTO parts VALUES(?,?,?,?,?,?,?,?,?,?)",
                  {value.id, part.id, number(static_cast<int>(part.kind)), part.prompt,
                   part.expression, number(part.maxScore), number(partPosition++),
                   std::to_string(part.graphSnap), std::to_string(part.graphTolerance), part.displayExpression});
+        db.query("INSERT INTO part_policies VALUES(?,?,?,?,?)", {value.id,part.id,number(part.requireSteps),
+                 number(part.decimalPlaces),decimal(part.answerTolerance)});
+        for (std::size_t i=0;i<part.choices.size();++i)
+            db.query("INSERT INTO part_choices VALUES(?,?,?,?,?)", {value.id,part.id,number(int(i)+1),part.choices[i],
+                     number(std::find(part.correctChoices.begin(),part.correctChoices.end(),int(i)+1)!=part.correctChoices.end())});
         for (const std::string &skill : part.skills)
             db.query("INSERT INTO part_skills VALUES(?,?,?)", {value.id, part.id, skill});
     }
@@ -115,9 +127,12 @@ void Store::publish(const std::string &id) {
     Transaction transaction(db);
     TaskVersion value = task(id);
     require(!value.parts.empty() && !value.archived, "Cannot publish empty or archived task");
-    for (const TaskPart &part : value.parts)
-        require(!part.expression.empty() && !part.prompt.empty() && !part.skills.empty(),
+    for (const TaskPart &part : value.parts) {
+        require((part.kind==PartKind::Choice || !part.expression.empty()) && !part.prompt.empty() && !part.skills.empty(),
                 "Incomplete task part");
+        std::string error=answerPolicyError(part);
+        require(error.empty(),error);
+    }
     db.query("UPDATE tasks SET published=1 WHERE id=?", {id});
     transaction.commit();
 }
@@ -160,6 +175,15 @@ TaskVersion Store::task(const std::string &id) {
         part.graphSnap = std::stod(p[5]);
         part.graphTolerance = std::stod(p[6]);
         part.displayExpression = p[7];
+        auto policies=db.query("SELECT require_steps,decimal_places,tolerance FROM part_policies WHERE task_id=? AND part_id=?", {id,part.id});
+        if (!policies.empty()) {
+            part.requireSteps=policies[0][0]=="1"; part.decimalPlaces=std::stoi(policies[0][1]);
+            part.answerTolerance=std::stod(policies[0][2]);
+        }
+        for (const Row &choice : db.query("SELECT position,text,correct FROM part_choices WHERE task_id=? AND part_id=? ORDER BY position", {id,part.id})) {
+            part.choices.push_back(choice[1]);
+            if (choice[2]=="1") part.correctChoices.push_back(std::stoi(choice[0]));
+        }
         for (const Row &s : db.query(
                  "SELECT skill_id FROM part_skills WHERE task_id=? AND part_id=? ORDER BY skill_id",
                  {id, part.id}))
@@ -248,6 +272,10 @@ AttemptRecord Store::openAttempt(const std::string &sessionId, int position,
             "У ученика уже есть незавершённая попытка");
     TaskVersion t = task(taskId);
     require(t.published, "Draft task cannot be assigned");
+    for (const auto &part : t.parts) {
+        std::string error=answerPolicyError(part);
+        require(error.empty(),error);
+    }
     if (s.settings.mode == SessionMode::Fixed)
         require(position < static_cast<int>(s.tasks.size()) && s.tasks[position] == taskId,
                 "Fixed set cannot change");
