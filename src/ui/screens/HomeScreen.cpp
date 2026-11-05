@@ -135,54 +135,45 @@ void HomeScreen::startShortLesson() {
 void HomeScreen::refresh() {
     clear();
     title = "";
-    note("01 / ПРАКТИКА ПО АЛГЕБРЕ", 0, 0, 600, Theme::accent);
-    heading("Немного математики.\nВ своём темпе.", 0, 38, 42);
-    note("Дроби, уравнения и графики. Начните с короткого занятия.", 0, 159, 610);
-    surface(0, 218, 610, 206, Theme::pale);
-    note("ГОТОВОЕ ЗАНЯТИЕ", 26, 242, 400);
-    heading("От дробей\nк графику функции", 26, 278, 27);
-    heading("03", 488, 266, 56);
-    note("задания", 498, 331, 100);
-    button("Начать / продолжить  →", 26, 366, 245, [this] { startShortLesson(); }, true);
-    button("Настроить занятие", 285, 366, 230, [this] { settings(); });
-    text("Дальше можно", 0, 461, 18);
-    surface(0, 492, 610, 1, Theme::line);
-    note("02", 0, 515, 45);
-    text("Посмотреть банк заданий", 48, 512, 16);
-    button("→", 550, 502, 60, [this] { context.page = "bank"; });
-    surface(0, 551, 610, 1, Theme::line);
-    note("03", 0, 574, 45);
-    text("Разобраться в карте знаний", 48, 571, 16);
-    button("→", 550, 561, 60, [this] { context.page = "knowledge"; });
-    surface(663, 0, 277, 2, Theme::ink);
-    note("ВАШ ПРОФИЛЬ", 663, 28, 277);
-    heading(context.profileName.empty() ? "Не выбран" : context.profileName, 663, 59, 25);
-    button("Профили и настройки →", 650, 103, 290, [this] { settings(); });
-    surface(663, 168, 277, 1, Theme::line);
-    int completed = 0, observed = 0;
-    bool inProgress = false;
-    if (!context.profile.empty()) {
-        for (const auto &record : context.school.history(context.profile)) {
-            if (record.result.finished)
-                ++completed;
-            else
-                inProgress = true;
-        }
-        for (const auto &skill : context.school.snapshot(context.profile).skills)
-            if (skill.second.known)
-                ++observed;
+    note("АЛГЕБРА / КОРОТКАЯ ПРАКТИКА", 0, 0, 650);
+    heading("Немного математики. В своём темпе.", 0, 35, 36);
+    note("Продолжайте занятие или начните с трёх учебных заданий.", 0, 94, 650);
+    surface(0, 144, 650, 236, Theme::pale);
+    note("ВАШ СЛЕДУЮЩИЙ ШАГ", 28, 169, 550);
+    heading("От дробей к графику функции", 28, 206, 26);
+    text("Дроби, уравнение и построение графика.\nПроверка поможет разобраться с ответом.",
+         28, 253, 17, 590, 2);
+    button("Начать / продолжить →", 28, 320, 260, [this] { startShortLesson(); }, true);
+    button("Настроить занятие", 310, 320, 240, [this] { settings(); });
+    text("Как проходит занятие", 0, 418, 20);
+    const char *steps[] = {"Прочитайте условие и введите ответ",
+                           "Отправьте ответ на проверку",
+                           "Завершите задание и перейдите дальше"};
+    for (int i = 0; i < 3; ++i) {
+        surface(0, 455 + i * 50.f, 650, 1, Theme::line);
+        note("0" + std::to_string(i + 1), 0, 471 + i * 50.f, 40);
+        text(steps[i], 45, 468 + i * 50.f, 16, 600, 1);
     }
-    note("ЗАВЕРШЕНО ЗАДАНИЙ", 663, 195, 277);
-    heading(std::to_string(completed), 663, 231, 48);
-    note(inProgress ? "Есть незавершённое задание" : "Можно начать новое занятие", 663, 298, 277);
-    surface(663, 341, 277, 1, Theme::line);
-    note("КАРТА ЗНАНИЙ", 663, 369, 277);
-    text("Навыков с наблюдениями: " + std::to_string(observed), 663, 402, 17, 277, 2);
+    surface(688, 0, 408, 2, Theme::ink);
+    note("ВАШ ПРОФИЛЬ", 688, 25, 408);
+    text(context.profileName.empty() ? "Не выбран" : context.profileName,
+         688, 60, 25, 408, 2);
+    button("Профили и настройки →", 688, 125, 290, [this] { settings(); });
+    surface(688, 194, 408, 1, Theme::line);
+    int completed = 0;
+    if (!context.profile.empty())
+        for (const auto &entry : context.school.history(context.profile))
+            if (entry.result.finished)
+                ++completed;
+    note("ВСЕГО ЗАВЕРШЕНО ЗАДАНИЙ", 688, 218, 408);
+    heading(std::to_string(completed), 688, 252, 48);
+    note("Посмотрите историю решений и навыки,\nкоторым стоит уделить внимание.", 688, 325, 408);
+    button("Мои результаты →", 688, 390, 290, [this] { context.page = "results"; });
+    button("Карта знаний →", 688, 443, 290, [this] { context.page = "knowledge"; });
     note(context.profile == "demo-student"
-             ? "Это демонстрационный профиль. В истории есть два примера решения."
-             : "Результаты появляются после завершения заданий.",
-         663, 466, 277);
-    button("Посмотреть результаты →", 650, 558, 290, [this] { context.page = "results"; });
+             ? "Демонстрация: здесь уже есть примеры решений. Для своих результатов создайте профиль."
+             : "Результаты сохраняются на этом компьютере.",
+         688, 525, 408);
 }
 void ResultsScreen::refresh() {
     clear();

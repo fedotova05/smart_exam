@@ -37,11 +37,14 @@ void Button::draw(sf::RenderTarget &target, sf::RenderStates states) const {
     states.transform *= getTransform();
     if (navigationStyle) {
         if (selected || hovered)
-            rectangle(target, states, size, Theme::navigationActive);
+            rectangle(target, states, size, Theme::pale);
         if (selected)
-            rectangle(target, states, sf::Vector2f(2, size.y), Theme::accent);
+            rectangle(target, states, sf::Vector2f(size.x, 2), Theme::ink,
+                      sf::Vector2f(0, size.y - 2));
+        if (focused)
+            rectangle(target, states, size, sf::Color::Transparent, sf::Vector2f(), Theme::accent);
         target.draw(label(font, shorten(font, caption, 15, size.x - 32), 15, 18, 12,
-                          selected ? Theme::white : sf::Color(183, 199, 187)),
+                          selected ? Theme::ink : Theme::muted),
                     states);
         return;
     }
@@ -50,8 +53,7 @@ void Button::draw(sf::RenderTarget &target, sf::RenderStates states) const {
         fill = primary ? sf::Color(52, 79, 66) : Theme::pale;
     if (!enabled)
         fill = Theme::line;
-    if (primary || hovered || pressed || !enabled)
-        rectangle(target, states, size, fill);
+    rectangle(target, states, size, fill, sf::Vector2f(), primary ? fill : Theme::line);
     if (focused)
         rectangle(target, states, size, sf::Color::Transparent, sf::Vector2f(), Theme::accent);
     sf::String text = shorten(font, caption, 15, size.x - 20);

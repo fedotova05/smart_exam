@@ -39,6 +39,8 @@ class SchoolService {
     void placeSkill(const std::string &id, Point point);
     StudentSnapshot snapshot(const std::string &profile);
     std::vector<HistoryEntry> history(const std::string &profile);
+    SessionRecord latestLesson(const std::string &profile);
+    std::vector<AttemptRecord> lessonAttempts(const std::string &lesson);
     void start(const std::string &profile, const SessionSettings &settings,
                const std::vector<std::string> &tasks);
     bool resume(const std::string &profile);

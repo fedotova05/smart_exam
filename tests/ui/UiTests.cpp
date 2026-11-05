@@ -182,12 +182,12 @@ int main() {
         packages.refresh();
         capture(packages, "packages-screen");
         home.refresh();
-        click(home, 60, 385);
+        click(home, 60, 340);
         REQUIRE(context.page == "lesson" && context.current.available);
         REQUIRE(context.current.task.id == "intro-fractions");
         std::string attempt = context.current.attempt.id;
         home.refresh();
-        click(home, 60, 385);
+        click(home, 60, 340);
         REQUIRE(context.current.attempt.id == attempt);
         graphics.setActive(true);
         std::cout

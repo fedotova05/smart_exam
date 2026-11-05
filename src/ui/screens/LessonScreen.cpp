@@ -3,6 +3,38 @@
 #include "ui/widgets/TextPanel.h"
 namespace exam {
 namespace ui {
+void LessonScreen::route() {
+    const SessionRecord lesson = context.school.latestLesson(context.profile);
+    const auto attempts = context.school.lessonAttempts(lesson.id);
+    int total = lesson.settings.mode == SessionMode::Fixed
+                    ? std::min(lesson.settings.taskLimit, static_cast<int>(lesson.tasks.size()))
+                    : lesson.settings.taskLimit;
+    int completed = 0;
+    for (const auto &item : attempts)
+        if (item.finished)
+            ++completed;
+    note("ВАШ МАРШРУТ", -156, 0, 140);
+    int position = context.current.attempt.position;
+    int first = std::max(0, position - 2);
+    for (int i = first; i < std::min(total, first + 5); ++i) {
+        float y = 42 + (i - first) * 78.f;
+        bool finished = i < static_cast<int>(attempts.size()) && attempts[i].finished;
+        if (i == position)
+            surface(-156, y - 8, 140, 70, Theme::pale);
+        text(std::to_string(i + 1) + (finished ? "  Готово" : i == position ? "  Сейчас" : "  Впереди"),
+             -148, y, 14, 125, 1);
+        std::string name = "Подбор по навыкам";
+        if (lesson.settings.mode == SessionMode::Fixed)
+            name = context.school.task(lesson.tasks[i]).title;
+        else if (i < static_cast<int>(attempts.size()))
+            name = context.school.task(attempts[i].taskId).title;
+        text(name, -148, y + 24, 12, 125, 2);
+    }
+    surface(-156, 455, 140, 1, Theme::line);
+    text(std::to_string(completed) + " из " + std::to_string(total), -156, 477, 23, 140, 1);
+    note("заданий завершено", -156, 515, 140);
+    button("К занятию", -156, 574, 140, [this] { context.page = "home"; });
+}
 void LessonScreen::send(bool finalAnswer, const std::string &operation,
                         const std::string &operand) {
     const TaskPart &part = context.current.task.parts[partIndex];
@@ -37,6 +69,7 @@ void LessonScreen::refresh() {
         partIndex = 0;
     const TaskPart &part = task.parts[partIndex];
     title = task.title;
+    route();
     add(new TextPanel(
             font, task.description.empty() ? part.prompt : task.description + "\n" + part.prompt,
             600, 110),
@@ -102,7 +135,7 @@ void LessonScreen::refresh() {
         text(stepMode ? "Новое уравнение или итоговый ответ" : "Ваш ответ", 0, 296, 16);
         TextField *answer = field(context.drafts[part.id].text, 0, 324, 420, 512);
         answer->setPlaceholder("Введите ответ");
-        button("Отправить  →", 440, 324, 160, [this] { send(true); }, true);
+        button("Проверить →", 440, 324, 160, [this] { send(true); }, true);
         FormulaView *preview = add(new FormulaView(headingFace(), 600, 85), 0, 425);
         preview->setFormula(answer->getText());
         answer->onChange = [this, answer, preview, part] {
@@ -174,6 +207,7 @@ void LessonScreen::refresh() {
     });
     if (context.current.attempt.finished) {
         clear();
+        route();
         title = "Задание завершено";
         for (const auto &entry : context.school.history(context.profile))
             if (entry.attemptId == attempt)

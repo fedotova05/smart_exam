@@ -162,6 +162,13 @@ void SchoolService::prepareSession() {
     adaptation.reset(new Adaptation(storage.modelParameters(), SkillGraph(storage.skillGraph())));
     session.reset(new SessionService(storage, checker, adaptation.get(), adaptation.get()));
 }
+SessionRecord SchoolService::latestLesson(const std::string &profile) {
+    const auto lessons = storage.studentSessions(profile);
+    return lessons.empty() ? SessionRecord() : lessons.front();
+}
+std::vector<AttemptRecord> SchoolService::lessonAttempts(const std::string &lesson) {
+    return lesson.empty() ? std::vector<AttemptRecord>() : storage.attempts(lesson);
+}
 void SchoolService::start(const std::string &profile, const SessionSettings &settings,
                           const std::vector<std::string> &tasks) {
     for (const SessionRecord &old : storage.studentSessions(profile))

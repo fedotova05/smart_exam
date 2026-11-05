@@ -31,20 +31,21 @@ App::App(SchoolService &school) : context(school), current(0) {
     screens["packages"].reset(new PackageScreen(font, context));
     screens["results"].reset(new ResultsScreen(font, context));
     const char *ids[] = {"home", "lesson", "bank", "knowledge", "results", "packages"};
-    const char *titles[] = {"Главная",      "Решение",    "Банк заданий",
-                            "Карта знаний", "Результаты", "Пакеты"};
+    const char *titles[] = {"Занятие", "Решение", "Задания", "Навыки", "Результаты", "Пакеты"};
     for (int i = 0; i < 6; ++i) {
-        std::unique_ptr<Button> button(new Button(font, titles[i], 178));
-        button->setPosition(16, 160 + i * 52.f);
+        std::unique_ptr<Button> button(new Button(font, titles[i], 148));
+        button->setPosition(260 + i * 148.f, 16);
         button->setNavigation(true);
         std::string id = ids[i];
         button->onClick = [this, id] { context.page = id; };
         navigation.push_back(std::move(button));
     }
     for (auto &item : screens) {
-        item.second->setPosition(236, 130);
+        item.second->setPosition(130, 130);
         item.second->setHeadingFont(headingFont);
     }
+    screens["home"]->setPosition(52, 130);
+    screens["lesson"]->setPosition(208, 130);
     show("home");
 }
 void App::show(const std::string &name) {
@@ -84,26 +85,11 @@ void App::resize(unsigned width, unsigned height) {
 }
 void App::draw() {
     window.clear(Theme::background);
-    rectangle(window, sf::RenderStates(), sf::Vector2f(210, 800), Theme::navigation);
-    window.draw(label(font, unicode("SmartExam"), 25, 25, 35, Theme::white));
-    rectangle(window, sf::RenderStates(), sf::Vector2f(4, 4), Theme::accent, sf::Vector2f(170, 57));
-    window.draw(
-        label(font, unicode("УЧЕБНОЕ ПРОСТРАНСТВО"), 10, 25, 125, sf::Color(147, 170, 153)));
-    window.draw(label(font, unicode("Математика  /  Практика"), 13, 236, 29, Theme::muted));
-    window.draw(label(font, unicode(context.profileName), 13, 980, 29, Theme::muted));
-    rectangle(window, sf::RenderStates(), sf::Vector2f(940, 1), Theme::line, sf::Vector2f(236, 61));
+    window.draw(label(font, unicode("SmartExam"), 25, 52, 27));
+    rectangle(window, sf::RenderStates(), sf::Vector2f(1096, 1), Theme::line,
+              sf::Vector2f(52, 66));
     for (const auto &button : navigation)
         window.draw(*button);
-    window.draw(label(
-        font,
-        wrap(font, unicode(context.profileName.empty() ? "Выберите профиль" : context.profileName),
-             16, 170, 3),
-        16, 25, 694, Theme::white));
-    rectangle(window, sf::RenderStates(), sf::Vector2f(160, 1), sf::Color(72, 96, 81),
-              sf::Vector2f(25, 670));
-    window.draw(label(
-        font, unicode(context.profile == "demo-student" ? "Учебные данные" : "Локальный профиль"),
-        12, 25, 730, sf::Color(147, 170, 153)));
     window.draw(*current);
     window.display();
 }
