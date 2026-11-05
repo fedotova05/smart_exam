@@ -30,7 +30,17 @@ int main() {
         std::cout << "OK: JSON and package roundtrip\n";
         testSchool();
         std::cout << "OK: editor, knowledge and graphical sessions\n";
-        std::cout << "All 10 test groups passed\n";
+        testTraining();
+        std::cout << "OK: scoped training, diagnosis, return, resume and fixed assessment\n";
+        testRecovery();
+        std::cout << "OK: templates, drafts, restart and time policies\n";
+        testReview();
+        std::cout << "OK: review history, BKT and shared Elo replay\n";
+        testJobs();
+        std::cout << "OK: worker, cancellation, stale results and failed writes\n";
+        testAnswers();
+        std::cout << "OK: structured answers, precision, mandatory steps and package roundtrip\n";
+        std::cout << "All 15 test groups passed\n";
         return 0;
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';

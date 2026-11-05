@@ -1,10 +1,13 @@
 #include "KnowledgeScreen.h"
 #include "ui/SkillMap.h"
 #include <algorithm>
+#include <set>
 namespace exam {
 namespace ui {
 void KnowledgeScreen::refresh() {
     clear();
+    if (topic.empty() && context.profile == "demo-training")
+        topic = "quadratic_course";
     title = "Карта знаний";
     auto skills = context.school.skills();
     auto topics = context.school.topics();
@@ -24,13 +27,35 @@ void KnowledgeScreen::refresh() {
         });
     };
     std::vector<SkillInfo> visible;
+    std::set<std::string> included;
     for (const auto &skill : skills)
         if (topic.empty() || skill.topicId == topic)
+            included.insert(skill.id);
+    // Для выбранной темы показываем и связанные предпосылки из других тем.
+    auto dependencies = context.school.skillGraph();
+    std::vector<std::string> pending(included.begin(), included.end());
+    for (std::size_t i = 0; i < pending.size(); ++i)
+        for (const auto &parent : dependencies[pending[i]])
+            if (included.insert(parent).second)
+                pending.push_back(parent);
+    for (const auto &skill : skills)
+        if (included.count(skill.id))
             visible.push_back(skill);
     StudentSnapshot state;
     if (!context.profile.empty())
         state = context.school.snapshot(context.profile);
+    const bool hidden = context.school.progress(context.profile).hidden;
+    if (hidden)
+        state = StudentSnapshot();
     SkillMap *map = add(new SkillMap(font, visible, context.school.skillGraph(), state), 0, 94);
+    map->setEditable(context.role == UserRole::Teacher);
+    map->setResultsHidden(hidden);
+    map->onSelect = [this](const SkillInfo &skill) {
+        defer([this, skill] {
+            selected = skill.id;
+            refresh();
+        });
+    };
     map->onMove = [this](const SkillInfo &skill) {
         defer([this, skill] {
             context.school.placeSkill(skill.id, skill.position);
@@ -38,20 +63,21 @@ void KnowledgeScreen::refresh() {
             refresh();
         });
     };
-    text(context.profile.empty() ? "Профиль не выбран" : context.profileName, 630, 0, 20, 300);
-    if (selected.empty() && !visible.empty())
+    text(context.profile.empty() ? "Профиль не выбран" : context.profileName, 630, 0, 20, 310, 1);
+    if (!visible.empty() && std::find_if(visible.begin(), visible.end(),
+            [this](const SkillInfo &skill) { return skill.id == selected; }) == visible.end())
         selected = visible.front().id;
-    auto found = std::find_if(skills.begin(), skills.end(),
+    auto found = std::find_if(visible.begin(), visible.end(),
                               [this](const SkillInfo &skill) { return skill.id == selected; });
-    if (found != skills.end()) {
-        text(found->name, 630, 45, 24, 310, 3);
-        text("Код: " + found->id, 630, 130, 16, 310);
+    if (found != visible.end()) {
+        text(found->name, 630, 45, 22, 310, 2);
         SkillState skill = state.skills[found->id];
-        std::string details =
-            skill.known ? "Освоение: " + std::to_string(static_cast<int>(skill.mastery * 100)) +
-                              "%\nРейтинг: " + std::to_string(static_cast<int>(skill.rating)) +
-                              "\nНаблюдений: " + std::to_string(skill.observations)
-                        : "Нет наблюдений. Это не нулевой результат.";
+        text(hidden ? "Пока скрыто" : skillEstimate(skill), 630, 112, 32, 310, 1);
+        progressBar(hidden || !skill.known ? 0.f : static_cast<float>(skill.mastery),
+                    630, 162, 310);
+        note("ОЦЕНКА ОСВОЕНИЯ НАВЫКА", 630, 190, 310);
+        note(hidden ? "Проверка отложена до завершения занятия." : skillEvidence(skill),
+             630, 224, 310);
         int help = 0;
         std::vector<std::string> history;
         if (!context.profile.empty())
@@ -64,32 +90,58 @@ void KnowledgeScreen::refresh() {
                         related = true;
                 if (related) {
                     help += entry.help;
-                    history.push_back(entry.title + " · " + resultText(entry.result));
+                    history.push_back(entry.title + " · " + scoreText(entry.result, entry.maximumScore));
                 }
             }
-        details += "\nПомощь в связанных заданиях: " + std::to_string(help);
-        text(details, 630, 180, 18, 310, 7);
+        note("Подсказок в связанных заданиях: " + std::to_string(help), 630, 313, 310);
         list(history, 630, 370, 310, 154);
     }
-    button("Изменить навык", 0, 560, 220, [this] { editSkill(false); });
-    button("Новый навык", 240, 560, 210, [this] { editSkill(true); });
-    button("Новая тема", 470, 560, 200, [this] {
-        clear();
-        title = "Новая тема";
-        text("Код темы", 0, 0);
-        TextField *id = field("", 0, 30, 350, 80);
-        text("Название", 0, 95);
-        TextField *name = field("", 0, 125, 600, 120);
-        button(
-            "Сохранить", 0, 220, 220,
-            [this, id, name] {
-                context.school.saveTopic(id->getText(), name->getText());
-                refresh();
-            },
-            true);
-        button("Отмена", 240, 220, 180, [this] { refresh(); });
-    });
-    text("Перетащите узел. Стрелка: предпосылка → навык.", 0, 610, 14, 940, 1);
+    if (context.role == UserRole::Teacher) {
+        button("Изменить навык", 0, 560, 200, [this] { editSkill(false); });
+        button("Новый навык", 215, 560, 200, [this] { editSkill(true); });
+        button("Новая тема", 430, 560, 200, [this] {
+            clear();
+            title = "Новая тема";
+            text("Код темы", 0, 0);
+            TextField *id = field("", 0, 30, 350, 80);
+            text("Название", 0, 95);
+            TextField *name = field("", 0, 125, 600, 120);
+            button(
+                "Сохранить", 0, 220, 220,
+                [this, id, name] {
+                    context.school.saveTopic(id->getText(), name->getText());
+                    refresh();
+                },
+                true);
+            button("Отмена", 240, 220, 180, [this] { refresh(); });
+        });
+    }
+    button("Как считается оценка?", 650, 560, 290, [this] { explain(); });
+    text(context.role == UserRole::Teacher
+             ? "Перетащите навык для размещения. Показаны также предпосылки из других тем."
+             : "Стрелка: предпосылка → навык. Показаны необходимые навыки из других тем.",
+         0, 610, 14, 940, 1);
+}
+void KnowledgeScreen::explain() {
+    clear();
+    title = "Как читать результаты";
+    heading("Баллы за задание", 0, 20, 28);
+    text("Баллы начисляются за последние верные ответы в частях задания. Например, 1 / 1 — полный "
+         "балл за одно задание. Это не означает, что вся тема освоена.", 0, 67, 19, 900, 3);
+    surface(0, 145, 940, 1, Theme::line);
+    heading("Ход занятия", 0, 174, 28);
+    text("1 из 3 завершено — выполнена треть набора. Остальные задания ещё впереди. "
+         "В подборе по навыкам максимум баллов известен только для уже выданных заданий.",
+         0, 221, 19, 900, 3);
+    surface(0, 302, 940, 1, Theme::line);
+    heading("Оценка навыка", 0, 331, 28);
+    text("Это прогноз по самостоятельным решениям. Первый верный ответ даёт около 58%, "
+         "а не 100%. Ошибки учитываются, даже если ответ исправлен. Решение с подсказкой "
+         "не меняет оценку этого навыка.", 0, 378, 19, 900, 4);
+    note("Одно наблюдение — один результат по навыку в завершённом задании, а не каждое нажатие "
+         "«Проверить». Нет данных — не нулевая оценка. Прогноз не гарантирует знание темы.",
+         0, 486, 900);
+    button("← К навыкам", 0, 575, 230, [this] { refresh(); });
 }
 void KnowledgeScreen::editSkill(bool create) {
     auto skills = context.school.skills();

@@ -24,6 +24,11 @@ void Screen::text(const std::string &value, float x, float y, unsigned size, flo
                   int lines) {
     captions.push_back(label(font, wrap(font, unicode(value), size, width, lines), size, x, y));
 }
+void Screen::progressBar(float value, float x, float y, float width) {
+    value = std::max(0.f, std::min(1.f, value));
+    surface(x, y, width, 8, Theme::line);
+    surface(x, y, width * value, 8, Theme::ink);
+}
 Button *Screen::button(const std::string &title, float x, float y, float width,
                        const std::function<void()> &action, bool primary) {
     Button *item = add(new Button(font, title, width, primary), x, y);

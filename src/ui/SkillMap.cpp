@@ -1,4 +1,5 @@
 #include "SkillMap.h"
+#include "AppContext.h"
 #include <algorithm>
 #include <cmath>
 namespace exam {
@@ -6,10 +7,19 @@ namespace ui {
 SkillMap::SkillMap(const sf::Font &font, const std::vector<SkillInfo> &skills,
                    const std::map<std::string, std::vector<std::string>> &graph,
                    const StudentSnapshot &state)
-    : Widget(font, 600, 430), nodes(skills), edges(graph), snapshot(state), dragged(-1), scroll(0) {
+    : Widget(font, 600, 430), nodes(skills), edges(graph), snapshot(state), dragged(-1),
+      editable(true), resultsHidden(false), scroll(0), originY(0) {
     for (std::size_t i = 0; i < nodes.size(); ++i)
         if (!nodes[i].placed)
             nodes[i].position = Point(15 + (i % 3) * 195, 20 + (i / 3) * 80);
+    if (!nodes.empty()) {
+        originY = static_cast<float>(nodes.front().position.y);
+        for (const auto &node : nodes)
+            originY = std::min(originY, static_cast<float>(node.position.y));
+        originY = std::max(0.f, originY - 15);
+        for (auto &node : nodes)
+            node.position.y -= originY;
+    }
 }
 bool SkillMap::handle(const sf::Event &event, sf::Vector2f mouse) {
     sf::Vector2f local = getInverseTransform().transformPoint(mouse);
@@ -31,7 +41,7 @@ bool SkillMap::handle(const sf::Event &event, sf::Vector2f mouse) {
                 return true;
             }
     }
-    if (event.type == sf::Event::MouseMoved && dragged >= 0) {
+    if (event.type == sf::Event::MouseMoved && dragged >= 0 && editable) {
         nodes[dragged].position =
             Point(std::max(0.f, std::min(size.x - 170, local.x - offset.x)),
                   std::max(0.f, std::min(size.y + scroll - 58, local.y - offset.y)));
@@ -39,11 +49,12 @@ bool SkillMap::handle(const sf::Event &event, sf::Vector2f mouse) {
     }
     if (event.type == sf::Event::MouseButtonReleased && dragged >= 0) {
         SkillInfo node = nodes[dragged];
+        node.position.y += originY;
         dragged = -1;
         node.placed = true;
-        if (onMove)
+        if (editable && onMove)
             onMove(node);
-        if (onSelect)
+        else if (onSelect)
             onSelect(node);
         return true;
     }
@@ -52,6 +63,7 @@ bool SkillMap::handle(const sf::Event &event, sf::Vector2f mouse) {
 void SkillMap::draw(sf::RenderTarget &target, sf::RenderStates states) const {
     if (canvas.getSize() != sf::Vector2u(600, 430))
         canvas.create(600, 430);
+    canvas.setSmooth(true);
     canvas.clear(Theme::paper);
     sf::RenderStates content;
     content.transform.translate(0, -scroll);
@@ -88,8 +100,9 @@ void SkillMap::draw(sf::RenderTarget &target, sf::RenderStates states) const {
                           node.position.y + 8),
                     content);
         std::string value =
-            known ? std::to_string(static_cast<int>(found->second.mastery * 100)) + "%"
-                  : "Нет наблюдений";
+            resultsHidden ? "Проверка скрыта"
+            : known ? skillEstimate(found->second) + " · " + std::to_string(found->second.observations) + " набл."
+                  : "Нет данных";
         canvas.draw(label(font, unicode(value), 13, node.position.x + 8, node.position.y + 34,
                           Theme::muted),
                     content);

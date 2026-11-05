@@ -6,6 +6,7 @@ namespace ui {
 TextField::TextField(const sf::Font &face, float width, std::size_t limit)
     : Widget(face, width, 40), cursor(0), maximum(limit), selectedAll(false), scroll(0) {
     canvas.create(static_cast<unsigned>(width - 16), 32);
+    canvas.setSmooth(true);
 }
 void TextField::setText(const std::string &text) {
     value = unicode(text);

@@ -18,4 +18,9 @@ void testAdaptation();
 void testGeometry();
 void testJsonPackages();
 void testSchool();
+void testTraining();
+void testRecovery();
+void testReview();
+void testJobs();
+void testAnswers();
 #endif

@@ -134,13 +134,32 @@ void testSession() {
     service.start(guided);
     NextTask guidedTask = service.next("guided");
     REQUIRE(service.submitResponse(answerFor("too-early", guidedTask.attempt.id, "1")).status ==
-            CheckStatus::Incomplete);
+            CheckStatus::Correct);
     ResponseRecord guidedStep = answerFor("guided-step", guidedTask.attempt.id, "x=1");
     guidedStep.finalAnswer = false;
     guidedStep.operation = "subtract";
     guidedStep.operand = "1";
+    ResponseRecord wrongOperation = guidedStep;
+    wrongOperation.requestId = "wrong-operation";
+    wrongOperation.operation = "add";
+    REQUIRE(service.submitResponse(wrongOperation).status == CheckStatus::Incorrect);
     REQUIRE(service.submitResponse(guidedStep).status == CheckStatus::Correct);
     REQUIRE(service.submitResponse(answerFor("guided-final", guidedTask.attempt.id, "1")).status ==
             CheckStatus::Correct);
     REQUIRE(service.finishAttempt(guidedTask.attempt.id).score == 1);
+    // Даже в сохранённом старом режиме шаги больше не обязательны.
+    addTask(store, "quadratic-step", "x^2-4=0");
+    guided.id = "quadratic-optional";
+    guided.tasks = {"quadratic-step"};
+    service.start(guided);
+    NextTask quadratic = service.next(guided.id);
+    ResponseRecord unsupported = answerFor("quadratic-intermediate", quadratic.attempt.id, "x^2=4");
+    unsupported.finalAnswer = false;
+    REQUIRE(service.submitResponse(unsupported).status == CheckStatus::Unsupported);
+    REQUIRE(service.submitResponse(answerFor("quadratic-final", quadratic.attempt.id, "-2;2")).status ==
+            CheckStatus::Correct);
+    REQUIRE(isLinearEquation("2*x+3=11"));
+    REQUIRE(!isLinearEquation("x^2-4=0"));
+    REQUIRE(!isLinearEquation("x^2+x=x^2+4"));
+    REQUIRE(!isLinearEquation("D=b^2-4*a*c"));
 }

@@ -104,6 +104,7 @@ void testJsonPackages() {
     prepareBank(first);
     SchoolService school(first);
     TaskVersion task = graphTask();
+    task.parts[0].displayExpression = "x^2=4";
     task.resources = {"images/picture.png"};
     std::string image = "resource bytes";
     writeFile(folder + "/source/images/picture.png", image);
@@ -125,6 +126,7 @@ void testJsonPackages() {
             copy.commonFunction == task.commonFunction);
     REQUIRE(readFile(folder + "/target/" + copy.resources[0]) == image);
     REQUIRE(copy.parts[1].kind == PartKind::Parabola && copy.parts[1].maxScore == 2);
+    REQUIRE(copy.parts[0].displayExpression == "x^2=4");
     REQUIRE(!importer
                  .importPackage(
                      preview, {{"quadratic", "quadratic"}, {"parabola_graph", "parabola_graph"}})[0]
@@ -142,17 +144,75 @@ void testJsonPackages() {
 }
 void testSchool() {
     {
+        Store progressStore(":memory:");
+        SchoolService school(progressStore);
+        school.addStarterContent();
+        const std::string student = school.createProfile("Проверка прогресса");
+        REQUIRE(school.progress(student).lesson.id.empty());
+        SessionSettings setup;
+        setup.taskLimit = 3;
+        school.start(student, setup, {"intro-fractions", "intro-linear", "intro-parabola"});
+        REQUIRE(school.progress(student).maximumScore == 5);
+        NextTask first = school.next();
+        AnswerPayload answer;
+        answer.text = "5/6";
+        school.submit(first.attempt.id, "a", answer, true);
+        school.finish(first.attempt.id);
+        LessonProgress progress = school.progress(student);
+        REQUIRE(progress.finishedTasks == 1 && progress.totalTasks == 3);
+        REQUIRE(progress.score == 1 && progress.maximumScore == 5);
+        REQUIRE(!progress.lesson.closed && !progress.hidden);
+        SkillState skill = school.snapshot(student).skills["fractions"];
+        REQUIRE(skill.observations == 1 && std::abs(skill.mastery - 0.5764705882) < 1e-6);
+        school.finish(first.attempt.id);
+        REQUIRE(school.snapshot(student).skills["fractions"].observations == 1);
+        NextTask second = school.next();
+        answer.text = "4";
+        school.help(second.attempt.id, "a");
+        school.submit(second.attempt.id, "a", answer, true);
+        school.finish(second.attempt.id);
+        REQUIRE(!school.snapshot(student).skills["linear"].known);
+        school.closeLesson();
+        progress = school.progress(student);
+        REQUIRE(progress.lesson.closed && progress.finishedTasks == 2);
+        REQUIRE(progress.score == 2 && progress.maximumScore == 5);
+        setup.feedback = FeedbackPolicy::AfterSet;
+        setup.taskLimit = 2;
+        school.start(student, setup, {"intro-fractions", "intro-linear"});
+        first = school.next();
+        answer.text = "5/6";
+        school.submit(first.attempt.id, "a", answer, true);
+        school.finish(first.attempt.id);
+        REQUIRE(school.progress(student).hidden && school.progress(student).score == 0);
+        school.closeLesson();
+        REQUIRE(!school.progress(student).hidden && school.progress(student).score == 1);
+        setup.mode = SessionMode::Dynamic;
+        school.start(student, setup, {});
+        REQUIRE(school.progress(student).maximumScore == 0);
+        first = school.next();
+        int maximum = 0;
+        for (const auto &part : first.task.parts)
+            maximum += part.maxScore;
+        REQUIRE(school.progress(student).maximumScore == maximum);
+        // Настройки восстанавливаются при возвращении в другой профиль.
+        SchoolService reopened(progressStore);
+        REQUIRE(reopened.resume(student));
+        REQUIRE(reopened.latestLesson(student).settings.feedback == FeedbackPolicy::AfterSet);
+        REQUIRE(reopened.next().attempt.id == first.attempt.id);
+    }
+    {
         Store demoStore(":memory:");
         SchoolService demo(demoStore);
         demo.addStarterContent();
-        REQUIRE(demo.tasks().size() == 5);
-        REQUIRE(demo.profiles().size() == 1);
+        auto taskCount = demo.tasks().size();
+        REQUIRE(taskCount > 30);
+        REQUIRE(demo.profiles().size() == 2);
         REQUIRE(demo.history("demo-student").size() == 2);
         REQUIRE(demo.history("demo-student")[0].result.visible);
         auto snapshot = demo.snapshot("demo-student");
         REQUIRE(snapshot.skills["fractions"].known && snapshot.skills["linear"].known);
         demo.addStarterContent();
-        REQUIRE(demo.tasks().size() == 5 && demo.history("demo-student").size() == 2);
+        REQUIRE(demo.tasks().size() == taskCount && demo.history("demo-student").size() == 2);
         REQUIRE(demo.snapshot("demo-student").skills["linear"].observations ==
                 snapshot.skills["linear"].observations);
     }

@@ -57,9 +57,13 @@
       <Add library="comdlg32" />
     </Linker>
     <Unit filename="src/adaptation/Adaptation.h" />
+    <Unit filename="src/application/answers/AnswerPolicy.h" />
     <Unit filename="src/application/Demo.h" />
+    <Unit filename="src/application/jobs/JobQueue.h" />
+    <Unit filename="src/application/review/ReviewService.h" />
     <Unit filename="src/application/SchoolService.h" />
     <Unit filename="src/application/session/SessionService.h" />
+    <Unit filename="src/application/training/TrainingService.h" />
     <Unit filename="src/core/GraphCodec.h" />
     <Unit filename="src/core/Services.h" />
     <Unit filename="src/core/Types.h" />
@@ -85,7 +89,12 @@
     <Unit filename="src/ui/screens/HomeScreen.h" />
     <Unit filename="src/ui/screens/KnowledgeScreen.h" />
     <Unit filename="src/ui/screens/LessonScreen.h" />
+    <Unit filename="src/ui/screens/LessonSetupScreen.h" />
     <Unit filename="src/ui/screens/PackageScreen.h" />
+    <Unit filename="src/ui/screens/ProgressScreen.h" />
+    <Unit filename="src/ui/screens/TrainingDemoScreen.h" />
+    <Unit filename="src/ui/screens/TrainingSetupScreen.h" />
+    <Unit filename="src/ui/screens/WelcomeScreen.h" />
     <Unit filename="src/ui/SkillMap.h" />
     <Unit filename="src/ui/Theme.h" />
     <Unit filename="src/ui/widgets/Button.h" />
@@ -94,10 +103,14 @@
     <Unit filename="src/ui/widgets/TextPanel.h" />
     <Unit filename="src/ui/widgets/Widget.h" />
     <Unit filename="src/adaptation/Adaptation.cpp" />
+    <Unit filename="src/application/answers/AnswerPolicy.cpp" />
     <Unit filename="src/application/Demo.cpp" />
+    <Unit filename="src/application/jobs/JobQueue.cpp" />
     <Unit filename="src/application/SchoolService.cpp" />
     <Unit filename="src/application/session/SessionService.cpp" />
     <Unit filename="src/application/StarterContent.cpp" />
+    <Unit filename="src/application/training/TrainingContent.cpp" />
+    <Unit filename="src/application/training/TrainingService.cpp" />
     <Unit filename="src/generation/Generator.cpp" />
     <Unit filename="src/graph_tasks/GeometryChecker.cpp" />
     <Unit filename="src/graphics/GraphView.cpp" />
@@ -109,6 +122,8 @@
     <Unit filename="src/math/numbers/Rational.cpp" />
     <Unit filename="src/math/parser/Parser.cpp" />
     <Unit filename="src/storage/Database.cpp" />
+    <Unit filename="src/storage/ReviewStore.cpp" />
+    <Unit filename="src/storage/SessionPolicies.cpp" />
     <Unit filename="src/storage/Store.cpp" />
     <Unit filename="src/ui/App.cpp" />
     <Unit filename="src/ui/AppContext.cpp" />
@@ -120,7 +135,12 @@
     <Unit filename="src/ui/screens/HomeScreen.cpp" />
     <Unit filename="src/ui/screens/KnowledgeScreen.cpp" />
     <Unit filename="src/ui/screens/LessonScreen.cpp" />
+    <Unit filename="src/ui/screens/LessonSetupScreen.cpp" />
     <Unit filename="src/ui/screens/PackageScreen.cpp" />
+    <Unit filename="src/ui/screens/ProgressScreen.cpp" />
+    <Unit filename="src/ui/screens/TrainingDemoScreen.cpp" />
+    <Unit filename="src/ui/screens/TrainingSetupScreen.cpp" />
+    <Unit filename="src/ui/screens/WelcomeScreen.cpp" />
     <Unit filename="src/ui/SkillMap.cpp" />
     <Unit filename="src/ui/Theme.cpp" />
     <Unit filename="src/ui/widgets/Button.cpp" />

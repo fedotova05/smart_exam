@@ -21,6 +21,8 @@ class Screen : public sf::Drawable, public sf::Transformable {
     std::string title, status;
     explicit Screen(const sf::Font &face) : headingFont(&face), focus(-1), font(face) {}
     virtual ~Screen() {}
+    virtual void tick() {}
+    virtual void leave() {}
     void clear();
     void setHeadingFont(const sf::Font &face) {
         headingFont = &face;
@@ -32,6 +34,7 @@ class Screen : public sf::Drawable, public sf::Transformable {
     void note(const std::string &value, float x, float y, float width = 900,
               sf::Color color = Theme::muted);
     void surface(float x, float y, float width, float height, sf::Color color);
+    void progressBar(float value, float x, float y, float width);
     void text(const std::string &value, float x, float y, unsigned size = 18, float width = 900,
               int lines = 3);
     template <class T> T *add(T *widget, float x, float y) {
@@ -49,6 +52,9 @@ class Screen : public sf::Drawable, public sf::Transformable {
         pending = action;
     }
     void ask(const std::string &message, const std::function<void()> &action);
+    bool hasDialog() const {
+        return !dialog.empty();
+    }
     void handle(const sf::Event &event, sf::Vector2f mouse);
     void update();
 };

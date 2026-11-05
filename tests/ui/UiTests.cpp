@@ -4,10 +4,14 @@
 #include "ui/FormulaView.h"
 #include "graphics/GraphView.h"
 #include "ui/screens/HomeScreen.h"
+#include "ui/screens/WelcomeScreen.h"
 #include "ui/screens/LessonScreen.h"
 #include "ui/screens/BankScreen.h"
 #include "ui/screens/KnowledgeScreen.h"
 #include "ui/screens/PackageScreen.h"
+#include "ui/screens/LessonSetupScreen.h"
+#include "ui/screens/ProgressScreen.h"
+#include "ui/screens/TrainingSetupScreen.h"
 #include "io/Files.h"
 #include <windows.h>
 using namespace exam;
@@ -115,12 +119,44 @@ int main() {
         SchoolService school(store);
         school.addStarterContent();
         AppContext context(school);
+        SkillState oneAnswer;
+        REQUIRE(skillEstimate(oneAnswer) == "Нет данных");
+        oneAnswer.known = true;
+        oneAnswer.observations = 1;
+        oneAnswer.mastery = 0.5764705882;
+        REQUIRE(skillEstimate(oneAnswer) == "≈ 58%");
+        oneAnswer.mastery = 0.9999;
+        REQUIRE(skillEstimate(oneAnswer) == "> 99%");
+        REQUIRE(!canOpen(context.role, "bank"));
+        WelcomeScreen welcome(font, context);
+        welcome.refresh();
+        capture(welcome, "entry-screen");
+        click(welcome, 570, 395);
+        REQUIRE(context.role == UserRole::Teacher);
+        REQUIRE(context.profile.empty());
+        REQUIRE(canOpen(context.role, "bank"));
+        REQUIRE(!canOpen(context.role, "lesson"));
+        welcome.refresh();
+        click(welcome, 50, 395);
+        capture(welcome, "profile-screen");
+        click(welcome, 550, 170);
+        type(welcome, "Мария");
+        click(welcome, 560, 235);
+        REQUIRE(context.role == UserRole::Student);
+        REQUIRE(context.profileName == "Мария");
+        REQUIRE(!canOpen(context.role, "bank"));
+        REQUIRE(!canOpen(context.role, "packages"));
+        REQUIRE(canOpen(context.role, "lesson"));
+        REQUIRE(school.history(context.profile).empty());
         context.profile = "demo-student";
         context.profileName = "Демонстрация";
         HomeScreen home(font, context);
         home.refresh();
         capture(home, "home-screen");
         BankScreen bank(font, context);
+        bank.refresh();
+        REQUIRE(bank.title == "Банк заданий доступен учителю");
+        context.role = UserRole::Teacher;
         bank.refresh();
         click(bank, 300, 465);
         capture(bank, "editor");
@@ -145,6 +181,7 @@ int main() {
         school.saveDraft(task);
         school.publish(task.id);
         SessionSettings settings;
+        context.role = UserRole::Student;
         school.start(context.profile, settings, {task.id});
         context.current = school.next();
         LessonScreen lesson(font, context);
@@ -178,17 +215,129 @@ int main() {
         KnowledgeScreen knowledge(font, context);
         knowledge.refresh();
         capture(knowledge, "knowledge-screen");
+        click(knowledge, 700, 580);
+        REQUIRE(knowledge.title == "Как читать результаты");
+        capture(knowledge, "progress-help");
         PackageScreen packages(font, context);
         packages.refresh();
+        REQUIRE(packages.title == "Учебные пакеты доступны учителю");
+        context.role = UserRole::Teacher;
+        packages.refresh();
         capture(packages, "packages-screen");
+        context.role = UserRole::Student;
         home.refresh();
-        click(home, 60, 385);
+        click(home, 60, 340);
+        REQUIRE(context.page == "practice");
+        school.start(context.profile, SessionSettings(), {"intro-fractions", "intro-linear", "intro-parabola"});
+        home.refresh();
+        click(home, 60, 340);
         REQUIRE(context.page == "lesson" && context.current.available);
         REQUIRE(context.current.task.id == "intro-fractions");
         std::string attempt = context.current.attempt.id;
         home.refresh();
-        click(home, 60, 385);
+        click(home, 60, 340);
         REQUIRE(context.current.attempt.id == attempt);
+        // Продолжение учительского занятия восстанавливает режим проверки.
+        std::string pupil = school.createProfile("Ученик с заданным режимом");
+        settings.guided = true;
+        settings.feedback = FeedbackPolicy::AfterTask;
+        school.start(pupil, settings, {"intro-linear"});
+        context.selectProfile(pupil, "Ученик с заданным режимом");
+        home.refresh();
+        click(home, 60, 340);
+        REQUIRE(context.settings.guided);
+        REQUIRE(context.settings.feedback == FeedbackPolicy::AfterTask);
+        REQUIRE(context.current.task.id == "intro-linear");
+        // Шаги не нужны для итогового ответа даже в старом занятии guided.
+        lesson.refresh();
+        click(lesson, 50, 340);
+        type(lesson, "4");
+        click(lesson, 470, 340);
+        REQUIRE(school.responses(context.current.attempt.id).back().result.status == CheckStatus::Incomplete);
+        REQUIRE(school.finish(context.current.attempt.id).score == 1);
+        school.closeLesson();
+        // Поле шага не заменяет итоговый ответ; выбранное действие действительно проверяется.
+        settings.feedback = FeedbackPolicy::AfterStep;
+        school.start(context.profile, settings, {"intro-linear"});
+        context.settings = settings;
+        context.current = school.next();
+        lesson.refresh();
+        click(lesson, 50, 340);
+        type(lesson, "4");
+        click(lesson, 650, 185);
+        click(lesson, 650, 230);
+        type(lesson, "2*x=8");
+        click(lesson, 650, 320);
+        click(lesson, 650, 370);
+        type(lesson, "3");
+        click(lesson, 770, 370);
+        REQUIRE(school.responses(context.current.attempt.id).back().result.status == CheckStatus::Correct);
+        REQUIRE(context.drafts["a"].text == "4");
+        click(lesson, 470, 340);
+        REQUIRE(school.responses(context.current.attempt.id).back().finalAnswer);
+        REQUIRE(school.finish(context.current.attempt.id).score == 1);
+        school.closeLesson();
+        // Поиск по теме/названию и сборка занятия без записи черновиков до старта.
+        context.role = UserRole::Teacher;
+        LessonSetupScreen setup(font, context);
+        setup.refresh();
+        std::size_t beforeGeneration = school.tasks().size();
+        click(setup, 280, 185);
+        type(setup, "НЕСУЩЕСТВУЮЩЕЕ");
+        click(setup, 490, 235);
+        click(setup, 300, 550);
+        REQUIRE(!setup.status.empty());
+        click(setup, 280, 185);
+        key(setup, sf::Keyboard::A, true);
+        type(setup, "СЛОЖЕНИЕ ДРОБЕЙ");
+        click(setup, 490, 235);
+        click(setup, 300, 550);
+        REQUIRE(setup.status.empty());
+        click(setup, 230, 90);
+        click(setup, 60, 490);
+        REQUIRE(school.tasks().size() == beforeGeneration);
+        click(setup, 680, 595);
+        REQUIRE(setup.title == "Проверьте занятие");
+        REQUIRE(context.settings.taskLimit == 4);
+        REQUIRE(!context.settings.guided);
+        click(setup, 680, 595);
+        REQUIRE(setup.title == "Занятие подготовлено");
+        REQUIRE(school.tasks().size() == beforeGeneration + 3);
+        REQUIRE(school.latestLesson(context.profile).tasks.size() == 4);
+        context.role = UserRole::Student;
+        home.refresh();
+        click(home, 60, 340);
+        REQUIRE(context.current.available);
+        REQUIRE(context.current.task.id == "intro-fractions");
+        ProgressScreen progress(font, context);
+        progress.refresh();
+        REQUIRE(progress.title == "Прогресс по темам");
+        REQUIRE(canOpen(context.role, "progress"));
+        REQUIRE(canOpen(context.role, "setup"));
+        context.selectProfile(school.createProfile("Темы ученика"), "Темы ученика");
+        TrainingSetupScreen topics(font, context);
+        topics.refresh();
+        click(topics, 50, 210);
+        click(topics, 340, 170);
+        click(topics, 340, 210);
+        click(topics, 340, 250);
+        click(topics, 750, 300);
+        key(topics, sf::Keyboard::A, true);
+        type(topics, "1");
+        click(topics, 700, 595);
+        REQUIRE(context.page == "lesson");
+        REQUIRE(context.settings.training);
+        REQUIRE(context.settings.targetSkills == std::vector<std::string>({"q_roots"}));
+        lesson.refresh();
+        click(lesson, 50, 340);
+        type(lesson, "0");
+        click(lesson, 470, 340);
+        REQUIRE(lesson.title == "Ответ пока неверный");
+        click(lesson, 600, 475);
+        REQUIRE(lesson.title != "Ответ пока неверный");
+        click(lesson, 470, 340);
+        click(lesson, 100, 475);
+        REQUIRE(context.current.task.parts.front().skills == std::vector<std::string>({"q_coefficients"}));
         graphics.setActive(true);
         std::cout
             << "OK: Unicode, cursor, focus, dialog, scroll, formula, graph and student workflow\n";

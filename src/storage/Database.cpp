@@ -3,8 +3,9 @@
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <windows.h>
 namespace exam {
-Database::Database(const std::string &path) : handle(0) {
+Database::Database(const std::string &path) : handle(0), ownerThread(GetCurrentThreadId()) {
     if (sqlite3_open(path.c_str(), &handle) != SQLITE_OK) {
         std::string error = sqlite3_errmsg(handle);
         sqlite3_close(handle);
@@ -17,6 +18,7 @@ Database::~Database() {
     sqlite3_close(handle);
 }
 std::vector<Row> Database::query(const std::string &sql, const Row &values) {
+    checkThread();
     sqlite3_stmt *statement = 0;
     if (sqlite3_prepare_v2(handle, sql.c_str(), -1, &statement, 0) != SQLITE_OK)
         throw std::runtime_error(sqlite3_errmsg(handle));
@@ -44,6 +46,7 @@ std::vector<Row> Database::query(const std::string &sql, const Row &values) {
     return rows;
 }
 void Database::script(const std::string &sql) {
+    checkThread();
     char *message = 0;
     if (sqlite3_exec(handle, sql.c_str(), 0, 0, &message) != SQLITE_OK) {
         std::string error = message ? message : "SQL error";
@@ -51,14 +54,19 @@ void Database::script(const std::string &sql) {
         throw std::runtime_error(error);
     }
 }
+void Database::checkThread() const {
+    if (ownerThread != GetCurrentThreadId())
+        throw std::runtime_error("Соединение SQLite нельзя передавать в другой поток");
+}
 void Database::migrate(const std::string &directory) {
     int version = std::stoi(query("PRAGMA user_version")[0][0]);
-    if (version > 5)
+    if (version > 9)
         throw std::runtime_error("Database version is newer than application");
-    const char *files[] = {"001_initial.sql", "002_attempt_snapshot.sql",
-                           "003_session_completion.sql", "004_interface_data.sql",
-                           "005_graph_settings.sql"};
-    for (int next = version; next < 5; ++next) {
+    const char *files[] = {
+        "001_initial.sql",          "002_attempt_snapshot.sql", "003_session_completion.sql",
+        "004_interface_data.sql",   "005_graph_settings.sql",   "006_training.sql",
+        "007_session_policies.sql", "008_manual_review.sql",    "009_answer_policies.sql"};
+    for (int next = version; next < 9; ++next) {
         std::ifstream input((directory + "/" + files[next]).c_str());
         if (!input)
             throw std::runtime_error("Migration file not found");

@@ -7,6 +7,8 @@ namespace exam {
 typedef std::vector<std::string> Row;
 class Database {
     sqlite3 *handle;
+    unsigned long ownerThread;
+    void checkThread() const;
 
   public:
     explicit Database(const std::string &path);

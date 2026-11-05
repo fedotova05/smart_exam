@@ -13,6 +13,8 @@ class LessonScreen : public Screen {
     std::string attempt;
     void send(bool finalAnswer, const std::string &operation = "", const std::string &operand = "");
     void resources(int index);
+    void route();
+    void supportChoice();
 
   public:
     LessonScreen(const sf::Font &font, AppContext &state)

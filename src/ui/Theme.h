@@ -6,7 +6,7 @@ namespace exam {
 namespace ui {
 namespace Theme {
 const sf::Color background(247, 246, 240), paper(250, 249, 245), ink(30, 55, 47);
-const sf::Color accent(208, 105, 77), muted(116, 131, 117), line(220, 224, 214);
+const sf::Color accent(160, 84, 58), muted(94, 108, 97), line(220, 224, 214);
 const sf::Color pale(237, 240, 230), white(255, 254, 249), error(166, 63, 43);
 const sf::Color navigation(30, 53, 46), navigationActive(54, 80, 68);
 } // namespace Theme

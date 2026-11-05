@@ -152,6 +152,7 @@ void FormulaView::draw(sf::RenderTarget &target, sf::RenderStates states) const 
     if (canvas.getSize() !=
         sf::Vector2u(static_cast<unsigned>(size.x), static_cast<unsigned>(size.y)))
         canvas.create(static_cast<unsigned>(size.x), static_cast<unsigned>(size.y));
+    canvas.setSmooth(true);
     canvas.clear(featured ? Theme::pale : Theme::background);
     if (!error.empty())
         canvas.draw(

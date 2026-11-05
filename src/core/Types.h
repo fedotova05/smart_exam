@@ -15,7 +15,7 @@ struct CheckResult {
                 const std::string &text = "Проверка пока недоступна", int position = -1)
         : status(value), message(text), errorPosition(position) {}
 };
-enum class PartKind { Expression, Equation, Line, Parabola };
+enum class PartKind { Expression, Equation, Line, Parabola, Number, Choice, Polynomial };
 struct Point {
     double x;
     double y;
@@ -34,10 +34,18 @@ struct TaskPart {
     PartKind kind;
     std::string prompt;
     std::string expression;
+    std::string displayExpression;
     std::vector<std::string> skills;
     int maxScore;
     double graphSnap, graphTolerance;
-    TaskPart() : kind(PartKind::Equation), maxScore(1), graphSnap(0.5), graphTolerance(0.0001) {}
+    bool requireSteps;
+    int decimalPlaces;
+    double answerTolerance;
+    std::vector<std::string> choices;
+    std::vector<int> correctChoices;
+    TaskPart()
+        : kind(PartKind::Equation), maxScore(1), graphSnap(0.5), graphTolerance(0.0001),
+          requireSteps(false), decimalPlaces(-1), answerTolerance(0) {}
 };
 struct TaskVersion {
     std::string id;
@@ -56,14 +64,20 @@ struct TaskVersion {
 };
 enum class SessionMode { Fixed, Dynamic };
 enum class FeedbackPolicy { AfterStep, AfterTask, AfterSet };
+enum class ResumePolicy { ActiveTime, Deadline, NoResume };
 struct SessionSettings {
     SessionMode mode;
     FeedbackPolicy feedback;
     bool guided;
+    bool training;
+    std::vector<std::string> targetSkills;
     int taskLimit;
+    ResumePolicy resumePolicy;
+    int timeLimitSeconds;
     SessionSettings()
         : mode(SessionMode::Fixed), feedback(FeedbackPolicy::AfterStep), guided(false),
-          taskLimit(10) {}
+          training(false), taskLimit(10), resumePolicy(ResumePolicy::ActiveTime),
+          timeLimitSeconds(0) {}
 };
 struct SkillState {
     bool known;

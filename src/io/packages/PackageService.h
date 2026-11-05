@@ -2,6 +2,7 @@
 #define SMARTEXAM_PACKAGE_SERVICE_H
 #include "application/SchoolService.h"
 #include "io/Json.h"
+#include <functional>
 namespace exam {
 struct PackageItem {
     std::string sourceId, error;
@@ -24,8 +25,10 @@ class PackageService {
     PackageService(SchoolService &services, const std::string &data = "data")
         : school(services), dataDirectory(data) {}
     PackagePreview inspect(const std::string &path) const;
-    std::vector<ImportReport> importPackage(const PackagePreview &package,
-                                            const std::map<std::string, std::string> &skillMapping);
+    std::vector<ImportReport>
+    importPackage(const PackagePreview &package,
+                  const std::map<std::string, std::string> &skillMapping,
+                  const std::function<void()> &checkpoint = std::function<void()>());
     void exportPackage(const std::string &path, const std::vector<std::string> &taskIds) const;
 };
 } // namespace exam
