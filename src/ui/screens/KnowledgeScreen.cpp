@@ -31,6 +31,13 @@ void KnowledgeScreen::refresh() {
     if (!context.profile.empty())
         state = context.school.snapshot(context.profile);
     SkillMap *map = add(new SkillMap(font, visible, context.school.skillGraph(), state), 0, 94);
+    map->setEditable(context.role == UserRole::Teacher);
+    map->onSelect = [this](const SkillInfo &skill) {
+        defer([this, skill] {
+            selected = skill.id;
+            refresh();
+        });
+    };
     map->onMove = [this](const SkillInfo &skill) {
         defer([this, skill] {
             context.school.placeSkill(skill.id, skill.position);
@@ -71,6 +78,7 @@ void KnowledgeScreen::refresh() {
         text(details, 630, 180, 18, 310, 7);
         list(history, 630, 370, 310, 154);
     }
+    if (context.role == UserRole::Teacher) {
     button("Изменить навык", 0, 560, 220, [this] { editSkill(false); });
     button("Новый навык", 240, 560, 210, [this] { editSkill(true); });
     button("Новая тема", 470, 560, 200, [this] {
@@ -89,7 +97,11 @@ void KnowledgeScreen::refresh() {
             true);
         button("Отмена", 240, 220, 180, [this] { refresh(); });
     });
-    text("Перетащите узел. Стрелка: предпосылка → навык.", 0, 610, 14, 940, 1);
+    }
+    text(context.role == UserRole::Teacher
+             ? "Выберите или перетащите навык. Стрелка: предпосылка → навык."
+             : "Нажмите на навык, чтобы увидеть подробности. Стрелки показывают, что изучать сначала.",
+         0, 610, 14, 940, 1);
 }
 void KnowledgeScreen::editSkill(bool create) {
     auto skills = context.school.skills();

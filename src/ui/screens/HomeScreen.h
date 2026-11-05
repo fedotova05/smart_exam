@@ -9,6 +9,7 @@ class HomeScreen : public Screen {
     std::vector<std::string> fixedTasks;
     void settings();
     void startShortLesson();
+    void teacherHome();
 
   public:
     HomeScreen(const sf::Font &font, AppContext &state) : Screen(font), context(state) {}

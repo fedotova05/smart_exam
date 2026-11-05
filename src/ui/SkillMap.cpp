@@ -6,7 +6,8 @@ namespace ui {
 SkillMap::SkillMap(const sf::Font &font, const std::vector<SkillInfo> &skills,
                    const std::map<std::string, std::vector<std::string>> &graph,
                    const StudentSnapshot &state)
-    : Widget(font, 600, 430), nodes(skills), edges(graph), snapshot(state), dragged(-1), scroll(0) {
+    : Widget(font, 600, 430), nodes(skills), edges(graph), snapshot(state), dragged(-1),
+      editable(true), scroll(0) {
     for (std::size_t i = 0; i < nodes.size(); ++i)
         if (!nodes[i].placed)
             nodes[i].position = Point(15 + (i % 3) * 195, 20 + (i / 3) * 80);
@@ -31,7 +32,7 @@ bool SkillMap::handle(const sf::Event &event, sf::Vector2f mouse) {
                 return true;
             }
     }
-    if (event.type == sf::Event::MouseMoved && dragged >= 0) {
+    if (event.type == sf::Event::MouseMoved && dragged >= 0 && editable) {
         nodes[dragged].position =
             Point(std::max(0.f, std::min(size.x - 170, local.x - offset.x)),
                   std::max(0.f, std::min(size.y + scroll - 58, local.y - offset.y)));
@@ -41,9 +42,9 @@ bool SkillMap::handle(const sf::Event &event, sf::Vector2f mouse) {
         SkillInfo node = nodes[dragged];
         dragged = -1;
         node.placed = true;
-        if (onMove)
+        if (editable && onMove)
             onMove(node);
-        if (onSelect)
+        else if (onSelect)
             onSelect(node);
         return true;
     }

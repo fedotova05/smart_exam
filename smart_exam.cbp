@@ -86,6 +86,7 @@
     <Unit filename="src/ui/screens/KnowledgeScreen.h" />
     <Unit filename="src/ui/screens/LessonScreen.h" />
     <Unit filename="src/ui/screens/PackageScreen.h" />
+    <Unit filename="src/ui/screens/WelcomeScreen.h" />
     <Unit filename="src/ui/SkillMap.h" />
     <Unit filename="src/ui/Theme.h" />
     <Unit filename="src/ui/widgets/Button.h" />
@@ -121,6 +122,7 @@
     <Unit filename="src/ui/screens/KnowledgeScreen.cpp" />
     <Unit filename="src/ui/screens/LessonScreen.cpp" />
     <Unit filename="src/ui/screens/PackageScreen.cpp" />
+    <Unit filename="src/ui/screens/WelcomeScreen.cpp" />
     <Unit filename="src/ui/SkillMap.cpp" />
     <Unit filename="src/ui/Theme.cpp" />
     <Unit filename="src/ui/widgets/Button.cpp" />

@@ -30,6 +30,11 @@ void BankScreen::createTask(bool combined) {
     editor();
 }
 void BankScreen::refresh() {
+    if (context.role != UserRole::Teacher) {
+        clear();
+        title = "Банк заданий доступен учителю";
+        return;
+    }
     if (editing) {
         editor();
         return;

@@ -5,6 +5,10 @@ namespace exam {
 namespace ui {
 void PackageScreen::refresh() {
     clear();
+    if (context.role != UserRole::Teacher) {
+        title = "Учебные пакеты доступны учителю";
+        return;
+    }
     title = "Учебные пакеты";
     text("Импорт создаёт черновики. Сопоставьте каждый навык пакета с навыком вашего банка.", 0, 0,
          18, 940, 2);

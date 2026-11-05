@@ -4,6 +4,17 @@
 #include <cmath>
 namespace exam {
 namespace ui {
+bool canOpen(UserRole role, const std::string &page) {
+    if (page == "welcome")
+        return true;
+    if (role == UserRole::Guest)
+        return false;
+    if (page == "home" || page == "results" || page == "knowledge")
+        return true;
+    if (page == "lesson")
+        return role == UserRole::Student;
+    return role == UserRole::Teacher && (page == "bank" || page == "packages");
+}
 std::vector<std::string> splitCodes(const std::string &text) {
     std::string separated = text;
     for (char &c : separated)

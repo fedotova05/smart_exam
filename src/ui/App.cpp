@@ -1,5 +1,6 @@
 #include "App.h"
 #include "screens/HomeScreen.h"
+#include "screens/WelcomeScreen.h"
 #include "screens/LessonScreen.h"
 #include "screens/BankScreen.h"
 #include "screens/KnowledgeScreen.h"
@@ -17,41 +18,59 @@ App::App(SchoolService &school) : context(school), current(0) {
         throw std::runtime_error("Не найден шрифт Segoe UI или Arial в папке Windows/Fonts");
     if (!headingFont.loadFromFile(fonts + "georgia.ttf"))
         headingFont = font;
-    for (const auto &profile : school.profiles())
-        if (profile.first == "demo-student") {
-            context.profile = profile.first;
-            context.profileName = profile.second;
-        }
     window.create(sf::VideoMode(1200, 800), "SmartExam");
     window.setFramerateLimit(60);
+    screens["welcome"].reset(new WelcomeScreen(font, context));
     screens["home"].reset(new HomeScreen(font, context));
     screens["lesson"].reset(new LessonScreen(font, context));
     screens["bank"].reset(new BankScreen(font, context));
     screens["knowledge"].reset(new KnowledgeScreen(font, context));
     screens["packages"].reset(new PackageScreen(font, context));
     screens["results"].reset(new ResultsScreen(font, context));
-    const char *ids[] = {"home", "lesson", "bank", "knowledge", "results", "packages"};
-    const char *titles[] = {"Занятие", "Решение", "Задания", "Навыки", "Результаты", "Пакеты"};
-    for (int i = 0; i < 6; ++i) {
-        std::unique_ptr<Button> button(new Button(font, titles[i], 148));
-        button->setPosition(260 + i * 148.f, 16);
-        button->setNavigation(true);
-        std::string id = ids[i];
-        button->onClick = [this, id] { context.page = id; };
-        navigation.push_back(std::move(button));
-    }
     for (auto &item : screens) {
         item.second->setPosition(130, 130);
         item.second->setHeadingFont(headingFont);
     }
     screens["home"]->setPosition(52, 130);
     screens["lesson"]->setPosition(208, 130);
-    show("home");
+    show("welcome");
 }
-void App::show(const std::string &name) {
+void App::buildNavigation() {
+    navigation.clear();
+    navigationPages.clear();
+    if (context.role == UserRole::Guest)
+        return;
+    std::vector<std::string> names;
+    if (context.role == UserRole::Student) {
+        navigationPages = {"home", "knowledge", "results", "welcome"};
+        names = {"Моё занятие", "Мои навыки", "История", "Сменить профиль"};
+    } else {
+        navigationPages = {"home", "bank", "knowledge", "packages", "welcome"};
+        names = {"Кабинет", "Задания", "Навыки", "Пакеты", "Сменить роль"};
+    }
+    for (std::size_t i = 0; i < names.size(); ++i) {
+        std::unique_ptr<Button> button(new Button(font, names[i], 167));
+        button->setPosition(313 + i * 167.f, 16);
+        button->setNavigation(true);
+        std::string id = navigationPages[i];
+        button->onClick = [this, id] { context.page = id; };
+        bool selected = page == id || (page == "lesson" && id == "home") ||
+                        (context.role == UserRole::Teacher && page == "results" && id == "home");
+        button->setSelected(selected);
+        navigation.push_back(std::move(button));
+    }
+}
+void App::show(const std::string &requested) {
     window.setActive(true);
+    std::string name = canOpen(context.role, requested) ? requested : "welcome";
+    if (name == "welcome") {
+        context.selectProfile("", "");
+        context.role = UserRole::Guest;
+    }
     page = name;
     current = screens.at(name).get();
+    if (name == "welcome")
+        static_cast<WelcomeScreen *>(current)->refresh();
     if (name == "home")
         static_cast<HomeScreen *>(current)->refresh();
     if (name == "lesson")
@@ -64,11 +83,7 @@ void App::show(const std::string &name) {
         static_cast<PackageScreen *>(current)->refresh();
     if (name == "results")
         static_cast<ResultsScreen *>(current)->refresh();
-    const char *ids[] = {"home", "lesson", "bank", "knowledge", "results", "packages"};
-    for (std::size_t i = 0; i < navigation.size(); ++i) {
-        navigation[i]->setFocus(false);
-        navigation[i]->setSelected(name == ids[i]);
-    }
+    buildNavigation();
 }
 void App::resize(unsigned width, unsigned height) {
     if (width < 1024 || height < 720) {
@@ -115,21 +130,38 @@ int App::run(bool smoke, bool capture, bool widgets) {
     }
     if (capture) {
         makeDirectories("bin/captures");
-        SessionSettings settings;
-        settings.taskLimit = 1;
-        const char *pages[] = {"home", "lesson", "bank", "knowledge", "packages", "results"};
-        for (const char *item : pages) {
-            if (std::string(item) == "lesson") {
-                context.school.start(context.profile, settings, {"intro-quadratic"});
-                context.current = context.school.next();
-            }
-            show(item);
+        auto save = [this](const std::string &name) {
             draw();
             sf::Texture texture;
-            texture.create(1200, 800);
+            texture.create(window.getSize().x, window.getSize().y);
             texture.update(window);
-            texture.copyToImage().saveToFile(std::string("bin/captures/") + item + ".png");
-        }
+            texture.copyToImage().saveToFile("bin/captures/" + name + ".png");
+        };
+        show("welcome");
+        save("welcome");
+        context.role = UserRole::Student;
+        context.selectProfile("demo-student", "Демонстрация");
+        show("home");
+        save("home");
+        SessionSettings settings;
+        settings.taskLimit = 3;
+        context.school.start(context.profile, settings,
+                             {"intro-fractions", "intro-linear", "intro-parabola"});
+        context.settings = settings;
+        context.current = context.school.next();
+        show("lesson");
+        save("lesson");
+        show("knowledge");
+        save("knowledge");
+        show("results");
+        save("results");
+        context.role = UserRole::Teacher;
+        show("home");
+        save("teacher");
+        show("bank");
+        save("bank");
+        show("packages");
+        save("packages");
         return 0;
     }
     sf::Clock clock;
@@ -149,8 +181,9 @@ int App::run(bool smoke, bool capture, bool widgets) {
             if (event.type == sf::Event::MouseMoved)
                 pixel = sf::Vector2i(event.mouseMove.x, event.mouseMove.y);
             sf::Vector2f mouse = window.mapPixelToCoords(pixel);
-            for (auto &button : navigation)
-                button->handle(event, mouse);
+            if (!current->hasDialog())
+                for (auto &button : navigation)
+                    button->handle(event, mouse);
             current->handle(event, mouse);
             current->update();
             if (!context.page.empty()) {

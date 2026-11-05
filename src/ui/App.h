@@ -13,9 +13,11 @@ class App {
     AppContext context;
     std::map<std::string, std::unique_ptr<Screen>> screens;
     std::vector<std::unique_ptr<Button>> navigation;
+    std::vector<std::string> navigationPages;
     Screen *current;
     std::string page;
     void show(const std::string &name);
+    void buildNavigation();
     void draw();
     void resize(unsigned width, unsigned height);
 

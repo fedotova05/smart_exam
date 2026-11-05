@@ -4,6 +4,7 @@
 #include "ui/FormulaView.h"
 #include "graphics/GraphView.h"
 #include "ui/screens/HomeScreen.h"
+#include "ui/screens/WelcomeScreen.h"
 #include "ui/screens/LessonScreen.h"
 #include "ui/screens/BankScreen.h"
 #include "ui/screens/KnowledgeScreen.h"
@@ -115,12 +116,34 @@ int main() {
         SchoolService school(store);
         school.addStarterContent();
         AppContext context(school);
+        REQUIRE(!canOpen(context.role, "bank"));
+        WelcomeScreen welcome(font, context);
+        welcome.refresh();
+        click(welcome, 570, 395);
+        REQUIRE(context.role == UserRole::Teacher);
+        REQUIRE(context.profile.empty());
+        REQUIRE(canOpen(context.role, "bank"));
+        REQUIRE(!canOpen(context.role, "lesson"));
+        welcome.refresh();
+        click(welcome, 50, 395);
+        click(welcome, 550, 170);
+        type(welcome, "Мария");
+        click(welcome, 560, 235);
+        REQUIRE(context.role == UserRole::Student);
+        REQUIRE(context.profileName == "Мария");
+        REQUIRE(!canOpen(context.role, "bank"));
+        REQUIRE(!canOpen(context.role, "packages"));
+        REQUIRE(canOpen(context.role, "lesson"));
+        REQUIRE(school.history(context.profile).empty());
         context.profile = "demo-student";
         context.profileName = "Демонстрация";
         HomeScreen home(font, context);
         home.refresh();
         capture(home, "home-screen");
         BankScreen bank(font, context);
+        bank.refresh();
+        REQUIRE(bank.title == "Банк заданий доступен учителю");
+        context.role = UserRole::Teacher;
         bank.refresh();
         click(bank, 300, 465);
         capture(bank, "editor");
@@ -145,6 +168,7 @@ int main() {
         school.saveDraft(task);
         school.publish(task.id);
         SessionSettings settings;
+        context.role = UserRole::Student;
         school.start(context.profile, settings, {task.id});
         context.current = school.next();
         LessonScreen lesson(font, context);

@@ -9,6 +9,7 @@ class SkillMap : public Widget {
     std::map<std::string, std::vector<std::string>> edges;
     StudentSnapshot snapshot;
     int dragged;
+    bool editable;
     float scroll;
     sf::Vector2f offset;
     mutable sf::RenderTexture canvas;
@@ -20,6 +21,7 @@ class SkillMap : public Widget {
              const std::map<std::string, std::vector<std::string>> &graph,
              const StudentSnapshot &state);
     bool handle(const sf::Event &event, sf::Vector2f mouse) override;
+    void setEditable(bool value) { editable = value; }
 };
 } // namespace ui
 } // namespace exam
