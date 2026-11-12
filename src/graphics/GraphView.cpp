@@ -65,10 +65,8 @@ bool GraphView::handle(const sf::Event &event, sf::Vector2f mouse) {
     return false;
 }
 void GraphView::draw(sf::RenderTarget &target, sf::RenderStates states) const {
-    if (canvas.getSize() !=
-        sf::Vector2u(static_cast<unsigned>(size.x), static_cast<unsigned>(size.y)))
-        canvas.create(static_cast<unsigned>(size.x), static_cast<unsigned>(size.y));
-    canvas.setSmooth(true);
+
+    prepareCanvas(canvas, size);
     canvas.clear(Theme::paper);
     auto line = [this](float x1, float y1, float x2, float y2, sf::Color color) {
         sf::Vertex points[] = {sf::Vertex(sf::Vector2f(x1, y1), color),
@@ -84,18 +82,18 @@ void GraphView::draw(sf::RenderTarget &target, sf::RenderStates states) const {
         line(p.x, 0, p.x, size.y, Theme::line);
         std::ostringstream value;
         value << x;
-        canvas.draw(label(font, unicode(value.str()), 12, p.x + 2,
-                          std::max(2.f, std::min(size.y - 18, static_cast<float>(p.y + 2))),
-                          Theme::muted));
+        drawText(canvas, label(font, unicode(value.str()), 12, p.x + 2,
+                               std::max(2.f, std::min(size.y - 18, static_cast<float>(p.y + 2))),
+                               Theme::muted));
     }
     for (double y = std::ceil(low.y / step) * step; y <= high.y; y += step) {
         Point p = coordinates.toScreen(Point(0, y));
         line(0, p.y, size.x, p.y, Theme::line);
         std::ostringstream value;
         value << y;
-        canvas.draw(label(font, unicode(value.str()), 12,
-                          std::max(2.f, std::min(size.x - 40, static_cast<float>(p.x + 3))),
-                          p.y + 2, Theme::muted));
+        drawText(canvas, label(font, unicode(value.str()), 12,
+                               std::max(2.f, std::min(size.x - 40, static_cast<float>(p.x + 3))),
+                               p.y + 2, Theme::muted));
     }
     Point origin = coordinates.toScreen(Point());
     line(origin.x, 0, origin.x, size.y, Theme::muted);
@@ -133,7 +131,7 @@ void GraphView::draw(sf::RenderTarget &target, sf::RenderStates states) const {
     }
     canvas.display();
     states.transform *= getTransform();
-    target.draw(sf::Sprite(canvas.getTexture()), states);
+    drawCanvas(target, canvasSprite(canvas), states);
 }
 } // namespace ui
 } // namespace exam

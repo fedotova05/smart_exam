@@ -17,9 +17,13 @@ class App {
     Screen *current;
     std::string page;
     int navigationFocus;
+    bool fullscreen = false;
+    std::unique_ptr<Button> windowMode, closeButton;
+    void toggleFullscreen();
     void show(const std::string &name);
     void buildNavigation();
     void draw();
+    void layoutScreen();
     void resize(unsigned width, unsigned height);
 
   public:

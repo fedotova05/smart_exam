@@ -7,7 +7,9 @@ namespace ui {
 class HomeScreen : public Screen {
     AppContext &context;
     void settings();
-    void startShortLesson();
+    void openLesson(const std::string &id);
+    std::string homeProfile, selectedLesson;
+    bool showPractice = false, showCompleted = false, profilesArchived = false;
     void teacherHome();
     void manageProfiles();
     bool reviewPending = true, reviewAll = true;

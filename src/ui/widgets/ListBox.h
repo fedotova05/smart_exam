@@ -18,6 +18,7 @@ class ListBox : public Widget {
 
   public:
     std::function<void(int)> onChange;
+    std::function<void(int)> onActivate;
     std::function<void(int)> onToggle;
     void setCheckable(bool value) {
         checkable = value;

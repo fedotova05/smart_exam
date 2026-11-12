@@ -6,6 +6,8 @@
 namespace exam {
 namespace ui {
 void BankScreen::createTask(bool combined) {
+    typeDrafts.clear();
+    scoreDrafts.clear();
     draft = TaskVersion();
     draft.id = newId("task");
     draft.title = combined ? "Корни и график функции" : "Новое задание";
@@ -98,6 +100,8 @@ void BankScreen::refresh() {
         if (draft.published) {
             draft = context.school.newVersion(draft.id);
         }
+        typeDrafts.clear();
+        scoreDrafts.clear();
         editing = true;
         partIndex = 0;
         editor();
@@ -119,146 +123,6 @@ void BankScreen::refresh() {
     text("Черновики можно исправлять. Для опубликованного задания создаётся новая версия. Проверка "
          "условий выполняется перед публикацией.",
          0, 520, 18, 900, 3);
-}
-void BankScreen::editor() {
-    clear();
-    title = "Редактор задания";
-    text("Название", 0, 0, 16);
-    TextField *name = field(draft.title, 0, 24, 620, 160);
-    name->onChange = [this, name] { draft.title = name->getText(); };
-    button("Назад в банк", 650, 24, 290, [this] {
-        ask("Вернуться в банк? Несохранённые изменения будут потеряны.", [this] {
-            editing = false;
-            refresh();
-        });
-    });
-    text("Общее условие", 0, 76, 16);
-    TextField *description = field(draft.description, 0, 100, 940, 2048);
-    description->onChange = [this, description] { draft.description = description->getText(); };
-    text("Общая функция (необязательно)", 0, 152, 16);
-    TextField *function = field(draft.commonFunction, 0, 176, 450, 512);
-    function->onChange = [this, function] { draft.commonFunction = function->getText(); };
-    text("Изображения из папки data (через запятую)", 480, 152, 16);
-    TextField *resources = field(joinCodes(draft.resources), 480, 176, 460, 1024);
-    resources->onChange = [this, resources] { draft.resources = splitCodes(resources->getText()); };
-    std::vector<std::string> parts;
-    for (const auto &part : draft.parts)
-        parts.push_back(part.id + " · " + kindName(part.kind));
-    ListBox *partList = list(parts, 0, 240, 240, 120);
-    partList->select(partIndex);
-    partList->onChange = [this](int value) {
-        defer([this, value] {
-            partIndex = value;
-            editor();
-        });
-    };
-    button("+ Часть", 0, 370, 115, [this] {
-        TaskPart part;
-        part.id = "part-" + std::to_string(draft.parts.size() + 1);
-        while (std::find_if(draft.parts.begin(), draft.parts.end(), [&part](const TaskPart &other) {
-                   return other.id == part.id;
-               }) != draft.parts.end())
-            part.id += 'x';
-        part.prompt = "Решите уравнение";
-        part.expression = "x=1";
-        draft.parts.push_back(part);
-        partIndex = static_cast<int>(draft.parts.size() - 1);
-        editor();
-    });
-    button("− Часть", 125, 370, 115, [this] {
-        if (draft.parts.size() == 1)
-            throw std::runtime_error("Оставьте хотя бы одну часть");
-        draft.parts.erase(draft.parts.begin() + partIndex);
-        partIndex = 0;
-        editor();
-    });
-    if (draft.parts.empty())
-        return;
-    TaskPart &part = draft.parts[partIndex];
-    ListBox *type = list({"Значение", "Уравнение", "Прямая", "Парабола", "Число", "Выбор вариантов",
-                          "Выражение с x"},
-                         0, 430, 240, 120);
-    type->select(static_cast<int>(part.kind));
-    type->onChange = [this](int value) {
-        draft.parts[partIndex].kind = static_cast<PartKind>(value);
-    };
-    button("Настроить ответ", 0, 566, 240, [this] { answerSettings(); });
-    text("Условие выбранной части", 270, 228, 16);
-    TextField *prompt = field(part.prompt, 270, 252, 670, 2048);
-    prompt->onChange = [this, prompt] { draft.parts[partIndex].prompt = prompt->getText(); };
-    text("Формула / уравнение", 270, 302, 16);
-    TextField *expression = field(part.expression, 270, 326, 670, 512);
-    FormulaView *formula = add(new FormulaView(font, 670, 90), 270, 378);
-    formula->setFormula(part.expression);
-    expression->onChange = [this, expression, formula] {
-        draft.parts[partIndex].expression = expression->getText();
-        formula->setFormula(expression->getText());
-    };
-    text("Проверяемые навыки", 270, 476, 16);
-    button("Выбрано: " + std::to_string(part.skills.size()) + " · изменить", 270, 500, 390,
-           [this] { selectSkills(); });
-    text("Балл", 680, 476, 16);
-    TextField *score = field(std::to_string(part.maxScore), 680, 500, 100, 3);
-    text("Сложность", 800, 476, 16);
-    TextField *difficulty =
-        field(std::to_string(static_cast<int>(draft.difficulty)), 800, 500, 140, 4);
-    auto readScores = [this, score, difficulty] {
-        double points = readNumber(score->getText()), level = readNumber(difficulty->getText());
-        if (points != static_cast<int>(points) || points < 1 || points > 100)
-            throw std::runtime_error("Балл: целое от 1 до 100");
-        draft.parts[partIndex].maxScore = static_cast<int>(points);
-        draft.difficulty = level;
-    };
-    // Числа сохраняются и при переключении части, если введено допустимое значение.
-    score->onChange = [this, score] {
-        try {
-            double value = readNumber(score->getText());
-            if (value >= 1 && value <= 100 && value == static_cast<int>(value))
-                draft.parts[partIndex].maxScore = static_cast<int>(value);
-        } catch (...) {
-        }
-    };
-    difficulty->onChange = [this, difficulty] {
-        try {
-            draft.difficulty = readNumber(difficulty->getText());
-        } catch (...) {
-        }
-    };
-    button("Сохранить", 270, 566, 190, [this, readScores] {
-        readScores();
-        context.school.saveDraft(draft);
-        status = "Черновик сохранён";
-    });
-    button(
-        "Опубликовать", 475, 566, 230,
-        [this, readScores] {
-            readScores();
-            context.school.saveDraft(draft);
-            context.school.publish(draft.id);
-            editing = false;
-            refresh();
-            status = "Версия опубликована";
-        },
-        true);
-    button("Предпросмотр", 720, 566, 220, [this, readScores] {
-        readScores();
-        preview();
-    });
-}
-void BankScreen::preview() {
-    clear();
-    title = draft.title;
-    text(draft.description, 0, 0, 20, 900, 3);
-    const TaskPart &part = draft.parts[partIndex];
-    text(part.prompt, 0, 95, 22, 900, 3);
-    FormulaView *formula = add(new FormulaView(font, 940, 180), 0, 200);
-    formula->setFormula(part.displayExpression.empty() ? part.expression : part.displayExpression);
-    text("Часть " + part.id + " · " + kindName(part.kind) + " · " + std::to_string(part.maxScore) +
-             " балл.",
-         0, 410, 18);
-    auto errors = context.school.validate(draft);
-    text(errors.empty() ? "Проверка структуры пройдена" : errors.front(), 0, 460, 18, 900, 3);
-    button("К редактированию", 0, 566, 280, [this] { editor(); });
 }
 } // namespace ui
 } // namespace exam

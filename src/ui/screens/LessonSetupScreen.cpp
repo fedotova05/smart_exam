@@ -39,6 +39,7 @@ void LessonSetupScreen::refresh() {
         selectedTasks.clear();
         skill.clear();
         query.clear();
+        lessonName.clear();
         selectedTask.clear();
         basketIndex = 0;
         source = 0;
@@ -80,7 +81,7 @@ void LessonSetupScreen::refresh() {
 void LessonSetupScreen::bank() {
     text("Фильтр по навыку", 0, 137, 18);
     auto skills = context.school.skills();
-    std::vector<std::string> names = {"Все темы"};
+    std::vector<std::string> names = {"Все навыки"};
     int chosen = 0;
     for (std::size_t i = 0; i < skills.size(); ++i) {
         names.push_back(skills[i].name);
@@ -129,7 +130,7 @@ void LessonSetupScreen::bank() {
             refresh();
         });
     };
-    note("Готовые задания из банка. Выберите тему, затем задание справа.", 0, 434, 230);
+    note("Выберите навык для фильтрации.", 0, 434, 230);
     if (!tasks.empty()) {
         const auto &task = tasks[selected];
         note("Частей: " + std::to_string(task.parts.size()) +
@@ -206,14 +207,12 @@ void LessonSetupScreen::generator() {
                      ". Выберите пример справа для просмотра.";
         },
         true);
-    note("Генератор создаёт новые условия. До запуска занятия их можно убрать из списка справа.", 0,
-         530, 580);
+    note("Созданные примеры появятся в составе занятия справа.", 0, 530, 580);
 }
 void LessonSetupScreen::adaptive() {
     heading("Подбор по результатам", 0, 148, 25);
-    text("Из опубликованного банка — по истории выбранного ученика. Сначала неизвестные "
-         "или слабые навыки, затем закрепление. Учитываются сложность и повторения.",
-         0, 202, 19, 570, 5);
+    text("Задания из банка подбираются по результатам ученика. Выберите навык и число заданий.", 0,
+         202, 19, 570, 5);
     auto skills = context.school.skills();
     std::vector<std::string> names = {"Все навыки"};
     int selected = 0;
@@ -290,9 +289,12 @@ void LessonSetupScreen::review() {
     clear();
     title = "Проверьте занятие";
     text("Ученик: " + context.profileName, 0, 0, 22, 940, 1);
-    text("Заданий: " + std::to_string(context.settings.taskLimit), 0, 55, 22);
-    note(source == 2 ? "Автоподбор из банка по истории ученика."
-                     : "Все задания уже выбраны. Порядок показан слева.",
+    auto name = field(lessonName, 0, 48, 550, 100);
+    name->setPlaceholder("Название занятия (необязательно)");
+    name->onChange = [this, name] { lessonName = name->getText(); };
+    note(source == 2
+             ? "Автоподбор из банка по истории ученика."
+             : "Заданий: " + std::to_string(context.settings.taskLimit) + ". Порядок — в списке.",
          0, 100, 550);
     std::vector<std::string> rows;
     int generated = 0;
@@ -314,7 +316,7 @@ void LessonSetupScreen::review() {
     feedback->onChange = [this](int value) {
         context.settings.feedback = static_cast<FeedbackPolicy>(value);
     };
-    note("Шаги необязательны и доступны только для линейных уравнений.", 600, 440, 340);
+
     std::string exitRule = context.settings.resumePolicy == ResumePolicy::ActiveTime
                                ? "Можно поставить на паузу."
                            : context.settings.resumePolicy == ResumePolicy::Deadline
@@ -332,28 +334,16 @@ void LessonSetupScreen::review() {
                  ". При запуске они сохранятся в банке.",
              0, 435, 550);
     note(context.role == UserRole::Teacher
-             ? "После подготовки ученик войдёт в свой профиль и нажмёт «Продолжить занятие»."
+             ? "Ученик найдёт занятие: Мои занятия → Задания от учителя."
              : "Результаты сохранятся в вашем профиле.",
          0, 515, 940);
-    button("Условия и шаблоны", 270, 580, 310, [this] { options(); });
+    button("Условия занятия", 270, 580, 310, [this] { options(); });
     button("← Изменить состав", 0, 580, 250, [this] { refresh(); });
     button(
-        context.role == UserRole::Teacher ? "Подготовить для ученика →" : "Начать решение →", 600,
-        580, 340, [this] { start(); }, true);
+        context.role == UserRole::Teacher ? "Выдать ученику →" : "Начать решение →", 600, 580, 340,
+        [this] { start(); }, true);
 }
-void LessonSetupScreen::start(bool replace) {
-    SessionRecord previous = context.school.latestLesson(context.profile);
-    if (!previous.id.empty() && !previous.closed)
-        for (const auto &attempt : context.school.lessonAttempts(previous.id))
-            if (!attempt.finished)
-                throw std::runtime_error(
-                    "Есть незавершённое занятие. Сначала продолжите его с главной.");
-    if (!previous.id.empty() && !previous.closed && !replace) {
-        ask("У ученика уже есть занятие. Закрыть его и заменить новым? Сохранённые ответы "
-            "останутся в истории.",
-            [this] { start(true); });
-        return;
-    }
+void LessonSetupScreen::start() {
     std::vector<std::string> ids;
     if (source != 2) {
         for (const auto &task : selectedTasks) {
@@ -370,16 +360,18 @@ void LessonSetupScreen::start(bool replace) {
             ids.push_back(task.id);
         }
     }
-    context.school.start(context.profile, context.settings, ids);
+    context.school.start(context.profile, context.settings, ids,
+                         context.role == UserRole::Teacher ? "teacher" : "practice", lessonName);
     selectedTasks.clear();
+    lessonName.clear();
     context.drafts.clear();
     if (context.role == UserRole::Teacher) {
         clear();
-        title = "Занятие подготовлено";
+        title = "Занятие выдано";
         heading("Теперь можно начинать.", 0, 40, 36);
         text("Ученик: " + context.profileName, 0, 112, 24, 900, 1);
-        text("Ученик выбирает свой профиль при входе, затем нажимает «Продолжить занятие». "
-             "Вы сможете увидеть результаты в кабинете.",
+        text("Вход → профиль ученика → Мои занятия → Задания от учителя. "
+             "Новое занятие находится в начале списка.",
              0, 175, 21, 850, 4);
         button(
             "В кабинет учителя →", 0, 320, 320, [this] { context.page = "home"; }, true);

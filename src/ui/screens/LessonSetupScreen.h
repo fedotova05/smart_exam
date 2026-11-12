@@ -17,7 +17,9 @@ class LessonSetupScreen : public Screen {
     void review();
     void options();
     void templates();
-    void start(bool replace = false);
+    void start();
+    std::string lessonName;
+    void saveTemplateView();
     int taskCount() const;
 
   public:

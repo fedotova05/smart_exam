@@ -12,18 +12,21 @@ void KnowledgeScreen::refresh() {
     title = "Карта навыков";
     auto skills = context.school.skills();
     auto topics = context.school.topics();
-    std::vector<std::string> names = {"Все темы"};
+    if (topic.empty() && !topics.empty())
+        topic = topics.front().first;
+    std::vector<std::string> names;
     int topicIndex = 0;
     for (std::size_t i = 0; i < topics.size(); ++i) {
         names.push_back(topics[i].second);
         if (topics[i].first == topic)
-            topicIndex = static_cast<int>(i + 1);
+            topicIndex = static_cast<int>(i);
     }
-    ListBox *filter = list(names, 0, 0, 600, 80);
+    ListBox *filter = list(names, 0, 0, 300, 80);
     filter->select(topicIndex);
     filter->onChange = [this, topics](int index) {
         defer([this, topics, index] {
-            topic = index == 0 ? "" : topics[index - 1].first;
+            mapFocus = false;
+            topic = topics[index].first;
             refresh();
         });
     };
@@ -35,7 +38,7 @@ void KnowledgeScreen::refresh() {
     // Для выбранной темы показываем и связанные предпосылки из других тем.
     auto dependencies = context.school.skillGraph();
     std::vector<std::string> pending(included.begin(), included.end());
-    for (std::size_t i = 0; i < pending.size(); ++i)
+    for (std::size_t i = 0; includeParents && i < pending.size(); ++i)
         for (const auto &parent : dependencies[pending[i]])
             if (included.insert(parent).second)
                 pending.push_back(parent);
@@ -45,7 +48,7 @@ void KnowledgeScreen::refresh() {
     StudentSnapshot state;
     if (!context.profile.empty())
         state = context.school.snapshot(context.profile);
-    const bool hidden = context.school.progress(context.profile).hidden;
+    const bool hidden = context.school.resultsHidden(context.profile);
     if (hidden)
         state = StudentSnapshot();
     SkillMap *map = add(new SkillMap(font, visible, context.school.skillGraph(), state), 0, 94);
@@ -54,6 +57,7 @@ void KnowledgeScreen::refresh() {
     map->onSelect = [this](const SkillInfo &skill) {
         defer([this, skill] {
             selected = skill.id;
+            mapFocus = true;
             refresh();
         });
     };
@@ -64,12 +68,15 @@ void KnowledgeScreen::refresh() {
             refresh();
         });
     };
-    text(context.profile.empty() ? "Профиль не выбран" : context.profileName, 630, 0, 20, 310, 1);
+    note("ВЫБРАННЫЙ НАВЫК", 630, 0, 310);
     if (!visible.empty() &&
         std::find_if(visible.begin(), visible.end(), [this](const SkillInfo &skill) {
             return skill.id == selected;
         }) == visible.end())
         selected = visible.front().id;
+    map->setSelected(selected);
+    if (mapFocus)
+        focusWidget(map);
     auto found = std::find_if(visible.begin(), visible.end(),
                               [this](const SkillInfo &skill) { return skill.id == selected; });
     if (found != visible.end()) {
@@ -98,7 +105,7 @@ void KnowledgeScreen::refresh() {
                 }
             }
         note("Подсказок в связанных заданиях: " + std::to_string(help), 630, 313, 310);
-        list(history, 630, 370, 310, 154);
+        list(history, 630, 370, 310, 154)->setEmptyText("Решений по этому навыку пока нет");
     }
     if (context.role == UserRole::Teacher) {
         button("Изменить навык", 0, 560, 200, [this] { editSkill(false); });
@@ -120,11 +127,23 @@ void KnowledgeScreen::refresh() {
             button("Отмена", 240, 220, 180, [this] { refresh(); });
         });
     }
+    if (context.role == UserRole::Student)
+        button(
+            "Тренировать этот навык", 0, 560, 300,
+            [this] {
+                context.practiceSkills = {selected};
+                context.page = "practice";
+            },
+            true)
+            ->setEnabled(!selected.empty());
     button("Как считается оценка?", 650, 560, 290, [this] { explain(); });
-    text(context.role == UserRole::Teacher
-             ? "Перетащите навык для размещения. Показаны также предпосылки из других тем."
-             : "Стрелка: предпосылка → навык. Показаны необходимые навыки из других тем.",
-         0, 610, 14, 940, 1);
+    button(includeParents ? "Скрыть внешние связи" : "Показать внешние связи", 320, 18, 280,
+           [this] {
+               includeParents = !includeParents;
+               refresh();
+           });
+    note("Стрелки ведут от основ к следующему навыку. Выберите карточку, чтобы увидеть связи.", 0,
+         610, 940);
 }
 void KnowledgeScreen::explain() {
     clear();

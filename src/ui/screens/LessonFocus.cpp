@@ -227,8 +227,10 @@ void LessonScreen::focusedResult() {
     auto next = button(
         progress.lesson.closed ? "К итогам занятия →" : "Следующее задание →", 0, 470, 350,
         [this] {
-            if (context.school.latestLesson(context.profile).closed) {
+            if (context.school.currentLesson(context.profile).closed) {
                 context.current = NextTask();
+                context.historyLesson = context.school.currentLesson(context.profile).id;
+                context.historyAttempt.clear();
                 context.page = "results";
             } else {
                 context.current = context.school.next();
@@ -237,14 +239,24 @@ void LessonScreen::focusedResult() {
         },
         true);
     button("Посмотреть прогресс", 370, 470, 350, [this] { context.page = "progress"; });
-    if (!progress.lesson.closed)
-        button("Закончить занятие раньше", 0, 535, 350, [this] {
-            ask("Завершить занятие раньше? Невыполненные задания останутся в плане.", [this] {
-                context.school.closeLesson();
-                context.current = NextTask();
-                context.page = "results";
+    if (!progress.lesson.closed) {
+        if (progress.lesson.source != "practice")
+            button("Продолжить позже", 0, 535, 350, [this] {
+                if (context.settings.resumePolicy == ResumePolicy::ActiveTime)
+                    context.school.pauseLesson();
+                context.page = "home";
             });
-        });
+        else
+            button("Закончить тренировку", 0, 535, 350, [this] {
+                ask("Завершить тренировку? Результаты сохранятся в истории.", [this] {
+                    context.school.closeLesson();
+                    context.current = NextTask();
+                    context.historyLesson = context.school.currentLesson(context.profile).id;
+                    context.historyAttempt.clear();
+                    context.page = "results";
+                });
+            });
+    }
     if (context.school.canSupport(attempt))
         button("Разобрать ошибку", 370, 535, 350, [this] {
             context.current = context.school.startSupport(attempt);

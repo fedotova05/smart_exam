@@ -25,6 +25,8 @@ void seed(Store &store) {
 SessionRecord lesson(const std::string &id, ResumePolicy policy) {
     SessionRecord result;
     result.id = id;
+    result.source = "teacher";
+    result.title = "Сохранённое назначение";
     result.studentId = "student";
     result.tasks = {"task"};
     result.settings.resumePolicy = policy;
@@ -96,6 +98,8 @@ void testRecovery() {
     }
     {
         Store store(path);
+        REQUIRE(store.session("active").source == "teacher");
+        REQUIRE(store.session("active").title == "Сохранённое назначение");
         REQUIRE(store.answerDrafts("copy:0")["part"].text == "2/");
         REQUIRE(store.sessionTime("deadline", 150).remainingSeconds == 10);
         REQUIRE(!store.sessionTime("deadline", 161).allowed);

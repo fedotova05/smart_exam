@@ -9,6 +9,22 @@ namespace ui {
 class Screen : public sf::Drawable, public sf::Transformable {
     std::vector<std::unique_ptr<Widget>> widgets;
     std::vector<sf::Text> captions;
+    struct CaptionLayout {
+        const sf::Font *face;
+        sf::String value;
+        unsigned size;
+        float x, y, width;
+        int lines;
+        sf::Color color;
+    };
+    struct WidgetLayout {
+        sf::Vector2f position, size;
+    };
+    std::vector<CaptionLayout> captionLayouts;
+    std::vector<WidgetLayout> widgetLayouts;
+    float layoutWidth = 0, widthFactor = 1;
+    void caption(const sf::Font &face, const std::string &value, unsigned size, float x, float y,
+                 float width, int lines, sf::Color color);
     std::vector<sf::RectangleShape> surfaces;
     const sf::Font *headingFont;
     int focus;
@@ -29,11 +45,13 @@ class Screen : public sf::Drawable, public sf::Transformable {
     virtual void tick() {}
     virtual void leave() {}
     void clear();
+    void layout(float availableWidth);
     void focusWidget(Widget *widget);
     bool moveFocus(bool backward, bool wrap = true);
     void clearFocus();
     void setContentWidth(float width) {
         contentWidth = width;
+        layoutWidth = 0;
     }
     void setStatusArea(float x, float y, float width, int lines = 2) {
         statusPosition = sf::Vector2f(x, y);
@@ -56,6 +74,8 @@ class Screen : public sf::Drawable, public sf::Transformable {
     template <class T> T *add(T *widget, float x, float y) {
         widget->setPosition(x, y);
         widgets.emplace_back(widget);
+        widgetLayouts.push_back({sf::Vector2f(x, y), widget->getSize()});
+        layoutWidth = 0;
         return widget;
     }
     Button *button(const std::string &title, float x, float y, float width,

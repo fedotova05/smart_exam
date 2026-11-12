@@ -11,7 +11,10 @@ parser.add_argument('--compiler', default='C:/Program Files/CodeBlocks/MinGW/bin
 parser.add_argument('--sfml', default='C:/SFML-2.5.1')
 parser.add_argument('--mode', choices=['Debug', 'Release'], default='Debug')
 parser.add_argument('--smoke', action='store_true')
+parser.add_argument('--app-name', default='smart_exam', help='Имя исполняемого файла; позволяет собрать рядом с открытым приложением')
 args = parser.parse_args()
+if not args.app_name.replace('_', '').replace('-', '').isalnum():
+    parser.error('--app-name: используйте буквы, цифры, _ или -')
 os.chdir(root)
 os.environ['PATH'] = str(Path(args.compiler).parent) + os.pathsep + str(Path(args.sfml) / 'bin') + os.pathsep + os.environ['PATH']
 out = root / 'bin' / args.mode
@@ -61,10 +64,10 @@ def link(name, files, graphics=False):
 
 link('tests', sources + tests)
 subprocess.run([str(out / 'tests.exe')], check=True)
-link('smart_exam', sources + ui_sources + ['main.cpp'], True)
+link(args.app_name, sources + ui_sources + ['main.cpp'], True)
 if ui_tests:
     link('ui_tests', sources + ui_sources + ui_tests, True)
     subprocess.run([str(out / 'ui_tests.exe')], check=True, timeout=60)
 if args.smoke:
-    subprocess.run([str(out / 'smart_exam.exe'), '--smoke'], check=True, timeout=15)
-subprocess.run([str(out / 'smart_exam.exe'), '--demo'], check=True, timeout=15)
+    subprocess.run([str(out / (args.app_name + '.exe')), '--smoke'], check=True, timeout=15)
+subprocess.run([str(out / (args.app_name + '.exe')), '--demo'], check=True, timeout=15)

@@ -34,9 +34,16 @@ void HomeScreen::reviewQueue(bool pendingOnly, bool allStudents) {
     std::string student = allStudents ? "" : context.profile;
     auto items = context.school.reviewItems(student, pendingOnly);
     std::vector<std::string> rows;
-    for (const auto &item : items)
-        rows.push_back(item.studentName + " · " + item.title + " / " + item.part + " · " +
+    for (const auto &item : items) {
+        std::string partName;
+        const auto task = context.school.task(item.task);
+        if (task.parts.size() > 1)
+            for (std::size_t i = 0; i < task.parts.size(); ++i)
+                if (task.parts[i].id == item.part)
+                    partName = " · часть " + std::to_string(i + 1);
+        rows.push_back(item.studentName + " · " + item.title + partName + " · " +
                        verdictName(item.effective));
+    }
     ListBox *queue = list(rows, 0, 105, 940, 360);
     queue->setRowHeight(60);
     queue->setEmptyText("Решений для проверки нет");
@@ -51,7 +58,8 @@ void HomeScreen::reviewQueue(bool pendingOnly, bool allStudents) {
                 throw std::runtime_error("Выберите решение");
             reviewDetail(items[queue->selection()]);
         },
-        true);
+        true)
+        ->setEnabled(!items.empty());
     button("Сохранить CSV", 310, 550, 280, [this, student, pendingOnly] {
         std::string path = chooseCsv();
         if (!path.empty()) {
@@ -70,7 +78,7 @@ void HomeScreen::reviewDetail(const ReviewItem &item) {
     for (const auto &candidate : task.parts)
         if (candidate.id == item.part)
             part = candidate;
-    text(item.studentName + " · " + task.title + " / " + item.part, 0, 0, 21, 940, 2);
+    text(item.studentName + " · " + task.title, 0, 0, 21, 940, 2);
     note("История ответов и оценки сохранены. Укажите преподавателя и причину изменения.", 0, 55,
          940);
     add(new TextPanel(font, task.description + " " + part.prompt, 540, 70), 0, 90);

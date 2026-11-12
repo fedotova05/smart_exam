@@ -9,6 +9,7 @@ class KnowledgeScreen : public Screen {
     std::string topic, selected;
     void editSkill(bool create);
     void explain();
+    bool includeParents = false, mapFocus = false;
 
   public:
     KnowledgeScreen(const sf::Font &font, AppContext &state) : Screen(font), context(state) {}

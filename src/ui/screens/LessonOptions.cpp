@@ -36,17 +36,30 @@ void LessonSetupScreen::options() {
                        context.settings.feedback = FeedbackPolicy::AfterStep;
                    options();
                });
-    note("Разбор добавляет упражнения на необходимые навыки. Он работает с автоподбором и "
-         "немедленной проверкой. Подсказки настраиваются отдельно.",
-         0, 440, 540);
-    text("Шаблоны", 600, 0, 24);
-    note("Фиксированный вариант сохраняет точные задания. Шаблон автоподбора сохраняет число "
-         "заданий и условия, а состав зависит от ученика.",
-         600, 50, 340);
-    text("Название", 600, 190, 18);
-    TextField *name = field("", 600, 230, 340, 100);
-    auto save = button("Сохранить шаблон", 600, 295, 340, [this, name, readTime] {
+    if (source == 2)
+        note("Разбор добавляет упражнения на нужные навыки.", 0, 440, 540);
+    button("Сохранить как шаблон", 600, 0, 340, [this, readTime] {
         readTime();
+        saveTemplateView();
+    });
+    button("Открыть шаблон", 600, 62, 340, [this, readTime] {
+        readTime();
+        templates();
+    });
+    button(
+        "Применить и вернуться", 0, 550, 320,
+        [this, readTime] {
+            readTime();
+            review();
+        },
+        true);
+}
+void LessonSetupScreen::saveTemplateView() {
+    clear();
+    title = "Сохранить шаблон";
+    text("Название", 0, 20, 18);
+    TextField *name = field("", 0, 60, 540, 100);
+    auto save = button("Сохранить шаблон", 0, 140, 540, [this, name] {
         LessonTemplate value;
         value.id = newId("template");
         value.name = name->getText();
@@ -67,20 +80,10 @@ void LessonSetupScreen::options() {
         status = "Шаблон сохранён. Занятие ещё не назначено.";
     });
     name->onEnter = save->onClick;
-    button("Открыть сохранённые", 600, 355, 340, [this, readTime] {
-        readTime();
-        templates();
-    });
-    note("После назначения условия занятия зафиксированы. Изменение шаблона не меняет выданное "
-         "занятие.",
-         600, 425, 340);
-    button(
-        "Применить и вернуться", 0, 550, 320,
-        [this, readTime] {
-            readTime();
-            review();
-        },
-        true);
+
+    note("Шаблон сохранит состав и условия занятия. Его можно выдать другому ученику.", 0, 235,
+         800);
+    button("← К условиям", 0, 550, 300, [this] { options(); });
 }
 void LessonSetupScreen::templates() {
     clear();

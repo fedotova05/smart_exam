@@ -1,0 +1,3 @@
+ALTER TABLE sessions ADD COLUMN source TEXT NOT NULL DEFAULT 'legacy';
+ALTER TABLE sessions ADD COLUMN title TEXT NOT NULL DEFAULT '';
+PRAGMA user_version=12;

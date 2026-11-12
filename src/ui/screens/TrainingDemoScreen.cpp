@@ -39,13 +39,11 @@ void TrainingDemoScreen::refresh() {
                                                            : part.displayExpression);
         std::vector<std::string> answers;
         for (const auto &response : context.school.responses(entry.attemptId))
-            answers.push_back(response.partId + ": " + response.answer.text + " · " +
-                              response.result.message);
+            answers.push_back(std::string(response.finalAnswer ? "Ответ: " : "Шаг: ") +
+                              response.answer.text + " · " + response.result.message);
         list(answers, 515, 345, 425, 120);
     }
-    note("Выберите шаг слева, чтобы увидеть задание и ответы. Это учебный пример; в вашей "
-         "тренировке порядок упражнений зависит от решений.",
-         0, 495, 940);
+    note("Выберите шаг слева, чтобы увидеть задание и ответы.", 0, 495, 940);
     button(
         "Попробовать на новом профиле", 0, 580, 340,
         [this] {

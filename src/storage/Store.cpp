@@ -240,13 +240,13 @@ void Store::createSession(const SessionRecord &value) {
     Transaction transaction(db);
     db.query("INSERT INTO "
              "sessions(id,student_id,mode,feedback,guided,task_limit,training,resume_policy,time_"
-             "limit,help_allowed,diagnosis_allowed) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+             "limit,help_allowed,diagnosis_allowed,source,title) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
              {value.id, value.studentId, number(static_cast<int>(value.settings.mode)),
               number(static_cast<int>(value.settings.feedback)), number(value.settings.guided),
               number(value.settings.taskLimit), number(value.settings.training),
               number(static_cast<int>(value.settings.resumePolicy)),
               number(value.settings.timeLimitSeconds), number(value.settings.helpAllowed),
-              number(value.settings.diagnosisAllowed)});
+              number(value.settings.diagnosisAllowed), value.source, value.title});
     for (const auto &skill : value.settings.targetSkills)
         db.query("INSERT INTO session_skills VALUES(?,?)", {value.id, skill});
     for (std::size_t i = 0; i < value.tasks.size(); ++i) {
@@ -258,11 +258,11 @@ void Store::createSession(const SessionRecord &value) {
     transaction.commit();
 }
 SessionRecord Store::session(const std::string &id) {
-    std::vector<Row> rows =
-        db.query("SELECT "
-                 "student_id,mode,feedback,guided,task_limit,closed,training,"
-                 "resume_policy,time_limit,help_allowed,diagnosis_allowed FROM sessions WHERE id=?",
-                 {id});
+    std::vector<Row> rows = db.query("SELECT "
+                                     "student_id,mode,feedback,guided,task_limit,closed,training,"
+                                     "resume_policy,time_limit,help_allowed,diagnosis_allowed,"
+                                     "source,title FROM sessions WHERE id=?",
+                                     {id});
     require(!rows.empty(), "Session not found");
     const Row &r = rows[0];
     SessionRecord s;
@@ -278,6 +278,8 @@ SessionRecord Store::session(const std::string &id) {
     s.settings.timeLimitSeconds = std::stoi(r[8]);
     s.settings.helpAllowed = r[9] == "1";
     s.settings.diagnosisAllowed = r[10] == "1";
+    s.source = r[11];
+    s.title = r[12];
     for (const auto &row :
          db.query("SELECT skill_id FROM session_skills WHERE session_id=? ORDER BY skill_id", {id}))
         s.settings.targetSkills.push_back(row[0]);
@@ -304,8 +306,8 @@ AttemptRecord Store::openAttempt(const std::string &sessionId, int position,
             "Invalid attempt position");
     require(old.empty() || old.back().finished, "Finish current attempt first");
     require(db.query("SELECT 1 FROM attempts a JOIN sessions s ON s.id=a.session_id WHERE "
-                     "s.student_id=? AND a.finished=0",
-                     {s.studentId})
+                     "s.id=? AND a.finished=0",
+                     {sessionId})
                 .empty(),
             "У ученика уже есть незавершённая попытка");
     TaskVersion t = task(taskId);
@@ -467,6 +469,16 @@ void Store::finish(const std::string &id, int score, bool provisional,
                  {a.taskId, decimal(difficulty)});
     }
     transaction.commit();
+}
+std::map<std::string, long long> Store::completionOrder(const std::string &student) {
+    std::map<std::string, long long> result;
+    for (const auto &row :
+         db.query("SELECT e.attempt_id,e.sequence FROM learning_events e "
+                  "JOIN attempts a ON a.id=e.attempt_id JOIN sessions s ON s.id=a.session_id "
+                  "WHERE s.student_id=? ORDER BY e.sequence",
+                  {student}))
+        result[row[0]] = std::stoll(row[1]);
+    return result;
 }
 StudentSnapshot Store::snapshot(const std::string &student) {
     StudentSnapshot result;

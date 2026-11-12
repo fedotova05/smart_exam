@@ -1,4 +1,5 @@
 #include "BankScreen.h"
+#include "math/checkers/EquationChecker.h"
 #include <algorithm>
 #include <memory>
 #include <set>
@@ -44,10 +45,7 @@ void BankScreen::answerSettings(bool reset) {
     clear();
     title = "Настройка ответа";
     text(kindName(answerDraft.kind), 0, 0, 23);
-    text("Формула, которую увидит ученик", 0, 52, 16);
-    auto display = field(answerDraft.displayExpression, 0, 80, 940, 512);
-    display->setPlaceholder("Оставьте пустым, чтобы показывать формулу из задания");
-    display->onChange = [this, display] { answerDraft.displayExpression = display->getText(); };
+    note("Настройки применяются только к этой части задания.", 0, 60, 940);
     std::function<void()> validate = [] {};
     if (answerDraft.kind == PartKind::Choice) {
         note("Введите варианты и отметьте все правильные ответы.", 0, 144, 940);
@@ -115,7 +113,7 @@ void BankScreen::answerSettings(bool reset) {
             answerDraft.graphSnap = step;
             answerDraft.graphTolerance = precision;
         };
-    } else if (answerDraft.kind == PartKind::Number) {
+    } else if (answerDraft.kind == PartKind::Number || answerDraft.kind == PartKind::Expression) {
         text("Округление ответа", 0, 170, 18);
         auto rounding =
             list({"Без округления", "До целого числа", "1 знак после запятой",
@@ -134,12 +132,15 @@ void BankScreen::answerSettings(bool reset) {
             answerDraft.answerTolerance = value;
         };
     } else if (answerDraft.kind == PartKind::Equation) {
-        auto steps = add(new Toggle(font, "Требовать решение по шагам", 600), 0, 180);
-        steps->setValue(answerDraft.requireSteps);
-        steps->onChange = [this, steps](bool) { answerDraft.requireSteps = steps->getValue(); };
-        note("Пошаговая проверка доступна только для линейных уравнений. Для остальных оставьте "
-             "этот параметр выключенным.",
-             0, 250, 800);
+        if (isLinearEquation(answerDraft.expression)) {
+            auto steps = add(new Toggle(font, "Требовать решение по шагам", 600), 0, 180);
+            steps->setValue(answerDraft.requireSteps);
+            steps->onChange = [this, steps](bool) { answerDraft.requireSteps = steps->getValue(); };
+            note("Ученик должен показать преобразования линейного уравнения.", 0, 250, 800);
+        } else {
+            answerDraft.requireSteps = false;
+            note("Проверяется итоговый набор корней. Дополнительных настроек нет.", 0, 180, 850);
+        }
     } else {
         note("Ответ проверяется как точное математическое выражение. Дополнительные параметры не "
              "нужны.",

@@ -4,10 +4,7 @@ namespace exam {
 namespace ui {
 ListBox::ListBox(const sf::Font &face, float width, float height)
     : Widget(face, width, height), selected(-1), first(0), rowHeight(40), checkable(false),
-      emptyText("Нет элементов") {
-    canvas.create(static_cast<unsigned>(width), static_cast<unsigned>(height));
-    canvas.setSmooth(true);
-}
+      emptyText("Нет элементов") {}
 void ListBox::setItems(const std::vector<std::string> &values) {
     items = values;
     selected = items.empty() ? -1 : 0;
@@ -65,7 +62,9 @@ bool ListBox::handle(const sf::Event &event, sf::Vector2f mouse) {
             return true;
         }
         if (event.key.code == sf::Keyboard::Enter) {
-            if (selected >= 0 && onChange)
+            if (selected >= 0 && onActivate)
+                onActivate(selected);
+            else if (selected >= 0 && onChange)
                 onChange(selected);
             return true;
         }
@@ -76,10 +75,11 @@ void ListBox::draw(sf::RenderTarget &target, sf::RenderStates states) const {
     if (!visible)
         return;
     states.transform *= getTransform();
+    prepareCanvas(canvas, size);
     canvas.clear(Theme::background);
     if (items.empty())
-        canvas.draw(label(font, wrap(font, unicode(emptyText), 16, size.x - 24, 4), 16, 12, 16,
-                          Theme::muted));
+        drawText(canvas, label(font, wrap(font, unicode(emptyText), 16, size.x - 24, 4), 16, 12, 16,
+                               Theme::muted));
     for (int i = first; i < static_cast<int>(items.size()) && (i - first + 1) * rowHeight <= size.y;
          ++i) {
         float y = (i - first) * rowHeight;
@@ -88,8 +88,8 @@ void ListBox::draw(sf::RenderTarget &target, sf::RenderStates states) const {
                       sf::Vector2f(0, y));
         float left = checkable ? 38.f : 12.f;
         unsigned textSize = rowHeight >= 48 ? 16 : 14;
-        canvas.draw(label(font, wrap(font, unicode(items[i]), textSize, size.x - left - 14, 2),
-                          textSize, left, y + (rowHeight >= 48 ? 8 : 5)));
+        drawText(canvas, label(font, wrap(font, unicode(items[i]), textSize, size.x - left - 14, 2),
+                               textSize, left, y + (rowHeight >= 48 ? 8 : 5)));
         if (checkable) {
             auto value = checks.find(i);
             int checked = value == checks.end() ? 0 : value->second;
@@ -115,8 +115,8 @@ void ListBox::draw(sf::RenderTarget &target, sf::RenderStates states) const {
                   sf::Vector2f(size.x - 4, size.y * first / items.size()));
     }
     canvas.display();
-    sf::Sprite sprite(canvas.getTexture());
-    target.draw(sprite, states);
+    sf::Sprite sprite = canvasSprite(canvas);
+    drawCanvas(target, sprite, states);
     if (focused)
         rectangle(target, states, size, sf::Color::Transparent, sf::Vector2f(), Theme::accent);
 }

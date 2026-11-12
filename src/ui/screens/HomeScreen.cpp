@@ -1,4 +1,5 @@
 #include "HomeScreen.h"
+#include <algorithm>
 #include "ui/FormulaView.h"
 #include "ui/widgets/TextPanel.h"
 namespace exam {
@@ -6,22 +7,24 @@ namespace ui {
 void HomeScreen::settings() {
     context.page = context.role == UserRole::Teacher ? "setup" : "practice";
 }
-void HomeScreen::startShortLesson() {
+void HomeScreen::openLesson(const std::string &id) {
     if (context.role != UserRole::Student)
-        throw std::runtime_error("Для решения войдите как ученик");
-    if (context.profile.empty())
-        throw std::runtime_error("Сначала выберите профиль в настройках");
-    if (context.school.resume(context.profile)) {
-        context.settings = context.school.latestLesson(context.profile).settings;
-        if (context.school.lessonTime().paused)
-            context.school.continueLesson();
-        context.current = context.school.next();
-        if (context.current.available) {
-            context.page = "lesson";
-            return;
-        }
+        throw std::runtime_error("Войдите как ученик");
+    if (!context.school.resume(context.profile, id))
+        throw std::runtime_error("Занятие уже завершено");
+    selectedLesson = id;
+    context.current = NextTask();
+    context.drafts.clear();
+    context.settings = context.school.currentLesson(context.profile).settings;
+    if (context.school.lessonTime().paused)
+        context.school.continueLesson();
+    context.current = context.school.next();
+    if (context.current.available)
+        context.page = "lesson";
+    else {
+        refresh();
+        status = context.current.reason;
     }
-    context.page = "practice";
 }
 void HomeScreen::refresh() {
     if (context.role == UserRole::Teacher) {
@@ -29,53 +32,110 @@ void HomeScreen::refresh() {
         return;
     }
     clear();
-    title = "Моё занятие";
-    const LessonProgress progress = context.school.progress(context.profile);
-    const bool ongoing = !progress.lesson.id.empty() && !progress.lesson.closed;
-    text(context.profileName, 0, 0, 22, 940, 1);
-    surface(0, 56, 580, 300, Theme::pale);
-    note(ongoing ? "ТЕКУЩЕЕ ЗАНЯТИЕ" : "НОВОЕ ЗАНЯТИЕ", 24, 80, 532);
-    text(ongoing ? "Продолжить с места остановки" : "Выберите, что хотите изучить", 24, 120, 27,
-         532, 2);
-    note(ongoing ? "Ответы сохранены. Откройте следующее незавершённое задание."
-                 : "Отметьте темы и навыки. Затем выберите тренировку с подсказками или проверку "
-                   "знаний.",
-         24, 205, 532);
+    title = "Мои занятия";
+    if (homeProfile != context.profile) {
+        homeProfile = context.profile;
+        selectedLesson.clear();
+        showPractice = false;
+        showCompleted = false;
+    }
     button(
-        ongoing ? "Продолжить занятие" : "Выбрать темы", 24, 286, 300,
-        [this] { startShortLesson(); }, true);
-    text("Результаты", 620, 65, 23);
-    text(progress.lesson.id.empty() ? "Пока нет решений" : lessonScore(progress), 620, 120, 32, 320,
-         2);
-    note(progress.lesson.id.empty() ? "Здесь появятся баллы за последнее занятие."
-                                    : lessonNote(progress),
-         620, 206, 320);
-    if (!progress.lesson.id.empty()) {
-        progressBar(progress.totalTasks ? float(progress.finishedTasks) / progress.totalTasks : 0.f,
-                    620, 280, 320);
-        note(std::to_string(progress.finishedTasks) + " из " + std::to_string(progress.totalTasks) +
-                 " заданий завершено",
-             620, 306, 320);
+        "Задания от учителя", 0, 0, 300,
+        [this] {
+            showPractice = false;
+            showCompleted = false;
+            refresh();
+        },
+        !showPractice);
+    button(
+        "Моя практика", 320, 0, 280,
+        [this] {
+            showPractice = true;
+            showCompleted = false;
+            refresh();
+        },
+        showPractice);
+    std::vector<SessionRecord> lessons;
+    std::vector<std::string> rows;
+    for (const auto &lesson : context.school.lessons(context.profile)) {
+        if ((lesson.source == "practice") != showPractice || lesson.closed != showCompleted)
+            continue;
+        lessons.push_back(lesson);
+        std::string name =
+            lesson.title.empty()
+                ? (lesson.tasks.empty() ? "Подбор по навыкам"
+                                        : context.school.task(lesson.tasks.front()).title)
+                : lesson.title;
+        int done = 0;
+        for (const auto &attempt : context.school.lessonAttempts(lesson.id))
+            if (attempt.finished)
+                ++done;
+        rows.push_back(name + " · " +
+                       (lesson.closed
+                            ? "завершено"
+                            : std::to_string(done) + "/" +
+                                  std::to_string(lesson.settings.mode == SessionMode::Fixed
+                                                     ? std::min(lesson.settings.taskLimit,
+                                                                int(lesson.tasks.size()))
+                                                     : lesson.settings.taskLimit)) +
+                       (lesson.source == "legacy" ? " · ранее сохранено" : ""));
     }
-    text(ongoing ? "Состав занятия" : "Два режима работы", 0, 390, 22);
-    if (ongoing && !progress.lesson.tasks.empty()) {
-        std::vector<std::string> rows;
-        for (std::size_t i = 0; i < progress.lesson.tasks.size(); ++i)
-            rows.push_back(std::to_string(i + 1) + ". " +
-                           context.school.task(progress.lesson.tasks[i]).title);
-        auto plan = list(rows, 0, 430, 580, 118);
-        plan->setRowHeight(56);
-        plan->select(std::min(progress.finishedTasks, int(rows.size()) - 1));
-    } else {
-        text("Тренировка", 0, 438, 19);
-        note("Проверка ответа, подсказки и разбор ошибок.", 0, 474, 270);
-        text("Проверка знаний", 310, 438, 19);
-        note("Результат после занятия, без подсказок.", 310, 474, 270);
-    }
-    button("Мой прогресс", 620, 430, 320, [this] { context.page = "progress"; });
-    button("История решений", 620, 492, 320, [this] { context.page = "results"; });
-    if (ongoing)
-        button("Выбрать другие темы", 0, 570, 300, [this] { settings(); });
+    note(showCompleted  ? "ЗАВЕРШЁННЫЕ ЗАНЯТИЯ"
+         : showPractice ? "ВАШИ ТРЕНИРОВКИ И ПРОВЕРКИ"
+                        : "ВЫДАННЫЕ И РАНЕЕ СОХРАНЁННЫЕ ЗАНЯТИЯ",
+         0, 68, 600);
+    auto assignments = list(rows, 0, 106, 600, 280);
+    assignments->setRowHeight(70);
+    for (std::size_t i = 0; i < lessons.size(); ++i)
+        if (lessons[i].id == selectedLesson)
+            assignments->select(int(i));
+    assignments->onChange = [this, lessons](int index) { selectedLesson = lessons[index].id; };
+    assignments->onActivate = [this, lessons](int index) {
+        defer([this, lessons, index] {
+            if (showCompleted) {
+                context.historyLesson = lessons[index].id;
+                context.historyAttempt.clear();
+                context.page = "results";
+            } else
+                openLesson(lessons[index].id);
+        });
+    };
+    assignments->setEmptyText(
+        showCompleted ? "Завершённых занятий пока нет"
+        : showPractice ? "Выберите темы справа, чтобы начать тренировку"
+                       : "Заданий пока нет. Учитель должен выбрать ваш профиль при назначении.");
+    button(
+        showCompleted ? "Открыть историю решений" : "Открыть занятие", 0, 416, 300,
+        [this, lessons, assignments] {
+            if (showCompleted) {
+                context.historyLesson = lessons[assignments->selection()].id;
+                context.historyAttempt.clear();
+                context.page = "results";
+                return;
+            }
+            if (assignments->selection() >= 0)
+                openLesson(lessons[assignments->selection()].id);
+        },
+        true)
+        ->setEnabled(!lessons.empty());
+    button(showCompleted ? "К незавершённым" : "Завершённые", 320, 416, 280, [this] {
+        showCompleted = !showCompleted;
+        refresh();
+    });
+    surface(640, 0, 300, 356, Theme::pale);
+    text("Самостоятельная тренировка", 660, 24, 25, 260, 3);
+    note("Вы выбираете темы и число заданий.", 660, 137, 260);
+    button("Выбрать темы", 660, 230, 260, [this] { context.page = "practice"; });
+    note("Назначения учителя сохранятся.", 660, 296, 260);
+    if (std::any_of(lessons.begin(), lessons.end(),
+                    [](const SessionRecord &v) { return v.source == "legacy"; }))
+        note("Ранее сохранённые занятия созданы в предыдущей версии. Их источник не был записан.",
+             0, 490, 600);
+    button("Мой прогресс", 0, 570, 280, [this] { context.page = "progress"; });
+    button("История решений", 300, 570, 300, [this] {
+        context.historyLesson.clear();
+        context.page = "results";
+    });
 }
 void HomeScreen::teacherHome() {
     clear();
@@ -117,7 +177,11 @@ void HomeScreen::teacherHome() {
     button(
         "Создать занятие", 404, 239, 300, [this] { settings(); }, true)
         ->setEnabled(!context.profile.empty());
-    note("Ученик найдёт подготовленное занятие в своём профиле.", 404, 304, 512);
+    int assigned = 0;
+    for (const auto &lesson : context.school.lessons(context.profile))
+        if (lesson.source == "teacher" && !lesson.closed)
+            ++assigned;
+    note("Мои занятия → Задания от учителя. Открытых: " + std::to_string(assigned), 404, 304, 512);
     surface(0, 400, 940, 1, Theme::line);
     text("Материалы и проверка", 0, 424, 23);
     note("В банке: " + std::to_string(published) + " опубликовано, " + std::to_string(drafts) +
@@ -126,6 +190,7 @@ void HomeScreen::teacherHome() {
     button("Банк заданий", 0, 520, 300, [this] { context.page = "bank"; });
     button("Проверить ответы", 320, 520, 300, [this] { context.page = "review"; });
     button("Результаты ученика", 640, 520, 300, [this] {
+        context.historyLesson.clear();
         context.page = "results";
     })->setEnabled(!context.profile.empty());
 }
@@ -137,10 +202,21 @@ void ResultsScreen::refresh() {
         button("В кабинет →", 0, 100, 230, [this] { context.page = "home"; });
         return;
     }
-    text(context.profileName, 0, 0, 22, 940, 1);
-    LessonProgress progress = context.school.progress(context.profile);
+
+    LessonProgress progress = context.school.progress(context.profile, context.historyLesson);
+    if (!context.historyAttempt.empty()) {
+        selectedAttempt = context.historyAttempt;
+        context.historyAttempt.clear();
+    }
+    if (!context.historyLesson.empty())
+        button("Все решения", 700, -5, 240, [this] {
+            context.historyLesson.clear();
+            selectedAttempt.clear();
+            refresh();
+        });
     surface(0, 45, 940, 128, Theme::pale);
-    note("ПОСЛЕДНЕЕ ЗАНЯТИЕ", 20, 65, 260);
+    text(progress.lesson.title.empty() ? "ВЫБРАННОЕ ЗАНЯТИЕ" : progress.lesson.title, 20, 62, 14,
+         260, 1);
     heading(std::to_string(progress.finishedTasks) + " / " + std::to_string(progress.totalTasks),
             20, 98, 34);
     note("заданий завершено", 20, 146, 260);
@@ -152,6 +228,12 @@ void ResultsScreen::refresh() {
     note(lessonNote(progress), 590, 70, 330);
     note("ВЫБЕРИТЕ ЗАДАНИЕ ИЗ ИСТОРИИ", 0, 204, 550);
     auto history = context.school.history(context.profile);
+    if (!context.historyLesson.empty())
+        history.erase(std::remove_if(history.begin(), history.end(),
+                                     [this](const HistoryEntry &entry) {
+                                         return entry.lessonId != context.historyLesson;
+                                     }),
+                      history.end());
     std::vector<std::string> rows;
     int index = 0;
     for (std::size_t i = 0; i < history.size(); ++i) {
@@ -178,13 +260,16 @@ void ResultsScreen::refresh() {
         std::string explanation = "Подсказок: " + std::to_string(entry.help) + ". ";
         if (!entry.result.visible)
             explanation += entry.result.message;
+        else if (entry.result.provisional)
+            explanation += "Есть части без ответа или проверки.";
+        else if (!entry.result.finished)
+            explanation += "Задание ещё не завершено.";
         else if (entry.hadErrors)
-            explanation +=
-                "Были ошибки. Исправление даёт баллы, но ошибки учитываются в оценке навыка.";
+            explanation += "Были ошибки — они учтены в оценке навыка.";
         else if (entry.help > 0)
-            explanation += "Решение с помощью даёт баллы, но не повышает оценку навыка.";
+            explanation += "Решение с подсказкой не повышает оценку навыка.";
         else
-            explanation += "Баллы относятся к этому заданию. Для оценки темы нужны другие решения.";
+            explanation += "Решено самостоятельно.";
         note(explanation, 590, 344, 350);
         std::vector<std::string> responses;
         for (const auto &response : context.school.responses(entry.attemptId))
@@ -194,12 +279,12 @@ void ResultsScreen::refresh() {
         std::string details;
         for (const auto &row : responses)
             details += row + "\n\n";
-        add(new TextPanel(font, details.empty() ? "Ответов пока нет" : details, 350, 107), 590,
-            452);
+        add(new TextPanel(font, details.empty() ? "Ответов пока нет" : details, 350, 157), 590,
+            402);
     }
     button("К занятию →", 0, 580, 230, [this] { context.page = "home"; });
     button("Посмотреть навыки →", 250, 580, 280, [this] { context.page = "progress"; });
-    auto repeat = context.school.reviewSkills(context.profile);
+    auto repeat = context.school.reviewSkills(context.profile, context.historyLesson);
     if (!repeat.empty() && context.role == UserRole::Student)
         button("Тренировка по ошибкам →", 550, 580, 390, [this, repeat] {
             context.practiceSkills = repeat;

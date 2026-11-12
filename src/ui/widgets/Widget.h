@@ -36,6 +36,9 @@ class Widget : public sf::Drawable, public sf::Transformable {
     bool isVisible() const {
         return visible;
     }
+    virtual void setWidth(float width) {
+        size.x = width;
+    }
     sf::Vector2f getSize() const {
         return size;
     }

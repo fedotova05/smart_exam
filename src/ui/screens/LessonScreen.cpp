@@ -67,7 +67,11 @@ void LessonScreen::refresh() {
         text(context.current.reason.empty() ? "Начните занятие на странице «Занятие»."
                                             : context.current.reason,
              0, 30, 24);
-        button("К результатам", 0, 110, 220, [this] { context.page = "results"; });
+        button("К результатам", 0, 110, 220, [this] {
+            context.historyLesson = context.school.currentLesson(context.profile).id;
+            context.historyAttempt.clear();
+            context.page = "results";
+        });
         return;
     }
     const TaskVersion &task = context.current.task;

@@ -2,6 +2,7 @@
 #include "../Fixture.h"
 #include "ui/Screen.h"
 #include "ui/FormulaView.h"
+#include "ui/SkillMap.h"
 #include "graphics/GraphView.h"
 #include "ui/screens/HomeScreen.h"
 #include "ui/screens/WelcomeScreen.h"
@@ -14,6 +15,7 @@
 #include "ui/screens/TrainingSetupScreen.h"
 #include "io/Files.h"
 #include <windows.h>
+#include <cmath>
 using namespace exam;
 using namespace exam::ui;
 namespace {
@@ -61,6 +63,73 @@ int main() {
         sf::Font font;
         REQUIRE(font.loadFromFile("C:/Windows/Fonts/segoeui.ttf"));
         makeDirectories("bin/captures");
+        // Поверхности и шрифты создаются под физический масштаб, а координаты остаются логическими.
+        for (float scale : {0.9f, 1.f, 1.25f, 1.35f, 1.5f, 2.f}) {
+            setRenderScale(scale);
+            sf::RenderTexture canvas;
+            prepareCanvas(canvas, sf::Vector2f(400, 200));
+            REQUIRE(canvas.getSize().x == unsigned(std::round(400 * scale)));
+            REQUIRE(std::abs(canvas.getView().getSize().x * scale - canvas.getSize().x) < 0.01f);
+            auto text = label(font, unicode("Проверка"), 20, 0, 0);
+            REQUIRE(text.getCharacterSize() == unsigned(std::round(20 * scale)));
+            REQUIRE(std::abs(text.getScale().y * scale - 1.f) < 0.0001f);
+            auto smallText = label(font, unicode("Задания от учителя"), 15, 0, 0);
+            REQUIRE(std::abs(smallText.getScale().y * scale - 1.f) < 0.0001f);
+            REQUIRE(smallText.getCharacterSize() == unsigned(std::round(15 * scale)));
+        }
+        setRenderScale(1.35f);
+        sf::RenderTexture pixelCheck;
+        prepareCanvas(pixelCheck, sf::Vector2f(200, 60));
+        pixelCheck.clear(Theme::background);
+        drawText(pixelCheck, label(font, unicode("Чёткий текст"), 15, 10.1f, 10));
+        pixelCheck.display();
+        auto firstPixels = pixelCheck.getTexture().copyToImage();
+        pixelCheck.clear(Theme::background);
+        drawText(pixelCheck, label(font, unicode("Чёткий текст"), 15, 10.2f, 10));
+        pixelCheck.display();
+        auto secondPixels = pixelCheck.getTexture().copyToImage();
+        REQUIRE(std::equal(firstPixels.getPixelsPtr(),
+                           firstPixels.getPixelsPtr() +
+                               firstPixels.getSize().x * firstPixels.getSize().y * 4,
+                           secondPixels.getPixelsPtr()));
+        setRenderScale(1.f);
+        Screen responsive(font);
+        auto wideField = responsive.field("Сохранённый текст", 100, 0, 300);
+        bool wideClicked = false;
+        responsive.button("Открыть", 600, 60, 200, [&] { wideClicked = true; });
+        responsive.layout(1410);
+        REQUIRE(wideField->getPosition().x == 150 && wideField->getSize().x == 450);
+        click(responsive, 1000, 80);
+        REQUIRE(wideClicked);
+        responsive.layout(940);
+        REQUIRE(wideField->getPosition().x == 100 && wideField->getSize().x == 300);
+        REQUIRE(wideField->getText() == "Сохранённый текст");
+        responsive.layout(1410);
+        bool wideConfirmed = false;
+        responsive.ask("Продолжить?", [&] { wideConfirmed = true; });
+        click(responsive, 500, 350);
+        REQUIRE(wideConfirmed);
+        SkillInfo firstNode, secondNode;
+        firstNode.id = "a";
+        firstNode.name = "Первый";
+        firstNode.placed = true;
+        firstNode.position = Point(15, 20);
+        secondNode.id = "b";
+        secondNode.name = "Второй";
+        secondNode.placed = true;
+        secondNode.position = Point(210, 20);
+        SkillMap wideMap(font, {firstNode, secondNode}, {{"b", {"a"}}}, StudentSnapshot());
+        wideMap.setEditable(false);
+        wideMap.setSelected("a");
+        wideMap.setWidth(900);
+        std::string chosenNode;
+        wideMap.onSelect = [&](const SkillInfo &node) { chosenNode = node.id; };
+        sf::Event mapClick = {};
+        mapClick.type = sf::Event::MouseButtonPressed;
+        mapClick.mouseButton.button = sf::Mouse::Left;
+        REQUIRE(wideMap.handle(mapClick, sf::Vector2f(440, 50)));
+        mapClick.type = sf::Event::MouseButtonReleased;
+        REQUIRE(wideMap.handle(mapClick, sf::Vector2f(440, 50)) && chosenNode == "b");
         Screen screen(font);
         TextField *input = screen.field("", 0, 0, 300);
         Button *button = screen.button("Готово", 0, 60, 150, [] {});
@@ -183,13 +252,15 @@ int main() {
         click(bank, 300, 465);
         capture(bank, "editor");
         REQUIRE(bank.title == "Редактор задания");
-        click(bank, 400, 520);
+        click(bank, 750, 118);
         REQUIRE(bank.title == "Навыки задания");
         click(bank, 310, 570);
-        click(bank, 50, 480);
+        click(bank, 50, 104);
         for (int i = 0; i < 4; ++i)
             key(bank, sf::Keyboard::Down);
-        click(bank, 100, 580);
+        click(bank, 80, 570);
+        REQUIRE(bank.title == "Редактор задания");
+        click(bank, 100, 300);
         REQUIRE(bank.title == "Настройка ответа");
         click(bank, 150, 210);
         type(bank, "2");
@@ -198,7 +269,7 @@ int main() {
         click(bank, 20, 205);
         capture(bank, "choice-settings");
         click(bank, 80, 580);
-        click(bank, 320, 580);
+        click(bank, 80, 580);
         REQUIRE(bank.status == "Черновик сохранён");
         TaskVersion choiceTask;
         for (const auto &candidate : school.tasks())
@@ -289,17 +360,17 @@ int main() {
         capture(packages, "packages-screen");
         context.role = UserRole::Student;
         home.refresh();
-        click(home, 60, 306);
+        click(home, 720, 250);
         REQUIRE(context.page == "practice");
         school.start(context.profile, SessionSettings(),
                      {"intro-fractions", "intro-linear", "intro-parabola"});
         home.refresh();
-        click(home, 60, 306);
+        click(home, 60, 436);
         REQUIRE(context.page == "lesson" && context.current.available);
         REQUIRE(context.current.task.id == "intro-fractions");
         std::string attempt = context.current.attempt.id;
         home.refresh();
-        click(home, 60, 306);
+        click(home, 60, 436);
         REQUIRE(context.current.attempt.id == attempt);
         // Продолжение учительского занятия восстанавливает режим проверки.
         std::string pupil = school.createProfile("Ученик с заданным режимом");
@@ -308,7 +379,7 @@ int main() {
         school.start(pupil, settings, {"intro-linear"});
         context.selectProfile(pupil, "Ученик с заданным режимом");
         home.refresh();
-        click(home, 60, 306);
+        click(home, 60, 436);
         REQUIRE(context.settings.guided);
         REQUIRE(context.settings.feedback == FeedbackPolicy::AfterTask);
         REQUIRE(context.current.task.id == "intro-linear");
@@ -387,15 +458,18 @@ int main() {
         click(setup, 30, 60);
         key(setup, sf::Keyboard::A, true);
         type(setup, "5");
-        click(setup, 620, 245);
+        capture(setup, "lesson-options");
+        click(setup, 650, 20);
+        REQUIRE(setup.title == "Сохранить шаблон");
+        click(setup, 30, 75);
         type(setup, "Пять минут");
-        click(setup, 620, 310);
+        click(setup, 30, 160);
         REQUIRE(school.lessonTemplates().size() == 1);
         REQUIRE(school.lessonTemplates()[0].settings.timeLimitSeconds == 300);
-        capture(setup, "lesson-options");
+        click(setup, 30, 565);
         click(setup, 30, 565);
         click(setup, 680, 595);
-        REQUIRE(setup.title == "Занятие подготовлено");
+        REQUIRE(setup.title == "Занятие выдано");
         REQUIRE(school.tasks().size() == beforeGeneration + 3);
         home.openReview();
         REQUIRE(home.title == "Проверка решений");
@@ -408,12 +482,18 @@ int main() {
         REQUIRE(school.latestLesson(context.profile).tasks.size() == 4);
         context.role = UserRole::Student;
         home.refresh();
-        click(home, 60, 306);
+        click(home, 60, 436);
         REQUIRE(context.current.available);
         REQUIRE(context.current.task.id == "intro-fractions");
         ProgressScreen progress(font, context);
         progress.refresh();
-        REQUIRE(progress.title == "Прогресс по темам");
+        REQUIRE(progress.title == "Мой прогресс");
+        capture(progress, "progress-overview-empty");
+        click(progress, 280, 20);
+        REQUIRE(progress.title == "Прогресс по навыкам");
+        capture(progress, "progress-details");
+        click(progress, 80, 20);
+        REQUIRE(progress.title == "Мой прогресс");
         REQUIRE(canOpen(context.role, "progress"));
         REQUIRE(canOpen(context.role, "setup"));
         context.selectProfile(school.createProfile("Темы ученика"), "Темы ученика");
@@ -446,6 +526,149 @@ int main() {
         key(lesson, sf::Keyboard::Enter);
         REQUIRE(context.current.task.parts.front().skills ==
                 std::vector<std::string>({"q_coefficients"}));
+        // Несколько назначений и несколько вопросов в каждом доступны независимо от практики.
+        loginTeacherForTest(store);
+        auto multiple = school.createProfile("Несколько занятий");
+        settings = SessionSettings();
+        settings.taskLimit = 3;
+        school.start(multiple, settings, {"intro-fractions", "intro-linear", "intro-parabola"},
+                     "teacher", "Первая работа");
+        auto firstAssignment = school.latestLesson(multiple).id;
+        school.start(multiple, settings, {"intro-quadratic"}, "teacher", "Вторая работа");
+        auto secondAssignment = school.latestLesson(multiple).id;
+        school.startTopics(multiple, {"fractions"}, false, 1);
+        context.selectProfile(multiple, "Несколько занятий");
+        context.role = UserRole::Student;
+        home.refresh();
+        click(home, 60, 195);
+        click(home, 60, 435);
+        REQUIRE(school.currentLesson(multiple).id == firstAssignment);
+        REQUIRE(context.current.task.id == "intro-fractions");
+        school.finish(context.current.attempt.id);
+        context.current.attempt.finished = true;
+        lesson.refresh();
+        click(lesson, 60, 555);
+        REQUIRE(context.page == "home" && !store.session(firstAssignment).closed);
+        home.refresh();
+        click(home, 60, 435);
+        REQUIRE(context.current.task.id == "intro-linear");
+        home.refresh();
+        click(home, 60, 125);
+        click(home, 60, 435);
+        REQUIRE(school.currentLesson(multiple).id == secondAssignment);
+        REQUIRE(context.current.task.id == "intro-quadratic");
+        home.refresh();
+        click(home, 60, 195);
+        click(home, 60, 435);
+        REQUIRE(context.current.task.id == "intro-linear");
+        REQUIRE(!store.session(firstAssignment).closed && !store.session(secondAssignment).closed);
+        home.refresh();
+        click(home, 60, 435);
+        REQUIRE(school.currentLesson(multiple).id == firstAssignment);
+        school.finish(context.current.attempt.id);
+        context.current = school.next();
+        REQUIRE(context.current.task.id == "intro-parabola");
+        auto finalFirst = context.current.attempt.id;
+        school.finish(finalFirst);
+        REQUIRE(!school.next().available);
+        context.current.attempt.finished = true;
+        context.historyLesson = secondAssignment;
+        lesson.refresh();
+        click(lesson, 80, 490);
+        REQUIRE(context.page == "results" && context.historyLesson == firstAssignment);
+        home.refresh();
+        click(home, 400, 435);
+        click(home, 60, 125);
+        key(home, sf::Keyboard::Enter);
+        REQUIRE(context.page == "results" && context.historyLesson == firstAssignment);
+        REQUIRE(school.progress(multiple, firstAssignment).finishedTasks == 3);
+        ResultsScreen filtered(font, context);
+        filtered.refresh();
+        capture(filtered, "history-selected-lesson");
+        click(filtered, 780, 15);
+        REQUIRE(context.historyLesson.empty());
+        REQUIRE(school.resume(multiple, secondAssignment));
+        school.continueLesson();
+        auto secondTask = school.next();
+        REQUIRE(secondTask.available);
+        school.finish(secondTask.attempt.id);
+        auto order = store.completionOrder(multiple);
+        REQUIRE(order.at(finalFirst) < order.at(secondTask.attempt.id));
+        REQUIRE(store.completionOrder("demo-check").count(finalFirst) == 0);
+        bool wrongOwner = false;
+        try {
+            school.progress("demo-check", firstAssignment);
+        } catch (const std::exception &) {
+            wrongOwner = true;
+        }
+        REQUIRE(wrongOwner);
+        context.selectProfile("demo-training", "Демонстрация");
+        context.role = UserRole::Student;
+        sf::Clock progressTimer;
+        progress.refresh();
+        std::cout << "Progress overview refresh: "
+                  << progressTimer.getElapsedTime().asMilliseconds() << " ms\n";
+        capture(progress, "progress-overview");
+        context.page.clear();
+        click(progress, 100, 300);
+        REQUIRE(context.page == "results" && !context.historyAttempt.empty());
+        auto selectedHistory = school.history(context.profile);
+        bool selectedOwn = false;
+        for (const auto &entry : selectedHistory)
+            if (entry.attemptId == context.historyAttempt)
+                selectedOwn = entry.lessonId == context.historyLesson;
+        REQUIRE(selectedOwn);
+        progress.refresh();
+        click(progress, 710, 400);
+        REQUIRE(context.page == "practice" && context.practiceSkills.size() == 1);
+        auto hiddenProfile = school.createProfile("Скрытый прогресс");
+        context.selectProfile(hiddenProfile, "Скрытый прогресс");
+        progress.refresh();
+        context.page.clear();
+        click(progress, 100, 300);
+        REQUIRE(context.page.empty());
+        capture(progress, "progress-empty");
+        settings.feedback = FeedbackPolicy::AfterSet;
+        settings.taskLimit = 2;
+        school.start(hiddenProfile, settings, {"intro-fractions", "intro-linear"});
+        school.finish(school.next().attempt.id);
+        REQUIRE(school.resultsHidden(hiddenProfile));
+        context.page.clear();
+        progress.refresh();
+        capture(progress, "progress-overview-hidden");
+        click(progress, 100, 300);
+        REQUIRE(context.page.empty());
+        click(progress, 710, 400);
+        REQUIRE(context.page == "home");
+        context.role = UserRole::Teacher;
+        BankScreen types(font, context);
+        types.refresh();
+        click(types, 300, 465);
+        click(types, 100, 45);
+        key(types, sf::Keyboard::A, true);
+        type(types, "Проверка типов");
+        for (int kind = 0; kind < 7; ++kind) {
+            click(types, 50, 104);
+            click(types, 100, 75 + 60 * kind);
+            click(types, 80, 570);
+            REQUIRE(types.title == "Редактор задания");
+            click(types, 80, 580);
+            TaskVersion saved;
+            for (const auto &value : school.tasks())
+                if (value.title == "Проверка типов")
+                    saved = value;
+            REQUIRE(saved.parts.size() == 1 && int(saved.parts[0].kind) == kind);
+            REQUIRE(kind == int(PartKind::Choice) || saved.parts[0].choices.empty());
+        }
+        click(types, 50, 104);
+        click(types, 100, 375);
+        click(types, 80, 570);
+        click(types, 80, 580);
+        for (const auto &value : school.tasks())
+            if (value.title == "Проверка типов") {
+                REQUIRE(value.parts[0].kind == PartKind::Choice);
+                REQUIRE(value.parts[0].choices.size() == 2);
+            }
         graphics.setActive(true);
         std::cout
             << "OK: Unicode, cursor, focus, dialog, scroll, formula, graph and student workflow\n";

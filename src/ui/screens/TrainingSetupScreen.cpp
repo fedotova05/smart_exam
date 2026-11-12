@@ -21,7 +21,7 @@ void TrainingSetupScreen::refresh() {
                 break;
             }
     }
-    title = "Темы и режим занятия";
+    title = "Самостоятельная тренировка";
     if (profile.empty()) {
         note("Выберите или создайте профиль, чтобы сохранять результаты.", 0, 30);
         button("Выбрать профиль", 0, 100, 260, [this] { context.page = "welcome"; });
@@ -125,9 +125,8 @@ void TrainingSetupScreen::refresh() {
             refresh();
         });
     };
-    note("Название открывает тему. Флажок выбирает всю тему. Стрелки — просмотр; пробел — выбор.",
-         0, 475, 280);
-    note("Отметьте нужные навыки. Выбор в других темах сохранится.", 310, 475, 360);
+    note("Флажок выбирает всю тему.", 0, 475, 280);
+    note("Можно выбрать навыки из нескольких тем.", 310, 475, 360);
     surface(690, 110, 1, 420, Theme::line);
     text("Выбрано навыков: " + std::to_string(selected.size()), 710, 180, 18, 230, 2);
     text("Число заданий", 710, 260, 18, 230, 1);
@@ -149,13 +148,13 @@ void TrainingSetupScreen::refresh() {
                                        std::vector<std::string>(selected.begin(), selected.end()),
                                        training, static_cast<int>(number));
             context.settings = context.school.latestLesson(context.profile).settings;
+            context.drafts.clear();
             context.current = context.school.next();
             context.page = "lesson";
         },
         true);
     start->setEnabled(!selected.empty());
-    if (selected.empty())
-        status = "Отметьте хотя бы один навык или целую тему.";
+
     if (focusedList == 1)
         focusWidget(topicList);
     if (focusedList == 2)

@@ -149,14 +149,12 @@ bool FormulaView::handle(const sf::Event &event, sf::Vector2f mouse) {
     return true;
 }
 void FormulaView::draw(sf::RenderTarget &target, sf::RenderStates states) const {
-    if (canvas.getSize() !=
-        sf::Vector2u(static_cast<unsigned>(size.x), static_cast<unsigned>(size.y)))
-        canvas.create(static_cast<unsigned>(size.x), static_cast<unsigned>(size.y));
-    canvas.setSmooth(true);
+
+    prepareCanvas(canvas, size);
     canvas.clear(featured ? Theme::pale : Theme::background);
     if (!error.empty())
-        canvas.draw(
-            label(font, wrap(font, unicode(error), 16, size.x - 24, 4), 16, 12, 12, Theme::error));
+        drawText(canvas, label(font, wrap(font, unicode(error), 16, size.x - 24, 4), 16, 12, 12,
+                               Theme::error));
     else {
         float actualZoom = std::min(zoom, (size.y - 20) / std::max(1.f, formula.height));
         sf::RenderStates local;
@@ -164,13 +162,13 @@ void FormulaView::draw(sf::RenderTarget &target, sf::RenderStates states) const 
         local.transform.translate(left - scroll, (size.y - formula.height * actualZoom) / 2)
             .scale(actualZoom, actualZoom);
         for (const auto &glyph : formula.texts)
-            canvas.draw(glyph, local);
+            drawText(canvas, glyph, local);
         for (const auto &line : formula.lines)
             canvas.draw(line, local);
     }
     canvas.display();
     states.transform *= getTransform();
-    target.draw(sf::Sprite(canvas.getTexture()), states);
+    drawCanvas(target, canvasSprite(canvas), states);
 }
 } // namespace ui
 } // namespace exam
