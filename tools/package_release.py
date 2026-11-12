@@ -22,8 +22,7 @@ binary = root / 'bin/Release/smart_exam.exe'
 if not binary.is_file():
     raise SystemExit('Сначала выполните python tools/build.py --mode Release')
 shutil.copy2(binary, stage / binary.name)
-for directory in ('db', 'docs'):
-    shutil.copytree(root / directory, stage / directory)
+shutil.copytree(root / 'db', stage / 'db')
 for directory in ('oge', 'samples'):
     shutil.copytree(root / 'data' / directory, stage / 'data' / directory)
 for name in ('README.md',):
