@@ -1,8 +1,12 @@
 #include "application/Demo.h"
 #include "ui/App.h"
 #include "io/Files.h"
+#include "application/exams/ExamService.h"
 #include <windows.h>
 #include <iostream>
+namespace exam {
+int checkExamSources(bool all);
+}
 
 int main(int argc, char **argv) {
     // До создания любого окна или графического контекста.
@@ -20,6 +24,8 @@ int main(int argc, char **argv) {
         return exam::runDemo();
     std::string option = argc > 1 ? argv[1] : "";
     try {
+        if (option == "--check-oge" || option == "--check-oge-all")
+            return exam::checkExamSources(option == "--check-oge-all");
         exam::makeDirectories("data");
         if (option == "--create-demo" && exam::fileExists("data/demo-preview.db"))
             throw std::runtime_error("data/demo-preview.db уже существует");
@@ -28,6 +34,7 @@ int main(int argc, char **argv) {
                                                       : "data/smart_exam.db");
         exam::SchoolService school(store);
         school.addDemonstrationCourse();
+        exam::installOgeCurriculum(store);
         if (option == "--create-demo") {
             std::cout << "Demo database created: " << school.tasks().size() << " tasks\n";
             return 0;

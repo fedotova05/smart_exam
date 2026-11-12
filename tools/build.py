@@ -19,7 +19,7 @@ os.chdir(root)
 os.environ['PATH'] = str(Path(args.compiler).parent) + os.pathsep + str(Path(args.sfml) / 'bin') + os.pathsep + os.environ['PATH']
 out = root / 'bin' / args.mode
 out.mkdir(parents=True, exist_ok=True)
-flags = ['-std=c++11', '-Wall', '-Wextra', '-pedantic', '-Isrc', '-Ithird_party/sqlite', '-finput-charset=UTF-8', '-fexec-charset=UTF-8']
+flags = ['-std=c++11', '-Wall', '-Wextra', '-pedantic', '-D_WIN32_WINNT=0x0600', '-Isrc', '-Ithird_party/sqlite', '-finput-charset=UTF-8', '-fexec-charset=UTF-8']
 flags += ['-g', '-O0'] if args.mode == 'Debug' else ['-O2', '-DNDEBUG']
 sources = [str(p) for p in sorted(Path('src').rglob('*.cpp'))]
 ui_sources = [p for p in sources if Path(p).parts[1] in ('ui', 'graphics')]
@@ -57,7 +57,7 @@ with ThreadPoolExecutor(max_workers=4) as pool:
     objects = dict(zip(all_sources, pool.map(compile_source, all_sources)))
 
 def link(name, files, graphics=False):
-    command = [args.compiler] + [objects[source] for source in files] + [str(sqlite_object)]
+    command = [args.compiler] + [objects[source] for source in files] + [str(sqlite_object), '-lshell32']
     if graphics:
         command += graphics_flags
     subprocess.run(command + ['-o', str(out / (name + '.exe'))], check=True)

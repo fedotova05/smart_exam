@@ -33,8 +33,8 @@ std::vector<std::string> SchoolService::validate(const TaskVersion &task) const 
         errors.push_back("Нулевой символ в тексте задания");
     if (task.title.empty() || task.title.size() > 160)
         errors.push_back("Название: от 1 до 160 байтов");
-    if (task.description.size() > 4096)
-        errors.push_back("Общее условие длиннее 4096 байтов");
+    if (task.description.size() > 16000)
+        errors.push_back("Общее условие длиннее 16000 байтов");
     if (task.parts.empty() || task.parts.size() > 100)
         errors.push_back("Нужно от 1 до 100 частей");
     if (!std::isfinite(task.difficulty) || task.difficulty < 0 || task.difficulty > 3000)
@@ -52,8 +52,8 @@ std::vector<std::string> SchoolService::validate(const TaskVersion &task) const 
             errors.push_back(label + "нулевой символ в условии");
         if (part.id.empty() || !ids.insert(part.id).second)
             errors.push_back("Идентификаторы частей должны быть уникальными");
-        if (part.prompt.empty() || part.prompt.size() > 4096)
-            errors.push_back(label + "нужно условие до 4096 байтов");
+        if (part.prompt.empty() || part.prompt.size() > 16000)
+            errors.push_back(label + "нужно условие до 16000 байтов");
         if ((part.expression.empty() && part.kind != PartKind::Choice &&
              part.kind != PartKind::ShortAnswer) ||
             part.expression.size() > 512)
@@ -253,7 +253,8 @@ LessonProgress SchoolService::progress(const std::string &profile, const std::st
     for (const auto &attempt : storage.attempts(result.lesson.id)) {
         if (result.lesson.settings.training && !storage.trainingStep(attempt.id).stage.empty())
             ++result.totalTasks;
-        if (!fixed)
+        if (!fixed ||
+            (result.lesson.settings.training && !storage.trainingStep(attempt.id).stage.empty()))
             for (const auto &part : storage.task(attempt.taskId).parts)
                 result.maximumScore += part.maxScore;
         if (!attempt.finished)

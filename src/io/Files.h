@@ -5,6 +5,7 @@
 namespace exam {
 std::string readFile(const std::string &path, std::size_t maxBytes = 2 * 1024 * 1024);
 void writeFile(const std::string &path, const std::string &bytes);
+void writeFileAtomic(const std::string &path, const std::string &bytes);
 void makeDirectories(const std::string &path);
 std::string parentPath(const std::string &path);
 bool fileExists(const std::string &path);

@@ -7,3 +7,7 @@ obj/
 *.log
 __pycache__/
 local.json
+data/exam/
+data/lectures/
+data/imports/
+packaging/output/

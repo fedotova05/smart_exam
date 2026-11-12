@@ -10,7 +10,8 @@ bool canOpen(UserRole role, const std::string &page) {
     if (role == UserRole::Guest)
         return false;
     if (page == "home" || page == "results" || page == "knowledge" || page == "setup" ||
-        page == "progress" || page == "practice" || page == "training-demo")
+        page == "progress" || page == "practice" || page == "training-demo" || page == "exams" ||
+        page == "lectures")
         return true;
     if (page == "lesson")
         return role == UserRole::Student;

@@ -319,10 +319,19 @@ AttemptRecord Store::openAttempt(const std::string &sessionId, int position,
         std::string error = answerPolicyError(part);
         require(error.empty(), error);
     }
-    if (s.settings.mode == SessionMode::Fixed)
-        require(position < static_cast<int>(s.tasks.size()) && s.tasks[position] == taskId,
+    if (step)
+        require(s.settings.training && step->origin == supportOrigin(sessionId) &&
+                    !step->origin.empty(),
+                "Недопустимый шаг разбора");
+    if (s.settings.mode == SessionMode::Fixed && !step) {
+        int assignedPosition = 0;
+        for (const auto &a : old)
+            if (trainingStep(a.id).stage.empty())
+                ++assignedPosition;
+        require(assignedPosition < static_cast<int>(s.tasks.size()) &&
+                    s.tasks[assignedPosition] == taskId,
                 "Fixed set cannot change");
-    else
+    } else
         require(!t.archived, "Task archived");
     std::string id = sessionId + ":" + number(position);
     db.query(

@@ -9,6 +9,8 @@
 #include "screens/BankScreen.h"
 #include "screens/KnowledgeScreen.h"
 #include "screens/PackageScreen.h"
+#include "screens/ExamScreen.h"
+#include "screens/LectureScreen.h"
 #include "FormulaView.h"
 #include "io/Files.h"
 #include <windows.h>
@@ -39,6 +41,8 @@ App::App(SchoolService &school) : context(school), current(0), navigationFocus(-
     screens["bank"].reset(new BankScreen(font, context));
     screens["knowledge"].reset(new KnowledgeScreen(font, context));
     screens["packages"].reset(new PackageScreen(font, context));
+    screens["exams"].reset(new ExamScreen(font, context));
+    screens["lectures"].reset(new LectureScreen(font, context));
     screens["results"].reset(new ResultsScreen(font, context));
     for (auto &item : screens) {
         item.second->setPosition(224, 130);
@@ -64,18 +68,20 @@ void App::buildNavigation() {
         return;
     std::vector<std::string> names;
     if (context.role == UserRole::Student) {
-        navigationPages = {"home", "practice", "progress", "results", "knowledge", "welcome"};
-        names = {"Мои занятия",     "Тренировка",    "Мой прогресс",
-                 "История решений", "Карта навыков", "Сменить профиль"};
+        navigationPages = {"home",     "practice", "exams",     "lectures",
+                           "progress", "results",  "knowledge", "welcome"};
+        names = {"Мои занятия",  "Тренировка",      "Задания ОГЭ",   "Лекции",
+                 "Мой прогресс", "История решений", "Карта навыков", "Сменить профиль"};
     } else {
-        navigationPages = {"home",     "setup",     "bank",     "review", "profiles",
-                           "progress", "knowledge", "packages", "welcome"};
-        names = {"Кабинет",  "Создать занятие", "Банк заданий",     "Проверить ответы", "Ученики",
-                 "Прогресс", "Карта навыков",   "Импорт и экспорт", "Сменить роль"};
+        navigationPages = {"home",     "setup",    "bank",      "review",   "profiles", "exams",
+                           "lectures", "progress", "knowledge", "packages", "welcome"};
+        names = {"Кабинет",       "Создать занятие",  "Банк заданий", "Проверить ответы",
+                 "Ученики",       "Задания ОГЭ",      "Лекции",       "Прогресс",
+                 "Карта навыков", "Импорт и экспорт", "Сменить роль"};
     }
     for (std::size_t i = 0; i < names.size(); ++i) {
         std::unique_ptr<Button> button(new Button(font, names[i], 180));
-        button->setPosition(18, 126 + i * 54.f);
+        button->setPosition(18, 126 + i * 50.f);
         button->setNavigation(true);
         std::string id = navigationPages[i];
         button->onClick = [this, id] {
@@ -124,6 +130,10 @@ void App::show(const std::string &requested) {
         static_cast<KnowledgeScreen *>(current)->refresh();
     if (name == "packages")
         static_cast<PackageScreen *>(current)->refresh();
+    if (name == "exams")
+        static_cast<ExamScreen *>(current)->refresh();
+    if (name == "lectures")
+        static_cast<LectureScreen *>(current)->refresh();
     if (name == "results")
         static_cast<ResultsScreen *>(current)->refresh();
     buildNavigation();
@@ -270,6 +280,10 @@ int App::run(bool smoke, bool capture, bool widgets) {
         context.selectProfile("demo-check", "Демонстрация");
         show("home");
         save("home");
+        show("exams");
+        save("oge-navigation");
+        show("lectures");
+        save("lectures-navigation");
         show("practice");
         save("training-setup");
         click(15, 230);

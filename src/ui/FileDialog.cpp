@@ -4,11 +4,13 @@
 #include <stdexcept>
 namespace exam {
 namespace ui {
-static std::string chooseFile(bool save, bool csv) {
+static std::string chooseFile(bool save, bool csv, bool lecture = false) {
     wchar_t path[32768] = {0};
     OPENFILENAMEW dialog = {};
     dialog.lStructSize = sizeof(dialog);
-    dialog.lpstrFilter = csv ? L"CSV (*.csv)\0*.csv\0" : L"JSON (*.json)\0*.json\0";
+    dialog.lpstrFilter = lecture ? L"Лекции (PDF, Word)\0*.pdf;*.doc;*.docx\0"
+                         : csv   ? L"CSV (*.csv)\0*.csv\0"
+                                 : L"JSON (*.json)\0*.json\0";
     dialog.lpstrFile = path;
     dialog.nMaxFile = 32768;
     dialog.lpstrDefExt = csv ? L"csv" : L"json";
@@ -31,6 +33,9 @@ std::string choosePackage(bool save) {
 }
 std::string chooseCsv() {
     return chooseFile(true, true);
+}
+std::string chooseLecture() {
+    return chooseFile(false, false, true);
 }
 } // namespace ui
 } // namespace exam

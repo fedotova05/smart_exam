@@ -6,10 +6,11 @@ if not defined MINGW_DIR set "MINGW_DIR=C:\Program Files\CodeBlocks\MinGW"
 set "PATH=%SFML_DIR%\bin;%MINGW_DIR%\bin;%PATH%"
 set "SMARTEXAM_EXE=bin\Release\smart_exam.exe"
 if not exist "%SMARTEXAM_EXE%" set "SMARTEXAM_EXE=bin\Debug\smart_exam.exe"
+for %%I in ("%SMARTEXAM_EXE%") do set "SMARTEXAM_BIN=%%~dpI"
 if "%1"=="tests" (
-    bin\Debug\tests.exe
+    "%SMARTEXAM_BIN%tests.exe"
     if errorlevel 1 exit /b 1
-    bin\Debug\ui_tests.exe
+    "%SMARTEXAM_BIN%ui_tests.exe"
 ) else if "%1"=="demo" (
     "%SMARTEXAM_EXE%" --demo
 ) else if "%1"=="widgets" (

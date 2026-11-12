@@ -3,6 +3,7 @@
 #include <string>
 namespace exam {
 namespace ui {
+std::string chooseLecture();
 std::string choosePackage(bool save);
 std::string chooseCsv();
 } // namespace ui

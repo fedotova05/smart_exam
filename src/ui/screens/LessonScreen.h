@@ -22,6 +22,8 @@ class LessonScreen : public Screen {
     void resources(int index);
     void route();
     void supportChoice();
+    void lectureChoices();
+    void showLecture(const std::string &id);
 
   public:
     LessonScreen(const sf::Font &font, AppContext &state)

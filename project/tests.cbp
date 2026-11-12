@@ -36,22 +36,31 @@
       <Add directory="../src" />
       <Add directory="../third_party/sqlite" />
     </Compiler>
+    <Linker>
+      <Add library="shell32" />
+    </Linker>
     <Unit filename="../src/adaptation/Adaptation.h" />
     <Unit filename="../src/application/answers/AnswerPolicy.h" />
     <Unit filename="../src/application/Demo.h" />
+    <Unit filename="../src/application/exams/ExamService.h" />
     <Unit filename="../src/application/jobs/JobQueue.h" />
     <Unit filename="../src/application/review/ReviewService.h" />
     <Unit filename="../src/application/SchoolService.h" />
     <Unit filename="../src/application/session/SessionService.h" />
     <Unit filename="../src/application/training/TrainingService.h" />
     <Unit filename="../src/core/GraphCodec.h" />
+    <Unit filename="../src/core/Materials.h" />
     <Unit filename="../src/core/Services.h" />
     <Unit filename="../src/core/Types.h" />
     <Unit filename="../src/generation/Generator.h" />
     <Unit filename="../src/graph_tasks/GeometryChecker.h" />
     <Unit filename="../src/io/Files.h" />
+    <Unit filename="../src/io/Html.h" />
+    <Unit filename="../src/io/Https.h" />
     <Unit filename="../src/io/Json.h" />
     <Unit filename="../src/io/packages/PackageService.h" />
+    <Unit filename="../src/io/SvgImage.h" />
+    <Unit filename="../src/io/WinHttpApi.h" />
     <Unit filename="../src/knowledge/SkillGraph.h" />
     <Unit filename="../src/math/checkers/EquationChecker.h" />
     <Unit filename="../src/math/numbers/Rational.h" />
@@ -62,7 +71,11 @@
     <Unit filename="../src/application/answers/AnswerPolicy.cpp" />
     <Unit filename="../src/application/Demo.cpp" />
     <Unit filename="../src/application/DemonstrationCourse.cpp" />
+    <Unit filename="../src/application/exams/ExamCatalog.cpp" />
+    <Unit filename="../src/application/exams/ExamCheck.cpp" />
+    <Unit filename="../src/application/exams/ExamService.cpp" />
     <Unit filename="../src/application/jobs/JobQueue.cpp" />
+    <Unit filename="../src/application/LectureService.cpp" />
     <Unit filename="../src/application/review/TeacherReports.cpp" />
     <Unit filename="../src/application/SchoolService.cpp" />
     <Unit filename="../src/application/session/SessionService.cpp" />
@@ -72,13 +85,17 @@
     <Unit filename="../src/generation/Generator.cpp" />
     <Unit filename="../src/graph_tasks/GeometryChecker.cpp" />
     <Unit filename="../src/io/Files.cpp" />
+    <Unit filename="../src/io/Html.cpp" />
+    <Unit filename="../src/io/Https.cpp" />
     <Unit filename="../src/io/Json.cpp" />
     <Unit filename="../src/io/packages/PackageService.cpp" />
+    <Unit filename="../src/io/SvgImage.cpp" />
     <Unit filename="../src/knowledge/SkillGraph.cpp" />
     <Unit filename="../src/math/checkers/EquationChecker.cpp" />
     <Unit filename="../src/math/numbers/Rational.cpp" />
     <Unit filename="../src/math/parser/Parser.cpp" />
     <Unit filename="../src/storage/Database.cpp" />
+    <Unit filename="../src/storage/MaterialsStore.cpp" />
     <Unit filename="../src/storage/ReviewStore.cpp" />
     <Unit filename="../src/storage/SessionPolicies.cpp" />
     <Unit filename="../src/storage/Store.cpp" />
@@ -92,8 +109,10 @@
     <Unit filename="../tests/interface/InterfaceTests.cpp" />
     <Unit filename="../tests/jobs/JobTests.cpp" />
     <Unit filename="../tests/main.cpp" />
+    <Unit filename="../tests/materials/MaterialsTests.cpp" />
     <Unit filename="../tests/math/ParserTests.cpp" />
     <Unit filename="../tests/recovery/RecoveryTests.cpp" />
+    <Unit filename="../tests/regression/RegressionTests.cpp" />
     <Unit filename="../tests/review/ReviewTests.cpp" />
     <Unit filename="../tests/session/SessionTests.cpp" />
     <Unit filename="../tests/session/TrainingTests.cpp" />

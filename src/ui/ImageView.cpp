@@ -1,10 +1,14 @@
 #include "ImageView.h"
 #include "io/Files.h"
+#include "io/SvgImage.h"
 #include <algorithm>
 namespace exam {
 namespace ui {
 ImageView::ImageView(const sf::Font &font, const std::string &path) : Widget(font, 940, 450) {
     std::string bytes = readFile(resourcePath("data", path), 5 * 1024 * 1024);
+    if (path.size() > 4 && path.substr(path.size() - 4) == ".svg") {
+        bytes = svgToPng(bytes);
+    }
     if (!texture.loadFromMemory(bytes.data(), bytes.size()))
         throw std::runtime_error("Не удалось прочитать изображение");
     texture.setSmooth(true);
