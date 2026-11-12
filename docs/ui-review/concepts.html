@@ -1,0 +1,167 @@
+<div id="exam-directions" aria-label="Варианты интерфейса SmartExam">
+  <style>
+    #exam-directions{--se-bg:light-dark(#f4f4ef,#18211e);--se-paper:light-dark(#fffef9,#22302a);--se-ink:light-dark(#203c32,#ecf2eb);--se-muted:light-dark(#59695f,#b6c5b9);--se-line:light-dark(#d4ded4,#45574c);--se-soft:light-dark(#e9eee5,#2e4034);--se-accent:light-dark(#245744,#c0dcc8);--se-on:light-dark(#ffffff,#183024);--se-error:light-dark(#913c24,#ffb6a0);--se-pad:28px;color:var(--se-ink);font:16px/1.5 'Segoe UI',Arial,sans-serif}
+    #exam-directions *{box-sizing:border-box}
+    #exam-directions button,#exam-directions input{font:inherit;color:inherit}
+    #exam-directions button{cursor:pointer;min-height:44px;padding:10px 18px;border:1px solid var(--se-line);background:var(--se-paper);border-radius:5px}
+    #exam-directions button:hover{background:var(--se-soft)}
+    #exam-directions button:disabled{opacity:.55;cursor:default}
+    #exam-directions .se-choices{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+    #exam-directions .se-choices button[aria-pressed=true],#exam-directions .se-primary{background:var(--se-accent);border-color:var(--se-accent);color:var(--se-on)}
+    #exam-directions .se-choices button[aria-pressed=true]:hover,#exam-directions .se-primary:hover{filter:brightness(.95)}
+    #exam-directions .se-window{background:var(--se-bg);border:1px solid var(--se-line);border-radius:8px;overflow:hidden}
+    #exam-directions .se-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px 26px;background:var(--se-paper);border-bottom:1px solid var(--se-line)}
+    #exam-directions .se-brand{font-size:22px;font-weight:500;letter-spacing:-.8px}
+    #exam-directions .se-meta{font-size:13px;color:var(--se-muted)}
+    #exam-directions .se-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;padding:var(--se-pad)}
+    #exam-directions .se-main{min-width:0;max-width:700px;width:100%;margin:auto}
+    #exam-directions .se-nav,#exam-directions .se-side{display:none}
+    #exam-directions h2{font:500 29px/1.2 Georgia,serif;margin:12px 0}
+    #exam-directions h3{font:500 16px/1.5 'Segoe UI',sans-serif;margin:0 0 12px}
+    #exam-directions p{margin:8px 0 16px}
+    #exam-directions .se-eyebrow{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--se-muted)}
+    #exam-directions .se-track{height:5px;background:var(--se-line);margin:14px 0 24px;border-radius:3px;overflow:hidden}
+    #exam-directions .se-track span{display:block;width:20%;height:100%;background:var(--se-accent)}
+    #exam-directions .se-card{background:var(--se-paper);border:1px solid var(--se-line);border-radius:6px;padding:var(--se-pad)}
+    #exam-directions .se-formula{font:34px/1.4 Georgia,serif;text-align:center;padding:26px 8px;margin:8px 0 26px;background:var(--se-soft);border-radius:4px}
+    #exam-directions .se-input-label{display:block;font-weight:500;margin-bottom:8px}
+    #exam-directions .se-answer-row{display:flex;gap:12px;align-items:stretch;flex-wrap:wrap}
+    #exam-directions input{background:var(--se-paper);border:1px solid var(--se-muted);border-radius:4px;padding:12px;min-width:0;flex:1;width:100%}
+    #exam-directions .se-help-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:18px}
+    #exam-directions .se-help-row button{padding:8px 12px;background:transparent;font-size:14px}
+    #exam-directions .se-inline{border-left:3px solid var(--se-accent);background:var(--se-soft);padding:14px 16px;margin:18px 0 0}
+    #exam-directions .se-inline[data-error=true]{border-color:var(--se-error);color:var(--se-error)}
+    #exam-directions .se-inline:empty{display:none}
+    #exam-directions .se-bottom{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap;margin-top:22px}
+    #exam-directions .se-steps{display:none;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--se-line);margin-bottom:24px;padding-bottom:16px;color:var(--se-muted)}
+    #exam-directions .se-steps .se-current{color:var(--se-ink);font-weight:500;border-bottom:2px solid var(--se-accent)}
+    #exam-directions .se-history li{margin:8px 0}
+    #exam-directions .se-history{padding-left:18px;font-size:14px}
+    #exam-directions .se-history-empty{color:var(--se-muted);font-size:14px}
+    #exam-directions .se-nav-item{padding:14px 10px;margin:4px 0;font-size:14px;border-radius:4px}
+    #exam-directions .se-nav-item[aria-current=page]{background:var(--se-soft);border-left:3px solid var(--se-accent)}
+    #exam-directions .se-side section+section{margin-top:24px;border-top:1px solid var(--se-line);padding-top:20px}
+    #exam-directions .se-part{padding:12px;background:var(--se-soft);border-left:3px solid var(--se-accent);font-size:14px}
+    #exam-directions .se-caption{font-size:13px;color:var(--se-muted);padding:14px 26px;border-top:1px solid var(--se-line);background:var(--se-paper)}
+    #exam-directions [hidden]{display:none!important}
+    #exam-directions[data-layout=B] .se-layout{grid-template-columns:145px minmax(0,1fr) 185px;gap:20px;padding:22px}
+    #exam-directions[data-layout=B] .se-nav,#exam-directions[data-layout=B] .se-side{display:block;min-width:0}
+    #exam-directions[data-layout=B] .se-main{max-width:none;margin:0}
+    #exam-directions[data-layout=B] .se-card{padding:20px}
+    #exam-directions[data-layout=B] .se-formula{font-size:29px}
+    #exam-directions[data-layout=B] .se-answer-row{display:block}
+    #exam-directions[data-layout=B] .se-answer-row button{margin-top:12px;width:100%}
+    #exam-directions[data-layout=C] .se-steps{display:flex}
+    #exam-directions[data-layout=C] .se-main{max-width:620px}
+    @media(max-width:800px){#exam-directions[data-layout=B] .se-layout{grid-template-columns:minmax(0,1fr) 180px}#exam-directions[data-layout=B] .se-nav{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}#exam-directions .se-nav-item{margin:0;padding:8px}#exam-directions .se-nav .se-meta{display:none}}
+    @media(max-width:570px){#exam-directions .se-layout,#exam-directions[data-layout=B] .se-layout{padding:14px;grid-template-columns:minmax(0,1fr)}#exam-directions .se-card{padding:18px}#exam-directions .se-top{padding:14px}#exam-directions h2{font-size:25px}#exam-directions .se-formula{font-size:28px}#exam-directions .se-answer-row{display:block}#exam-directions .se-answer-row button{margin-top:12px;width:100%}#exam-directions .se-side{border-top:1px solid var(--se-line);padding-top:16px}#exam-directions .se-choices button{flex:1;padding:10px 8px}}
+  </style>
+  <div class="se-choices" role="group" aria-label="Направление дизайна">
+    <button type="button" data-variant="A" aria-pressed="true">A · Фокус</button>
+    <button type="button" data-variant="B" aria-pressed="false">B · Рабочее место</button>
+    <button type="button" data-variant="C" aria-pressed="false">C · По этапам</button>
+  </div>
+  <div class="se-window">
+    <header class="se-top"><span class="se-brand">SmartExam</span><span class="se-meta">Тренировка · Мария</span><button type="button" data-action="pause">Пауза</button></header>
+    <div class="se-layout">
+      <aside class="se-nav" aria-label="Разделы приложения"><div class="se-meta">МОЯ УЧЁБА</div><div class="se-nav-item" aria-current="page">Моё занятие</div><div class="se-nav-item">Прогресс</div><div class="se-nav-item">История</div></aside>
+      <main class="se-main">
+        <div class="se-eyebrow">Квадратные уравнения</div>
+        <h2>Два корня уравнения</h2>
+        <div class="se-meta" data-progress>Задание 2 из 5 · 1 балл · Проверка сразу</div>
+        <div class="se-track" aria-label="Завершено 1 из 5 заданий"><span></span></div>
+        <div class="se-steps" aria-label="Этапы задания"><span data-step="0">1. Условие</span><span data-step="1">2. Ответ</span><span data-step="2">3. Результат</span></div>
+        <section class="se-card">
+          <div data-condition><p>Найдите все корни уравнения.</p><div class="se-formula" aria-label="Икс в квадрате минус пять икс плюс шесть равно нулю">x² − 5x + 6 = 0</div></div>
+          <form data-answer>
+            <label class="se-input-label" for="se-roots">Ваш ответ</label>
+            <div class="se-answer-row"><input id="se-roots" autocomplete="off" spellcheck="false" placeholder="Например: 1; 4" aria-describedby="se-format"><button type="submit" class="se-primary">Проверить ответ</button></div>
+            <div id="se-format" class="se-meta" style="margin-top:8px">Разделите корни точкой с запятой. Порядок не важен.</div>
+          </form>
+          <div data-feedback class="se-inline" role="status" aria-live="polite"></div>
+          <div class="se-help-row" data-support><button type="button" data-action="hint" aria-expanded="false">Подсказка</button><button type="button" data-action="history" aria-expanded="false">Мои ответы</button></div>
+          <div data-hint class="se-inline" hidden>Для ax² + bx + c = 0 найдите D = b² − 4ac, затем корни. В приложении использование подсказки учитывается отдельно.</div>
+          <div data-inline-history hidden><h3 style="margin-top:20px">Мои ответы</h3><div data-history></div></div>
+          <div class="se-bottom"><button type="button" data-action="back" hidden>← К условию</button><span class="se-meta" data-save>Ответ ещё не отправлен</span><button type="button" data-action="next" hidden class="se-primary">Перейти к ответу →</button><button type="button" data-action="finish" hidden class="se-primary">Завершить задание →</button></div>
+        </section>
+      </main>
+      <aside class="se-side" aria-label="Части и ответы"><section><h3>Части задания</h3><div class="se-part">1. Корни уравнения<br><span class="se-meta">1 балл · текущая часть</span></div></section><section><h3>Мои ответы</h3><div data-history></div></section><section><h3>Ход занятия</h3><div class="se-meta">1 — завершено<br>2 — сейчас<br>3–5 — впереди</div></section></aside>
+    </div>
+    <footer class="se-caption">Макет · <span data-caption>Одна задача в центре, помощь по запросу.</span> <button type="button" data-action="restart" hidden>Повторить пример</button></footer>
+  </div>
+  <script>
+    (()=>{
+      const root=document.getElementById('exam-directions');
+      const state={layout:'A',compact:false,step:0,answer:'',message:'',error:false,checked:false,finished:false,paused:false,hint:false,history:false,entries:[]};
+      const q=s=>root.querySelector(s);
+      const captions={A:'Одна задача в центре, помощь по запросу.',B:'Разделы, задача и история видны одновременно.',C:'Условие, ответ и результат открываются последовательно.'};
+      const setText=(selector,value)=>q(selector).textContent=value;
+      function render(){
+        root.dataset.layout=state.layout;
+        root.style.setProperty('--se-pad',state.compact?'20px':'28px');
+        root.querySelectorAll('[data-variant]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.variant===state.layout)));
+        const wizard=state.layout==='C',result=state.finished||(wizard&&state.step===2);
+        q('[data-condition]').hidden=state.finished||state.paused;
+        q('[data-answer]').hidden=state.paused||result||(wizard&&state.step===0);
+        q('#se-roots').value=state.answer;
+        q('[data-feedback]').textContent=state.paused?'Занятие на паузе. Введённый ответ остаётся в макете.':state.finished?'Задание завершено · 1 из 1 балла. В приложении следующий шаг откроет новое задание.':(wizard&&state.step===0?'':state.message);
+        q('[data-feedback]').dataset.error=String(state.error&&!state.paused&&!state.finished);
+        q('[data-feedback]').setAttribute('role',state.error?'alert':'status');
+        q('[data-support]').hidden=state.paused||state.finished;
+        q('[data-action=history]').hidden=state.layout==='B';
+        q('[data-hint]').hidden=!state.hint||state.paused||state.finished;
+        q('[data-action=hint]').setAttribute('aria-expanded',String(state.hint));
+        q('[data-action=history]').setAttribute('aria-expanded',String(state.history));
+        q('[data-inline-history]').hidden=!state.history||state.layout==='B'||state.paused||state.finished;
+        q('[data-action=next]').hidden=!wizard||state.step!==0||state.paused||state.finished;
+        q('[data-action=finish]').hidden=!state.checked||state.paused||state.finished;
+        q('[data-action=restart]').hidden=!state.finished;
+        q('[data-action=back]').hidden=!wizard||state.step===0||state.paused||state.finished;
+        setText('[data-action=back]',state.step===2?'← Изменить ответ':'← К условию');
+        setText('[data-action=pause]',state.paused?'Продолжить':'Пауза');
+        setText('[data-save]',state.finished?'Завершено 2 из 5 заданий':state.checked?'Ответ проверен':state.entries.length?'Можно исправить ответ':'Ответ ещё не отправлен');
+        setText('[data-caption]',captions[state.layout]);
+        root.querySelectorAll('[data-step]').forEach(el=>el.classList.toggle('se-current',+el.dataset.step===state.step));
+        root.querySelectorAll('[data-history]').forEach(el=>{
+          el.replaceChildren();
+          if(!state.entries.length){const p=document.createElement('p');p.className='se-history-empty';p.textContent='Пока нет отправленных ответов';el.append(p);return;}
+          const list=document.createElement('ol');list.className='se-history';
+          state.entries.forEach(e=>{const li=document.createElement('li');li.textContent=e;list.append(li);});el.append(list);
+        });
+        q('.se-track span').style.width=state.finished?'40%':'20%';
+        q('.se-track').setAttribute('aria-label',state.finished?'Завершено 2 из 5 заданий':'Завершено 1 из 5 заданий');
+      }
+      root.addEventListener('click',e=>{
+        const button=e.target.closest('button');if(!button)return;
+        if(button.dataset.variant){state.layout=button.dataset.variant;render();return;}
+        switch(button.dataset.action){
+          case 'pause':state.paused=!state.paused;break;
+          case 'hint':state.hint=!state.hint;break;
+          case 'history':state.history=!state.history;break;
+          case 'next':state.step=1;break;
+          case 'back':state.step=Math.max(0,state.step-1);break;
+          case 'finish':state.finished=true;break;
+          case 'restart':Object.assign(state,{step:0,answer:'',message:'',error:false,checked:false,finished:false,paused:false,hint:false,history:false,entries:[]});break;
+        }
+        render();
+        if(button.dataset.action==='next'||(button.dataset.action==='back'&&state.step===1))q('#se-roots').focus();
+      });
+      q('#se-roots').addEventListener('input',e=>{state.answer=e.target.value;state.checked=false;state.error=false;state.message='';q('[data-feedback]').textContent='';q('[data-action=finish]').hidden=true;setText('[data-save]','Ответ изменён');});
+      q('[data-answer]').addEventListener('submit',e=>{
+        e.preventDefault();const raw=state.answer.trim();
+        if(!raw){state.message='Введите корни перед проверкой.';state.error=true;render();q('#se-roots').focus();return;}
+        const values=raw.split(';').map(v=>v.trim());
+        const valid=values.every(v=>/^[+-]?(?:\d+(?:[.,]\d*)?|[.,]\d+)$/.test(v));
+        const nums=values.map(v=>Number(v.replace(',','.'))).sort((a,b)=>a-b);
+        state.checked=valid&&nums.length===2&&nums[0]===2&&nums[1]===3;
+        state.error=!state.checked;
+        state.message=state.checked?'Верно. Оба корня найдены: 2 и 3. Можно завершить задание.':!valid?'Не удалось прочитать ответ. Используйте числа и ; между корнями.':'Ответ пока неверный. Проверьте вычисления и укажите все корни.';
+        state.entries.push(raw+' — '+(state.checked?'верно':'нужно исправить'));
+        if(state.layout==='C'&&state.checked)state.step=2;
+        render();
+      });
+      render();
+      if(globalThis.Tweak){const tweak=new Tweak({container:root,onChange:render});tweak.addSelect(state,'layout',{label:'Компоновка',options:[{label:'A · Фокус',value:'A'},{label:'B · Рабочее место',value:'B'},{label:'C · По этапам',value:'C'}]});tweak.addToggle(state,'compact',{label:'Компактные отступы'});}
+    })();
+  </script>
+</div>

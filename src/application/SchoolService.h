@@ -7,7 +7,8 @@
 #include <memory>
 namespace exam {
 struct HistoryEntry {
-    std::string attemptId, taskId, title, reason;
+    std::string attemptId, taskId, title, reason, lessonId;
+    long long completion = 0;
     AttemptResult result;
     int help, maximumScore;
     bool hadErrors;
@@ -34,6 +35,7 @@ class SchoolService {
     std::unique_ptr<SessionService> session;
     std::string activeSession;
     void prepareSession();
+    void pauseCurrent();
     void addTrainingContent();
     void addTrainingDemo();
 
@@ -82,6 +84,7 @@ class SchoolService {
     void saveSkill(const SkillInfo &skill, const std::vector<std::string> &parents);
     void placeSkill(const std::string &id, Point point);
     StudentSnapshot snapshot(const std::string &profile);
+    bool resultsHidden(const std::string &profile);
     std::vector<HistoryEntry> history(const std::string &profile);
     std::vector<ReviewItem> reviewItems(const std::string &student = "", bool pendingOnly = true);
     std::vector<ReviewVerdict> reviewHistory(const std::string &attempt);
@@ -89,11 +92,16 @@ class SchoolService {
     void revise(const ReviewVerdict &verdict);
     std::string reportCsv(const std::string &student, bool pendingOnly);
     SessionRecord latestLesson(const std::string &profile);
+    SessionRecord currentLesson(const std::string &profile);
+    std::vector<SessionRecord> lessons(const std::string &profile) {
+        return storage.studentSessions(profile);
+    }
     std::vector<AttemptRecord> lessonAttempts(const std::string &lesson);
-    LessonProgress progress(const std::string &profile);
+    LessonProgress progress(const std::string &profile, const std::string &lessonId = "");
     void start(const std::string &profile, const SessionSettings &settings,
-               const std::vector<std::string> &tasks);
-    bool resume(const std::string &profile);
+               const std::vector<std::string> &tasks, const std::string &source = "legacy",
+               const std::string &title = "");
+    bool resume(const std::string &profile, const std::string &lessonId = "");
     NextTask next();
     CheckResult submit(const std::string &attempt, const std::string &part,
                        const AnswerPayload &answer, bool finalAnswer,
@@ -133,7 +141,8 @@ class SchoolService {
                      bool training, int count);
     bool canSupport(const std::string &attempt);
     NextTask startSupport(const std::string &attempt);
-    std::vector<std::string> reviewSkills(const std::string &profile);
+    std::vector<std::string> reviewSkills(const std::string &profile,
+                                          const std::string &lessonId = "");
 };
 } // namespace exam
 #endif

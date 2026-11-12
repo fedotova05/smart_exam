@@ -5,6 +5,16 @@
 #include <iostream>
 
 int main(int argc, char **argv) {
+    // До создания любого окна или графического контекста.
+    HMODULE user = GetModuleHandleA("user32.dll");
+    typedef BOOL(WINAPI * DpiContext)(HANDLE);
+    auto dpi = reinterpret_cast<DpiContext>(GetProcAddress(user, "SetProcessDpiAwarenessContext"));
+    if (!dpi || !dpi(reinterpret_cast<HANDLE>(-4))) {
+        typedef BOOL(WINAPI * DpiLegacy)();
+        auto legacy = reinterpret_cast<DpiLegacy>(GetProcAddress(user, "SetProcessDPIAware"));
+        if (legacy)
+            legacy();
+    }
     SetConsoleOutputCP(CP_UTF8);
     if (argc > 1 && std::string(argv[1]) == "--demo")
         return exam::runDemo();

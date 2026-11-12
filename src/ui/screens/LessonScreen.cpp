@@ -2,44 +2,18 @@
 #include "ui/ImageView.h"
 #include "math/checkers/EquationChecker.h"
 #include "ui/widgets/TextPanel.h"
+#include <set>
+#include <sstream>
 namespace exam {
 namespace ui {
 void LessonScreen::route() {
-    const SessionRecord lesson = context.school.latestLesson(context.profile);
-    const auto attempts = context.school.lessonAttempts(lesson.id);
-    int total = lesson.settings.mode == SessionMode::Fixed
-                    ? std::min(lesson.settings.taskLimit, static_cast<int>(lesson.tasks.size()))
-                    : lesson.settings.taskLimit;
-    if (lesson.settings.training)
-        total = context.school.progress(context.profile).totalTasks;
-    int completed = 0;
-    for (const auto &item : attempts)
-        if (item.finished)
-            ++completed;
-    note("ВАШ МАРШРУТ", -156, 0, 140);
-    int position = context.current.attempt.position;
-    int first = std::max(0, position - 2);
-    for (int i = first; i < std::min(total, first + 5); ++i) {
-        float y = 42 + (i - first) * 78.f;
-        bool finished = i < static_cast<int>(attempts.size()) && attempts[i].finished;
-        if (i == position)
-            surface(-156, y - 8, 140, 70, Theme::pale);
-        text(std::to_string(i + 1) + (finished        ? "  Готово"
-                                      : i == position ? "  Сейчас"
-                                                      : "  Впереди"),
-             -148, y, 14, 125, 1);
-        std::string name = "Подбор по навыкам";
-        if (lesson.settings.mode == SessionMode::Fixed)
-            name = context.school.task(lesson.tasks[i]).title;
-        else if (i < static_cast<int>(attempts.size()))
-            name = context.school.task(attempts[i].taskId).title;
-        text(name, -148, y + 24, 12, 125, 2);
-    }
-    surface(-156, 455, 140, 1, Theme::line);
-    text(std::to_string(completed) + " из " + std::to_string(total), -156, 477, 23, 140, 1);
-    note("заданий завершено", -156, 515, 140);
-    button(lesson.settings.resumePolicy == ResumePolicy::ActiveTime ? "Пауза" : "К занятию", -156,
-           574, 140, [this, lesson] {
+    const auto progress = context.school.progress(context.profile);
+    note("Задание " + std::to_string(context.current.attempt.position + 1) + " из " +
+             std::to_string(progress.totalTasks),
+         0, -24, 500);
+    const auto lesson = progress.lesson;
+    button(lesson.settings.resumePolicy == ResumePolicy::ActiveTime ? "Пауза" : "К занятию", 760,
+           -110, 180, [this, lesson] {
                if (!lesson.closed && lesson.settings.resumePolicy == ResumePolicy::ActiveTime)
                    context.school.pauseLesson();
                context.page = "home";
@@ -51,16 +25,20 @@ void LessonScreen::send(bool finalAnswer, const std::string &operation,
     CheckResult result =
         context.school.submit(context.current.attempt.id, part.id, context.drafts[part.id],
                               finalAnswer, operation, operand);
-    refresh();
-    status = result.message;
+    feedback = result.message;
     if (result.errorPosition >= 0)
-        status += " · позиция " + std::to_string(result.errorPosition + 1);
-    if (finalAnswer && result.status == CheckStatus::Incorrect &&
+        feedback += " · позиция " + std::to_string(result.errorPosition + 1);
+    if (finalAnswer)
+        answerSubmitted = true;
+    refresh();
+    status = feedback;
+    if (!focusCanvas && finalAnswer && result.status == CheckStatus::Incorrect &&
         context.school.canSupport(attempt))
         supportChoice();
 }
 void LessonScreen::supportChoice() {
     clear();
+    focusCanvas = false;
     title = "Ответ пока неверный";
     heading("Как продолжим?", 0, 30, 32);
     text(
@@ -83,12 +61,17 @@ void LessonScreen::supportChoice() {
 }
 void LessonScreen::refresh() {
     clear();
+    focusCanvas = false;
     title = "Решение задания";
     if (!context.current.available) {
         text(context.current.reason.empty() ? "Начните занятие на странице «Занятие»."
                                             : context.current.reason,
              0, 30, 24);
-        button("К результатам", 0, 110, 220, [this] { context.page = "results"; });
+        button("К результатам", 0, 110, 220, [this] {
+            context.historyLesson = context.school.currentLesson(context.profile).id;
+            context.historyAttempt.clear();
+            context.page = "results";
+        });
         return;
     }
     const TaskVersion &task = context.current.task;
@@ -96,6 +79,12 @@ void LessonScreen::refresh() {
         attempt = context.current.attempt.id;
         partIndex = 0;
         stepMode = false;
+        answerSubmitted = false;
+        feedback.clear();
+        detail.clear();
+        stepEquation.clear();
+        stepOperand.clear();
+        stepOperation = 0;
         context.drafts.clear();
         for (const auto &response : context.school.responses(attempt))
             if (response.finalAnswer)
@@ -106,6 +95,24 @@ void LessonScreen::refresh() {
     if (partIndex >= static_cast<int>(task.parts.size()))
         partIndex = 0;
     const TaskPart &part = task.parts[partIndex];
+    if (context.current.attempt.finished) {
+        focusCanvas = true;
+        setContentWidth(720);
+        focusedResult();
+        return;
+    }
+    if (task.parts.size() == 1 && part.kind != PartKind::Line && part.kind != PartKind::Parabola &&
+        part.kind != PartKind::Choice) {
+        focusCanvas = true;
+        setContentWidth(720);
+        if (context.current.attempt.finished)
+            focusedResult();
+        else if (!detail.empty())
+            focusedDetails();
+        else
+            focusedTask();
+        return;
+    }
     bool linearSteps = part.kind == PartKind::Equation && isLinearEquation(part.expression);
     if (!linearSteps)
         stepMode = false;
@@ -137,7 +144,12 @@ void LessonScreen::refresh() {
         });
     };
     bool graphPart = part.kind == PartKind::Line || part.kind == PartKind::Parabola;
-    FormulaView *condition = add(new FormulaView(headingFace(), 600, graphPart ? 90 : 150), 0, 118);
+    FormulaView *condition = add(new FormulaView(headingFace(), 600,
+                                                 graphPart                       ? 90
+                                                 : part.kind == PartKind::Choice ? 80
+                                                                                 : 150),
+                                 0, 118);
+    condition->setVisible(part.kind != PartKind::ShortAnswer || !part.displayExpression.empty());
     condition->setFeatured(true);
     condition->setFormula(part.displayExpression.empty() ? part.expression
                                                          : part.displayExpression);
@@ -145,7 +157,39 @@ void LessonScreen::refresh() {
         std::vector<std::string> options;
         for (std::size_t i = 0; i < part.choices.size(); ++i)
             options.push_back(std::to_string(i + 1) + ". " + part.choices[i]);
-        list(options, 0, 118, 600, 150);
+        auto choices = list(options, 0, 210, 600, 280);
+        choices->setRowHeight(60);
+        choices->setCheckable(true);
+        auto selected = std::make_shared<std::set<int>>();
+        std::istringstream values(context.drafts[part.id].text);
+        std::string token;
+        while (std::getline(values, token, ';')) {
+            try {
+                selected->insert(std::stoi(token));
+            } catch (...) {
+            }
+        }
+        for (std::size_t i = 0; i < part.choices.size(); ++i)
+            choices->setChecked(int(i), selected->count(int(i) + 1) != 0);
+        choices->onToggle = [this, choices, selected, part](int i) {
+            if (!selected->erase(i + 1))
+                selected->insert(i + 1);
+            choices->setChecked(i, selected->count(i + 1) != 0);
+            std::string value;
+            for (int n : *selected) {
+                if (!value.empty())
+                    value += ";";
+                value += std::to_string(n);
+            }
+            context.drafts[part.id].text = value;
+            context.school.saveAnswerDraft(attempt, part.id, context.drafts[part.id]);
+            status.clear();
+        };
+        note("Отметьте все правильные варианты. Пробел — поставить или снять флажок.", 0, 510, 600);
+        text("Выберите ответы слева и отправьте их на проверку.", 630, 180, 19, 310, 4);
+        button(
+            "Отправить ответ", 0, 566, 230, [this] { send(true); }, true);
+        focusWidget(choices);
     }
     if (graphPart) {
         GraphView *graph = add(new GraphView(font, 600, 270), 0, 220);
@@ -155,7 +199,7 @@ void LessonScreen::refresh() {
             context.drafts[part.id].graph = graph->getAnswer();
             context.school.saveAnswerDraft(attempt, part.id, context.drafts[part.id]);
         };
-        Toggle *snap = add(new Toggle(font, "Привязка", 180), 0, 503);
+        Toggle *snap = add(new Toggle(font, "По сетке", 180), 0, 503);
         snap->setValue(true);
         snap->onChange = [graph](bool value) { graph->setSnap(value); };
         if (part.kind == PartKind::Parabola) {
@@ -169,7 +213,7 @@ void LessonScreen::refresh() {
             a->setPlaceholder("a");
             b->setPlaceholder("b");
             c->setPlaceholder("c");
-            button("Задать a, b, c", 415, 503, 185, [this, graph, a, b, c, part] {
+            button("Построить", 415, 503, 185, [this, graph, a, b, c, part] {
                 GraphAnswer answer;
                 answer.coefficients = {readNumber(a->getText()), readNumber(b->getText()),
                                        readNumber(c->getText())};
@@ -187,30 +231,38 @@ void LessonScreen::refresh() {
             });
             button("Исходный вид", 380, 503, 220, [graph] { graph->resetView(); });
         }
-        text("Колесо — масштаб; правая кнопка — сдвиг. Прямая: две точки; парабола: y = ax² + bx + "
-             "c.",
+        text(graphPart && part.kind == PartKind::Line
+                 ? "Поставьте две точки щелчком по сетке. Их можно перетаскивать. Колесо меняет "
+                   "масштаб, правая кнопка сдвигает поле."
+                 : "Введите a, b, c для y = ax² + bx + c и нажмите «Построить». Колесо меняет "
+                   "масштаб, правая кнопка сдвигает поле.",
              630, 170, 16, 310, 5);
-    } else {
+    } else if (part.kind != PartKind::Choice) {
         text("Итоговый ответ", 0, 296, 16);
         TextField *answer = field(context.drafts[part.id].text, 0, 324, 420, 512);
         answer->setPlaceholder("Введите ответ");
-        button("Проверить →", 440, 324, 160, [this] { send(true); }, true);
+        answer->onEnter = [this] { defer([this] { send(true); }); };
+        button(
+            "Проверить →", 440, 324, 160, [this] { send(true); }, true);
         FormulaView *preview = add(new FormulaView(headingFace(), 600, 85), 0, 425);
-        preview->setFormula(answer->getText());
+        preview->setFormula(part.kind == PartKind::ShortAnswer ? "" : answer->getText());
         answer->onChange = [this, answer, preview, part] {
             context.drafts[part.id].text = answer->getText();
             context.school.saveAnswerDraft(attempt, part.id, context.drafts[part.id]);
-            preview->setFormula(answer->getText());
+            preview->setFormula(part.kind == PartKind::ShortAnswer ? "" : answer->getText());
         };
         const char *inserts[] = {"x", "^2", "sqrt(", "(", ")", "/"};
-        for (int i = 0; i < 6; ++i) {
+        for (int i = 0; part.kind != PartKind::ShortAnswer && i < 6; ++i) {
             std::string token = inserts[i];
             button(token, i * 60.f, 375, 54, [answer, token] { answer->insert(token); });
         }
-        text((part.kind == PartKind::Equation
-                  ? "Корни: 2; 3. Нет корней: none. Все числа: all.\n"
-                  : "Число: -3. Дробь: 1/2. Квадратный корень: sqrt(5).\n") +
-                 std::string("Предпросмотр: колесо — прокрутка, Ctrl + колесо — масштаб."),
+        text(part.kind == PartKind::ShortAnswer
+                 ? "Введите только ответ. Порядок цифр важен; десятичная дробь — через точку или "
+                   "запятую."
+                 : (part.kind == PartKind::Equation
+                        ? "Корни: 2; 3. Нет корней: none. Все числа: all.\n"
+                        : "Число: -3. Дробь: 1/2. Квадратный корень: sqrt(5).\n") +
+                       std::string("Предпросмотр: колесо — прокрутка, Ctrl + колесо — масштаб."),
              0, 522, 13, 600, 2);
         if (linearSteps)
             button(stepMode            ? "Скрыть шаги ↑"
@@ -246,6 +298,9 @@ void LessonScreen::refresh() {
             if (part.kind == PartKind::Choice)
                 instruction =
                     "Введите номера выбранных вариантов через ;. Например: 1;3. Порядок не важен.";
+            if (part.kind == PartKind::ShortAnswer)
+                instruction = "Запишите слово, число или последовательность. Регистр и пробелы по "
+                              "краям не учитываются.";
             if (part.kind == PartKind::Polynomial)
                 instruction =
                     "Введите выражение с x. Например: x^2+2*x+1. Равносильные записи принимаются.";
@@ -271,13 +326,16 @@ void LessonScreen::refresh() {
         }
     list(history, 630, 443, 310, 98);
     if (graphPart)
-        button("Отправить ответ", 0, 566, 230, [this] { send(true); }, true);
+        button(
+            "Отправить ответ", 0, 566, 230, [this] { send(true); }, true);
     Button *hint = button(
-        context.settings.helpAllowed ? "Нужна подсказка?" : "Без подсказок", graphPart ? 245 : 0,
-        574, 180, [this, part] {
+        context.settings.helpAllowed ? "Нужна подсказка?" : "Без подсказок",
+        (graphPart || part.kind == PartKind::Choice) ? 245 : 0, 574, 180, [this, part] {
             context.school.help(attempt, part.id);
             status =
-                part.kind == PartKind::Equation
+                part.kind == PartKind::ShortAnswer
+                    ? "Перечитайте вопрос. Запишите только ответ в нужном порядке, без пояснений."
+                : part.kind == PartKind::Equation
                     ? "Для квадратного уравнения используйте D = b² − 4ac. Подставьте найденные "
                       "корни для проверки. Для линейного выполняйте одно действие с обеими частями."
                 : (part.kind == PartKind::Expression || part.kind == PartKind::Number)
@@ -304,67 +362,12 @@ void LessonScreen::refresh() {
                 refresh();
             });
     });
-    if (context.current.attempt.finished) {
-        clear();
-        route();
-        title = "Задание завершено";
-        const LessonProgress progress = context.school.progress(context.profile);
-        for (const auto &entry : context.school.history(context.profile))
-            if (entry.attemptId == attempt) {
-                note("РЕЗУЛЬТАТ ЭТОГО ЗАДАНИЯ", 0, 25, 450);
-                text(scoreText(entry.result, entry.maximumScore), 0, 67, 34, 450, 2);
-                note(entry.result.provisional && entry.result.visible
-                         ? "Не все части проверены. Посмотрите ответы в истории."
-                         : "Баллы за одно задание не означают освоение всей темы.",
-                     0, 165, 440);
-                note("Подсказок: " + std::to_string(entry.help) +
-                         (entry.hadErrors ? ". В решении были ошибки." : "."),
-                     0, 242, 440);
-            }
-        note("ХОД ЗАНЯТИЯ", 500, 25, 440);
-        heading(std::to_string(progress.finishedTasks) + " из " +
-                    std::to_string(progress.totalTasks),
-                500, 67, 38);
-        progressBar(progress.totalTasks == 0 ? 0.f
-                                             : float(progress.finishedTasks) / progress.totalTasks,
-                    500, 130, 440);
-        text("Баллы: " + lessonScore(progress), 500, 166, 24, 440, 1);
-        note(lessonNote(progress), 500, 215, 440);
-        surface(0, 320, 940, 1, Theme::line);
-        note("Навыки оцениваются по серии самостоятельных решений. Повторные проверки одного "
-             "задания не создают новые наблюдения.",
-             0, 350, 900);
-        if (progress.lesson.settings.training)
-            text(context.current.reason, 0, 290, 16, 940, 1);
-        button(
-            progress.lesson.closed ? "К итогам занятия →" : "Следующее задание →", 0, 440, 300,
-            [this] {
-                if (context.school.latestLesson(context.profile).closed) {
-                    context.current = NextTask();
-                    context.page = "results";
-                    return;
-                }
-                context.current = context.school.next();
-                refresh();
-            },
-            true);
-        button("Посмотреть навыки", 320, 440, 280, [this] { context.page = "progress"; });
-        if (context.school.canSupport(attempt))
-            button("Разобрать ошибку", 620, 440, 300, [this] { supportChoice(); });
-        if (!progress.lesson.closed)
-            button("Закончить раньше", 0, 510, 300, [this] {
-                ask("Завершить занятие раньше? Невыполненные задания останутся в плане.", [this] {
-                    context.school.closeLesson();
-                    context.current = NextTask();
-                    context.page = "results";
-                });
-            });
-    }
 }
 void LessonScreen::resources(int index) {
     // Сначала читаем ресурс: ошибка не должна разрушать текущий экран.
     std::unique_ptr<ImageView> image(new ImageView(font, context.current.task.resources.at(index)));
     clear();
+    focusCanvas = false;
     title = "Рисунок к заданию";
     ListBox *files = list(context.current.task.resources, 0, 0, 940, 80);
     files->select(index);

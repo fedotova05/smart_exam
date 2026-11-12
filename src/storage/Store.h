@@ -19,7 +19,7 @@ struct SkillInfo {
     SkillInfo() : placed(false) {}
 };
 struct SessionRecord {
-    std::string id, studentId;
+    std::string id, studentId, source = "legacy", title;
     SessionSettings settings;
     std::vector<std::string> tasks;
     bool closed;
@@ -118,6 +118,7 @@ class Store {
     Row learningRevision() {
         return modelRevision();
     }
+    std::map<std::string, long long> completionOrder(const std::string &studentId);
     StudentSnapshot snapshot(const std::string &studentId);
     StudentSnapshot attemptSnapshot(const std::string &attemptId);
     int observationCount(const std::string &attemptId);

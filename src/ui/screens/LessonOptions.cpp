@@ -9,7 +9,7 @@ void LessonSetupScreen::options() {
     text("Ограничение времени, минут (0 — без ограничения)", 0, 0, 20);
     TextField *minutes =
         field(std::to_string(context.settings.timeLimitSeconds / 60), 0, 45, 180, 4);
-    minutes->onChange = [this, minutes] {
+    auto readTime = [this, minutes] {
         double value = readNumber(minutes->getText());
         if (value < 0 || value > 1440 || value != static_cast<int>(value))
             throw std::runtime_error("Время: целое число от 0 до 1440 минут");
@@ -23,30 +23,43 @@ void LessonSetupScreen::options() {
     policy->onChange = [this](int value) {
         context.settings.resumePolicy = static_cast<ResumePolicy>(value);
     };
-    button(context.settings.helpAllowed ? "Подсказки: разрешены" : "Подсказки: отключены", 0, 315,
-           540, [this] {
-               context.settings.helpAllowed = !context.settings.helpAllowed;
-               options();
-           });
+    auto hints = add(new Toggle(font, "Разрешить подсказки", 540), 0, 315);
+    hints->setValue(context.settings.helpAllowed);
+    hints->onChange = [this](bool value) { context.settings.helpAllowed = value; };
     if (source == 2)
         button(context.settings.training ? "Разбор ошибок: включён" : "Разбор ошибок: выключен", 0,
-               375, 540, [this] {
+               375, 540, [this, readTime] {
+                   readTime();
                    context.settings.training = !context.settings.training;
                    context.settings.diagnosisAllowed = context.settings.training;
                    if (context.settings.training)
                        context.settings.feedback = FeedbackPolicy::AfterStep;
                    options();
                });
-    note("Разбор добавляет упражнения на необходимые навыки. Он работает с автоподбором и "
-         "немедленной проверкой. Подсказки настраиваются отдельно.",
-         0, 440, 540);
-    text("Шаблоны", 600, 0, 24);
-    note("Фиксированный вариант сохраняет точные задания. Шаблон автоподбора сохраняет число "
-         "заданий и условия, а состав зависит от ученика.",
-         600, 50, 340);
-    text("Название", 600, 190, 18);
-    TextField *name = field("", 600, 230, 340, 100);
-    button("Сохранить шаблон", 600, 295, 340, [this, name] {
+    if (source == 2)
+        note("Разбор добавляет упражнения на нужные навыки.", 0, 440, 540);
+    button("Сохранить как шаблон", 600, 0, 340, [this, readTime] {
+        readTime();
+        saveTemplateView();
+    });
+    button("Открыть шаблон", 600, 62, 340, [this, readTime] {
+        readTime();
+        templates();
+    });
+    button(
+        "Применить и вернуться", 0, 550, 320,
+        [this, readTime] {
+            readTime();
+            review();
+        },
+        true);
+}
+void LessonSetupScreen::saveTemplateView() {
+    clear();
+    title = "Сохранить шаблон";
+    text("Название", 0, 20, 18);
+    TextField *name = field("", 0, 60, 540, 100);
+    auto save = button("Сохранить шаблон", 0, 140, 540, [this, name] {
         LessonTemplate value;
         value.id = newId("template");
         value.name = name->getText();
@@ -66,11 +79,11 @@ void LessonSetupScreen::options() {
         context.school.saveTemplate(value);
         status = "Шаблон сохранён. Занятие ещё не назначено.";
     });
-    button("Открыть сохранённые", 600, 355, 340, [this] { templates(); });
-    note("После назначения условия занятия зафиксированы. Изменение шаблона не меняет выданное "
-         "занятие.",
-         600, 425, 340);
-    button("← К проверке занятия", 0, 550, 320, [this] { review(); });
+    name->onEnter = save->onClick;
+
+    note("Шаблон сохранит состав и условия занятия. Его можно выдать другому ученику.", 0, 235,
+         800);
+    button("← К условиям", 0, 550, 300, [this] { options(); });
 }
 void LessonSetupScreen::templates() {
     clear();
@@ -82,6 +95,9 @@ void LessonSetupScreen::templates() {
                                          ? " · фиксированный вариант"
                                          : " · автоподбор"));
     ListBox *choices = list(rows, 0, 40, 940, 400);
+    choices->setRowHeight(56);
+    choices->setEmptyText(
+        "Сохранённых занятий пока нет. Создайте состав и сохраните его в условиях занятия.");
     button(
         "Выбрать и проверить", 0, 550, 350,
         [this, choices, values] {
@@ -111,10 +127,10 @@ void LessonScreen::tick() {
         refresh();
         status = time.message;
     } else if (time.remainingSeconds >= 0) {
-        status = "Осталось: " + std::to_string(time.remainingSeconds / 60) + " мин " +
-                 std::to_string(time.remainingSeconds % 60) + " сек";
+        clockText = "Осталось: " + std::to_string(time.remainingSeconds / 60) + " мин " +
+                    std::to_string(time.remainingSeconds % 60) + " сек";
         if (time.remainingSeconds <= 60)
-            status += " — завершайте ответ";
+            clockText += " — завершайте ответ";
     }
 }
 } // namespace ui

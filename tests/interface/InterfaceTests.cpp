@@ -146,6 +146,62 @@ void testJsonPackages() {
 }
 void testSchool() {
     {
+        Store store(":memory:");
+        loginTeacherForTest(store);
+        SchoolService school(store);
+        school.addStarterContent();
+        auto student = school.createProfile("Назначения и практика");
+        SessionSettings settings;
+        settings.taskLimit = 2;
+        school.start(student, settings, {"intro-linear", "intro-fractions"}, "teacher",
+                     "Работа учителя");
+        auto assigned = school.latestLesson(student);
+        REQUIRE(assigned.source == "teacher" && assigned.title == "Работа учителя");
+        // Личная практика не закрывает назначение, даже если ученик его ещё не открывал.
+        school.startTopics(student, {"fractions"}, false, 1);
+        auto practice = school.latestLesson(student);
+        REQUIRE(practice.source == "practice" && !store.session(assigned.id).closed);
+        auto own = school.next();
+        AnswerPayload draft;
+        draft.text = "5/";
+        school.saveAnswerDraft(own.attempt.id, own.task.parts.front().id, draft);
+        REQUIRE(school.resume(student, assigned.id));
+        auto lesson = school.next();
+        REQUIRE(lesson.task.id == "intro-linear");
+        REQUIRE(school.currentLesson(student).id == assigned.id);
+        REQUIRE(school.progress(student).lesson.id == assigned.id);
+        REQUIRE(school.latestLesson(student).id == practice.id);
+        REQUIRE(store.sessionTime(practice.id).paused);
+        draft.text = "4";
+        school.submit(lesson.attempt.id, "a", draft, true);
+        school.start(student, settings, {"intro-fractions"}, "teacher", "Вторая работа");
+        REQUIRE(!store.session(assigned.id).closed);
+        REQUIRE(school.lessons(student).size() == 3);
+        SchoolService reopened(store);
+        REQUIRE(!reopened.resume("demo-student", assigned.id));
+        REQUIRE(reopened.resume(student, practice.id));
+        reopened.continueLesson();
+        REQUIRE(reopened.next().attempt.id == own.attempt.id);
+        REQUIRE(reopened.answerDrafts(own.attempt.id)[own.task.parts.front().id].text == "5/");
+        REQUIRE(reopened.resume(student, assigned.id));
+        reopened.continueLesson();
+        REQUIRE(reopened.next().attempt.id == lesson.attempt.id);
+        REQUIRE(reopened.responses(lesson.attempt.id).back().answer.text == "4");
+        SessionSettings hiddenSettings;
+        hiddenSettings.taskLimit = 2;
+        hiddenSettings.feedback = FeedbackPolicy::AfterSet;
+        reopened.start(student, hiddenSettings, {"intro-linear", "intro-fractions"}, "teacher",
+                       "Отложенная проверка");
+        auto hidden = reopened.next();
+        reopened.submit(hidden.attempt.id, "a", draft, true);
+        reopened.finish(hidden.attempt.id);
+        REQUIRE(reopened.resultsHidden(student));
+        REQUIRE(reopened.resume(student, practice.id));
+        reopened.continueLesson();
+        REQUIRE(reopened.resultsHidden(student));
+    }
+
+    {
         Store progressStore(":memory:");
         loginTeacherForTest(progressStore);
         SchoolService school(progressStore);

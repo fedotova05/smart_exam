@@ -123,9 +123,9 @@ void Store::saveDraft(const TaskVersion &value) {
                   part.expression, number(part.maxScore), number(partPosition++),
                   std::to_string(part.graphSnap), std::to_string(part.graphTolerance),
                   part.displayExpression});
-        db.query("INSERT INTO part_policies VALUES(?,?,?,?,?)",
+        db.query("INSERT INTO part_policies VALUES(?,?,?,?,?,?)",
                  {value.id, part.id, number(part.requireSteps), number(part.decimalPlaces),
-                  decimal(part.answerTolerance)});
+                  decimal(part.answerTolerance), part.correctAnswer});
         for (std::size_t i = 0; i < part.choices.size(); ++i)
             db.query("INSERT INTO part_choices VALUES(?,?,?,?,?)",
                      {value.id, part.id, number(int(i) + 1), part.choices[i],
@@ -141,7 +141,8 @@ void Store::publish(const std::string &id) {
     TaskVersion value = task(id);
     require(!value.parts.empty() && !value.archived, "Cannot publish empty or archived task");
     for (const TaskPart &part : value.parts) {
-        require((part.kind == PartKind::Choice || !part.expression.empty()) &&
+        require((part.kind == PartKind::Choice || part.kind == PartKind::ShortAnswer ||
+                 !part.expression.empty()) &&
                     !part.prompt.empty() && !part.skills.empty(),
                 "Incomplete task part");
         std::string error = answerPolicyError(part);
@@ -190,13 +191,15 @@ TaskVersion Store::task(const std::string &id) {
         part.graphSnap = std::stod(p[5]);
         part.graphTolerance = std::stod(p[6]);
         part.displayExpression = p[7];
-        auto policies = db.query("SELECT require_steps,decimal_places,tolerance FROM part_policies "
-                                 "WHERE task_id=? AND part_id=?",
-                                 {id, part.id});
+        auto policies = db.query(
+            "SELECT require_steps,decimal_places,tolerance,correct_answer FROM part_policies "
+            "WHERE task_id=? AND part_id=?",
+            {id, part.id});
         if (!policies.empty()) {
             part.requireSteps = policies[0][0] == "1";
             part.decimalPlaces = std::stoi(policies[0][1]);
             part.answerTolerance = std::stod(policies[0][2]);
+            part.correctAnswer = policies[0][3];
         }
         for (const Row &choice : db.query("SELECT position,text,correct FROM part_choices WHERE "
                                           "task_id=? AND part_id=? ORDER BY position",
@@ -240,13 +243,13 @@ void Store::createSession(const SessionRecord &value) {
     Transaction transaction(db);
     db.query("INSERT INTO "
              "sessions(id,student_id,mode,feedback,guided,task_limit,training,resume_policy,time_"
-             "limit,help_allowed,diagnosis_allowed) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+             "limit,help_allowed,diagnosis_allowed,source,title) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
              {value.id, value.studentId, number(static_cast<int>(value.settings.mode)),
               number(static_cast<int>(value.settings.feedback)), number(value.settings.guided),
               number(value.settings.taskLimit), number(value.settings.training),
               number(static_cast<int>(value.settings.resumePolicy)),
               number(value.settings.timeLimitSeconds), number(value.settings.helpAllowed),
-              number(value.settings.diagnosisAllowed)});
+              number(value.settings.diagnosisAllowed), value.source, value.title});
     for (const auto &skill : value.settings.targetSkills)
         db.query("INSERT INTO session_skills VALUES(?,?)", {value.id, skill});
     for (std::size_t i = 0; i < value.tasks.size(); ++i) {
@@ -258,11 +261,11 @@ void Store::createSession(const SessionRecord &value) {
     transaction.commit();
 }
 SessionRecord Store::session(const std::string &id) {
-    std::vector<Row> rows =
-        db.query("SELECT "
-                 "student_id,mode,feedback,guided,task_limit,closed,training,"
-                 "resume_policy,time_limit,help_allowed,diagnosis_allowed FROM sessions WHERE id=?",
-                 {id});
+    std::vector<Row> rows = db.query("SELECT "
+                                     "student_id,mode,feedback,guided,task_limit,closed,training,"
+                                     "resume_policy,time_limit,help_allowed,diagnosis_allowed,"
+                                     "source,title FROM sessions WHERE id=?",
+                                     {id});
     require(!rows.empty(), "Session not found");
     const Row &r = rows[0];
     SessionRecord s;
@@ -278,6 +281,8 @@ SessionRecord Store::session(const std::string &id) {
     s.settings.timeLimitSeconds = std::stoi(r[8]);
     s.settings.helpAllowed = r[9] == "1";
     s.settings.diagnosisAllowed = r[10] == "1";
+    s.source = r[11];
+    s.title = r[12];
     for (const auto &row :
          db.query("SELECT skill_id FROM session_skills WHERE session_id=? ORDER BY skill_id", {id}))
         s.settings.targetSkills.push_back(row[0]);
@@ -304,8 +309,8 @@ AttemptRecord Store::openAttempt(const std::string &sessionId, int position,
             "Invalid attempt position");
     require(old.empty() || old.back().finished, "Finish current attempt first");
     require(db.query("SELECT 1 FROM attempts a JOIN sessions s ON s.id=a.session_id WHERE "
-                     "s.student_id=? AND a.finished=0",
-                     {s.studentId})
+                     "s.id=? AND a.finished=0",
+                     {sessionId})
                 .empty(),
             "У ученика уже есть незавершённая попытка");
     TaskVersion t = task(taskId);
@@ -467,6 +472,16 @@ void Store::finish(const std::string &id, int score, bool provisional,
                  {a.taskId, decimal(difficulty)});
     }
     transaction.commit();
+}
+std::map<std::string, long long> Store::completionOrder(const std::string &student) {
+    std::map<std::string, long long> result;
+    for (const auto &row :
+         db.query("SELECT e.attempt_id,e.sequence FROM learning_events e "
+                  "JOIN attempts a ON a.id=e.attempt_id JOIN sessions s ON s.id=a.session_id "
+                  "WHERE s.student_id=? ORDER BY e.sequence",
+                  {student}))
+        result[row[0]] = std::stoll(row[1]);
+    return result;
 }
 StudentSnapshot Store::snapshot(const std::string &student) {
     StudentSnapshot result;

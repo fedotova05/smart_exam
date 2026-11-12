@@ -4,10 +4,7 @@
 namespace exam {
 namespace ui {
 TextField::TextField(const sf::Font &face, float width, std::size_t limit)
-    : Widget(face, width, 40), cursor(0), maximum(limit), selectedAll(false), scroll(0) {
-    canvas.create(static_cast<unsigned>(width - 16), 32);
-    canvas.setSmooth(true);
-}
+    : Widget(face, width, 40), cursor(0), maximum(limit), selectedAll(false), scroll(0) {}
 void TextField::setText(const std::string &text) {
     value = unicode(text);
     if (value.getSize() > maximum)
@@ -42,7 +39,7 @@ bool TextField::handle(const sf::Event &event, sf::Vector2f mouse) {
     if (event.type == sf::Event::MouseButtonPressed &&
         event.mouseButton.button == sf::Mouse::Left && contains(mouse)) {
         float x = getInverseTransform().transformPoint(mouse).x - 8 + scroll;
-        sf::Text text(displayed(), font, 18);
+        sf::Text text = label(font, displayed(), 18, 0, 0);
         cursor = 0;
         while (cursor < value.getSize() && text.findCharacterPos(cursor + 1).x < x)
             ++cursor;
@@ -119,10 +116,11 @@ void TextField::draw(sf::RenderTarget &target, sf::RenderStates states) const {
     states.transform *= getTransform();
     rectangle(target, states, size, enabled ? Theme::white : Theme::pale, sf::Vector2f(),
               focused ? Theme::accent : Theme::line);
+    prepareCanvas(canvas, sf::Vector2f(size.x - 16, 32));
     canvas.clear(enabled ? Theme::white : Theme::pale);
     sf::Text text = label(font, value.isEmpty() ? placeholder : displayed(), 18, 0, 7,
                           value.isEmpty() ? Theme::muted : Theme::ink);
-    sf::Text measure(displayed(), font, 18);
+    sf::Text measure = label(font, displayed(), 18, 0, 0);
     float caret = measure.findCharacterPos(cursor).x;
     if (caret - scroll > size.x - 24)
         scroll = caret - size.x + 24;
@@ -131,17 +129,17 @@ void TextField::draw(sf::RenderTarget &target, sf::RenderStates states) const {
     scroll = std::max(0.f, scroll);
     if (selectedAll && focused)
         rectangle(canvas, sf::RenderStates(),
-                  sf::Vector2f(std::max(1.f, measure.getLocalBounds().width), 28),
+                  sf::Vector2f(std::max(1.f, measure.getGlobalBounds().width), 28),
                   sf::Color(217, 227, 209), sf::Vector2f(-scroll, 2));
     text.move(-scroll, 0);
-    canvas.draw(text);
+    drawText(canvas, text);
     if (focused)
         rectangle(canvas, sf::RenderStates(), sf::Vector2f(1, 24), Theme::ink,
                   sf::Vector2f(caret - scroll, 3));
     canvas.display();
-    sf::Sprite sprite(canvas.getTexture());
+    sf::Sprite sprite = canvasSprite(canvas);
     sprite.setPosition(8, 4);
-    target.draw(sprite, states);
+    drawCanvas(target, sprite, states);
 }
 } // namespace ui
 } // namespace exam

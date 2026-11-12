@@ -47,13 +47,15 @@ std::vector<std::string> SchoolService::validate(const TaskVersion &task) const 
             errors.push_back("Неверный путь ресурса");
     for (const TaskPart &part : task.parts) {
         std::string label = part.id + ": ";
-        if (containsNull(part.prompt) || containsNull(part.expression))
+        if (containsNull(part.prompt) || containsNull(part.expression) ||
+            containsNull(part.correctAnswer))
             errors.push_back(label + "нулевой символ в условии");
         if (part.id.empty() || !ids.insert(part.id).second)
             errors.push_back("Идентификаторы частей должны быть уникальными");
         if (part.prompt.empty() || part.prompt.size() > 4096)
             errors.push_back(label + "нужно условие до 4096 байтов");
-        if ((part.expression.empty() && part.kind != PartKind::Choice) ||
+        if ((part.expression.empty() && part.kind != PartKind::Choice &&
+             part.kind != PartKind::ShortAnswer) ||
             part.expression.size() > 512)
             errors.push_back(label + "нужна формула до 512 байтов");
         if (part.maxScore < 1 || part.maxScore > 100)
@@ -81,7 +83,7 @@ std::vector<std::string> SchoolService::validate(const TaskVersion &task) const 
             if (!policyError.empty())
                 errors.push_back(label + policyError);
             if (part.kind == PartKind::Number || part.kind == PartKind::Choice ||
-                part.kind == PartKind::Polynomial) {
+                part.kind == PartKind::Polynomial || part.kind == PartKind::ShortAnswer) {
                 // Общая проверка формата выполнена выше.
             } else if (part.kind == PartKind::Expression)
                 evaluateExact(parseExpression(part.expression));
@@ -161,16 +163,30 @@ void SchoolService::placeSkill(const std::string &id, Point point) {
     storage.requireTeacher();
     storage.saveSkillPosition(id, point);
 }
+bool SchoolService::resultsHidden(const std::string &profile) {
+    SessionService reader(storage, checker);
+    for (const auto &lesson : storage.studentSessions(profile))
+        if (!lesson.closed)
+            for (const auto &attempt : storage.attempts(lesson.id))
+                if (attempt.finished && !reader.result(attempt.id).visible)
+                    return true;
+    return false;
+}
 StudentSnapshot SchoolService::snapshot(const std::string &profile) {
     return storage.snapshot(profile);
 }
 std::vector<HistoryEntry> SchoolService::history(const std::string &profile) {
     SessionService reader(storage, checker);
     std::vector<HistoryEntry> result;
+    const auto order = storage.completionOrder(profile);
     for (const SessionRecord &lesson : storage.studentSessions(profile))
         for (const AttemptRecord &attempt : storage.attempts(lesson.id)) {
             HistoryEntry entry;
             entry.attemptId = attempt.id;
+            entry.lessonId = lesson.id;
+            auto completed = order.find(attempt.id);
+            if (completed != order.end())
+                entry.completion = completed->second;
             entry.taskId = attempt.taskId;
             const TaskVersion task = storage.task(attempt.taskId);
             entry.title = task.title;
@@ -187,6 +203,17 @@ std::vector<HistoryEntry> SchoolService::history(const std::string &profile) {
         }
     return result;
 }
+void SchoolService::pauseCurrent() {
+    if (activeSession.empty())
+        return;
+    const auto old = storage.session(activeSession);
+    if (old.closed || old.settings.resumePolicy != ResumePolicy::ActiveTime ||
+        storage.attempts(old.id).empty())
+        return;
+    const auto time = storage.sessionTime(old.id);
+    if (time.allowed)
+        storage.pauseSession(old.id);
+}
 void SchoolService::prepareSession() {
     session.reset();
     adaptation.reset(new Adaptation(storage.modelParameters(), SkillGraph(storage.skillGraph())));
@@ -196,12 +223,22 @@ SessionRecord SchoolService::latestLesson(const std::string &profile) {
     const auto lessons = storage.studentSessions(profile);
     return lessons.empty() ? SessionRecord() : lessons.front();
 }
+SessionRecord SchoolService::currentLesson(const std::string &profile) {
+    if (!activeSession.empty()) {
+        auto value = storage.session(activeSession);
+        if (value.studentId == profile)
+            return value;
+    }
+    return latestLesson(profile);
+}
 std::vector<AttemptRecord> SchoolService::lessonAttempts(const std::string &lesson) {
     return lesson.empty() ? std::vector<AttemptRecord>() : storage.attempts(lesson);
 }
-LessonProgress SchoolService::progress(const std::string &profile) {
+LessonProgress SchoolService::progress(const std::string &profile, const std::string &lessonId) {
     LessonProgress result;
-    result.lesson = latestLesson(profile);
+    result.lesson = lessonId.empty() ? currentLesson(profile) : storage.session(lessonId);
+    if (!result.lesson.id.empty() && result.lesson.studentId != profile)
+        throw std::runtime_error("Это занятие другого ученика");
     if (result.lesson.id.empty())
         return result;
     bool fixed = result.lesson.settings.mode == SessionMode::Fixed;
@@ -273,13 +310,18 @@ void SchoolService::startTopics(const std::string &profile, const std::vector<st
                 candidates.end());
         }
     }
-    start(profile, settings, tasks);
+    start(profile, settings, tasks, "practice",
+          training ? "Самостоятельная тренировка" : "Проверка знаний");
 }
 bool SchoolService::canSupport(const std::string &attempt) {
     return TrainingService(storage).canSupport(attempt);
 }
-std::vector<std::string> SchoolService::reviewSkills(const std::string &profile) {
-    const SessionRecord lesson = latestLesson(profile);
+std::vector<std::string> SchoolService::reviewSkills(const std::string &profile,
+                                                     const std::string &lessonId) {
+    const SessionRecord lesson =
+        lessonId.empty() ? currentLesson(profile) : storage.session(lessonId);
+    if (!lesson.id.empty() && lesson.studentId != profile)
+        throw std::runtime_error("Это занятие другого ученика");
     if (lesson.id.empty() || !lesson.closed)
         return {};
     std::set<std::string> skills;
@@ -302,27 +344,31 @@ NextTask SchoolService::startSupport(const std::string &attempt) {
     return next();
 }
 void SchoolService::start(const std::string &profile, const SessionSettings &settings,
-                          const std::vector<std::string> &tasks) {
-    for (const SessionRecord &old : storage.studentSessions(profile))
-        if (!old.closed) {
-            for (const AttemptRecord &attempt : storage.attempts(old.id))
-                if (!attempt.finished)
-                    throw std::runtime_error("Сначала продолжите незавершённое занятие");
-            storage.closeSession(old.id);
-        }
+                          const std::vector<std::string> &tasks, const std::string &source,
+                          const std::string &title) {
+    if (source != "teacher" && source != "practice" && source != "legacy")
+        throw std::runtime_error("Неизвестный источник занятия");
+    if (source == "teacher")
+        storage.requireTeacher();
+    // Назначения и практика сохраняются независимо, включая незавершённые ответы.
     prepareSession();
     SessionRecord lesson;
     lesson.id = newId("session");
     lesson.studentId = profile;
+    lesson.source = source;
+    lesson.title = title;
     lesson.settings = settings;
     if (settings.mode == SessionMode::Fixed)
         lesson.tasks = tasks;
     session->start(lesson);
+    pauseCurrent();
     activeSession = lesson.id;
 }
-bool SchoolService::resume(const std::string &profile) {
+bool SchoolService::resume(const std::string &profile, const std::string &lessonId) {
     for (const SessionRecord &lesson : storage.studentSessions(profile))
-        if (!lesson.closed) {
+        if (!lesson.closed && (lessonId.empty() || lesson.id == lessonId)) {
+            if (activeSession != lesson.id)
+                pauseCurrent();
             prepareSession();
             activeSession = lesson.id;
             return true;

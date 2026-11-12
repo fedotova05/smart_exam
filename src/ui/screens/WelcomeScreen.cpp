@@ -10,15 +10,16 @@ void WelcomeScreen::enter(const std::string &id, const std::string &name) {
 void WelcomeScreen::refresh() {
     clear();
     title = "";
-    note("МАТЕМАТИКА / ЛОКАЛЬНОЕ ПРИЛОЖЕНИЕ", 0, 10);
-    heading("Как вы будете работать?", 0, 55, 40);
+    note("МАТЕМАТИКА", 0, 10);
+    heading("Вход в SmartExam", 0, 55, 40);
     note("Выберите роль. У ученика и учителя свои разделы.", 0, 120);
     surface(0, 183, 450, 263, Theme::paper);
     surface(490, 183, 450, 263, Theme::pale);
     note("01 / ПРАКТИКА", 28, 210, 390);
     heading("Я ученик", 28, 249, 30);
     text("Решаю задания, разбираю ошибки\nи смотрю свой прогресс.", 28, 304, 18, 390, 2);
-    button("Выбрать профиль ученика →", 28, 380, 350, [this] { profiles(); }, true);
+    button(
+        "Выбрать профиль ученика →", 28, 380, 350, [this] { profiles(); }, true);
     note("02 / ПОДГОТОВКА ЗАНЯТИЙ", 518, 210, 390);
     heading("Я учитель", 518, 249, 30);
     text("Готовлю задания и занятия,\nсмотрю результаты учеников.", 518, 304, 18, 390, 2);
@@ -50,7 +51,7 @@ void WelcomeScreen::teacherLogin() {
         repeat = field("", 0, 275, 450, 128);
         repeat->setPassword(true);
     }
-    button(
+    auto login = button(
         first ? "Сохранить и войти" : "Войти", 0, 350, 300,
         [this, first, password, repeat] {
             std::string value = password->getText();
@@ -69,8 +70,11 @@ void WelcomeScreen::teacherLogin() {
             context.page = "home";
         },
         true);
-    note("Пароль ограничивает действия в приложении, но не доступ к файлу базы данных.", 0, 440,
-         900);
+    password->onEnter = login->onClick;
+    if (repeat)
+        repeat->onEnter = login->onClick;
+    focusWidget(password);
+    setStatusArea(0, 430, 900, 3);
     button("← Выбор роли", 0, 540, 230, [this] { refresh(); });
 }
 void WelcomeScreen::profiles() {
@@ -105,7 +109,7 @@ void WelcomeScreen::profiles() {
     text("Ваше имя", 530, 120, 16);
     TextField *name = field("", 530, 150, 410, 100);
     name->setPlaceholder("Например, Мария");
-    button(
+    auto create = button(
         "Создать профиль и войти", 530, 220, 350,
         [this, name] {
             std::string value = name->getText();
@@ -116,6 +120,9 @@ void WelcomeScreen::profiles() {
             enter(context.school.createProfile(value), value);
         },
         true);
+    name->onEnter = create->onClick;
+    choices->setRowHeight(56);
+    choices->setEmptyText("Профилей пока нет");
     button("← Выбор роли", 0, 540, 230, [this] { refresh(); });
 }
 } // namespace ui

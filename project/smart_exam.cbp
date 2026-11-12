@@ -97,6 +97,7 @@
     <Unit filename="../src/ui/screens/WelcomeScreen.h" />
     <Unit filename="../src/ui/SkillMap.h" />
     <Unit filename="../src/ui/Theme.h" />
+    <Unit filename="../src/ui/EasterEggs.h" />
     <Unit filename="../src/ui/widgets/Button.h" />
     <Unit filename="../src/ui/widgets/ListBox.h" />
     <Unit filename="../src/ui/widgets/TextField.h" />
@@ -134,9 +135,12 @@
     <Unit filename="../src/ui/FormulaView.cpp" />
     <Unit filename="../src/ui/ImageView.cpp" />
     <Unit filename="../src/ui/Screen.cpp" />
+    <Unit filename="../src/ui/screens/BankEditor.cpp" />
     <Unit filename="../src/ui/screens/BankScreen.cpp" />
+    <Unit filename="../src/ui/screens/BankSettings.cpp" />
     <Unit filename="../src/ui/screens/HomeScreen.cpp" />
     <Unit filename="../src/ui/screens/KnowledgeScreen.cpp" />
+    <Unit filename="../src/ui/screens/LessonFocus.cpp" />
     <Unit filename="../src/ui/screens/LessonOptions.cpp" />
     <Unit filename="../src/ui/screens/LessonScreen.cpp" />
     <Unit filename="../src/ui/screens/LessonSetupScreen.cpp" />

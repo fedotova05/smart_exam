@@ -1,6 +1,7 @@
 #include "HomeScreen.h"
 #include "ui/FileDialog.h"
 #include "ui/FormulaView.h"
+#include "ui/widgets/TextPanel.h"
 #include "ui/ImageView.h"
 #include "graphics/GraphView.h"
 #include "io/Files.h"
@@ -19,9 +20,11 @@ void HomeScreen::reviewQueue(bool pendingOnly, bool allStudents) {
     context.school.requireTeacher();
     clear();
     title = "Проверка решений";
-    button(pendingOnly ? "Показать все оценки" : "Только без оценки", 0, 0, 300,
+    reviewPending = pendingOnly;
+    reviewAll = allStudents;
+    button(pendingOnly ? "Без оценки · изменить" : "Все оценки · изменить", 0, 0, 300,
            [this, pendingOnly, allStudents] { reviewQueue(!pendingOnly, allStudents); });
-    button(allStudents ? "Только выбранный ученик" : "Все ученики", 320, 0, 300,
+    button(allStudents ? "Все ученики · изменить" : "Выбранный ученик · изменить", 320, 0, 300,
            [this, pendingOnly, allStudents] {
                if (allStudents && context.profile.empty())
                    throw std::runtime_error("Сначала выберите ученика в кабинете");
@@ -31,10 +34,19 @@ void HomeScreen::reviewQueue(bool pendingOnly, bool allStudents) {
     std::string student = allStudents ? "" : context.profile;
     auto items = context.school.reviewItems(student, pendingOnly);
     std::vector<std::string> rows;
-    for (const auto &item : items)
-        rows.push_back(item.studentName + " · " + item.title + " / " + item.part + " · " +
+    for (const auto &item : items) {
+        std::string partName;
+        const auto task = context.school.task(item.task);
+        if (task.parts.size() > 1)
+            for (std::size_t i = 0; i < task.parts.size(); ++i)
+                if (task.parts[i].id == item.part)
+                    partName = " · часть " + std::to_string(i + 1);
+        rows.push_back(item.studentName + " · " + item.title + partName + " · " +
                        verdictName(item.effective));
+    }
     ListBox *queue = list(rows, 0, 105, 940, 360);
+    queue->setRowHeight(60);
+    queue->setEmptyText("Решений для проверки нет");
     note(items.empty()
              ? "По этому фильтру нет завершённых частей для проверки."
              : "Неопределённый ответ не считается неверным. Откройте решение для проверки.",
@@ -46,7 +58,8 @@ void HomeScreen::reviewQueue(bool pendingOnly, bool allStudents) {
                 throw std::runtime_error("Выберите решение");
             reviewDetail(items[queue->selection()]);
         },
-        true);
+        true)
+        ->setEnabled(!items.empty());
     button("Сохранить CSV", 310, 550, 280, [this, student, pendingOnly] {
         std::string path = chooseCsv();
         if (!path.empty()) {
@@ -54,7 +67,7 @@ void HomeScreen::reviewQueue(bool pendingOnly, bool allStudents) {
             status = "Отчёт сохранён";
         }
     });
-    button("← Кабинет", 620, 550, 280, [this] { teacherHome(); });
+    button("← Кабинет", 620, 550, 280, [this] { context.page = "home"; });
 }
 void HomeScreen::reviewDetail(const ReviewItem &item) {
     context.school.requireTeacher();
@@ -65,9 +78,10 @@ void HomeScreen::reviewDetail(const ReviewItem &item) {
     for (const auto &candidate : task.parts)
         if (candidate.id == item.part)
             part = candidate;
-    text(item.studentName + " · " + task.title + " / " + item.part, 0, 0, 21, 940, 2);
-    note("Версия задания: " + task.id, 0, 55, 940);
-    text(task.description + " " + part.prompt, 0, 90, 17, 540, 3);
+    text(item.studentName + " · " + task.title, 0, 0, 21, 940, 2);
+    note("История ответов и оценки сохранены. Укажите преподавателя и причину изменения.", 0, 55,
+         940);
+    add(new TextPanel(font, task.description + " " + part.prompt, 540, 70), 0, 90);
     FormulaView *formula = add(new FormulaView(font, 540, 70), 0, 165);
     formula->setFormula(part.displayExpression.empty() ? part.expression : part.displayExpression);
     std::vector<std::string> answers;
@@ -117,12 +131,13 @@ void HomeScreen::reviewDetail(const ReviewItem &item) {
         verdict.reason = reason->getText();
         verdict.status = result;
         context.school.revise(verdict);
-        reviewQueue();
+        reviewQueue(reviewPending, reviewAll);
     };
-    button("Верно", 0, 550, 210, [submit] { submit(CheckStatus::Correct); }, true);
+    button(
+        "Верно", 0, 550, 210, [submit] { submit(CheckStatus::Correct); }, true);
     button("Неверно", 230, 550, 210, [submit] { submit(CheckStatus::Incorrect); });
     button("Оставить без оценки", 460, 550, 250, [submit] { submit(CheckStatus::Unsupported); });
-    button("← Список", 730, 550, 210, [this] { reviewQueue(); });
+    button("← Список", 730, 550, 210, [this] { reviewQueue(reviewPending, reviewAll); });
 }
 void HomeScreen::reviewResource(const ReviewItem &item, int index) {
     context.school.requireTeacher();

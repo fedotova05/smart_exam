@@ -7,9 +7,12 @@ namespace ui {
 class HomeScreen : public Screen {
     AppContext &context;
     void settings();
-    void startShortLesson();
+    void openLesson(const std::string &id);
+    std::string homeProfile, selectedLesson;
+    bool showPractice = false, showCompleted = false, profilesArchived = false;
     void teacherHome();
     void manageProfiles();
+    bool reviewPending = true, reviewAll = true;
     void reviewQueue(bool pendingOnly = true, bool allStudents = true);
     void reviewDetail(const ReviewItem &item);
     void reviewResource(const ReviewItem &item, int index);
@@ -17,6 +20,12 @@ class HomeScreen : public Screen {
   public:
     HomeScreen(const sf::Font &font, AppContext &state) : Screen(font), context(state) {}
     void refresh();
+    void openReview() {
+        reviewQueue();
+    }
+    void openProfiles() {
+        manageProfiles();
+    }
 };
 class ResultsScreen : public Screen {
     AppContext &context;

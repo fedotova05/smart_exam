@@ -8,6 +8,8 @@ class Button : public Widget {
     sf::String caption;
     bool pressed, hovered, primary;
     bool navigationStyle, selected;
+    mutable sf::Clock hoverClock;
+    mutable float hoverAmount = 0;
     void draw(sf::RenderTarget &target, sf::RenderStates states) const override;
 
   public:
@@ -21,6 +23,9 @@ class Button : public Widget {
     }
     void setSelected(bool value) {
         selected = value;
+    }
+    void setPrimary(bool value) {
+        primary = value;
     }
     bool handle(const sf::Event &event, sf::Vector2f mouse) override;
 };

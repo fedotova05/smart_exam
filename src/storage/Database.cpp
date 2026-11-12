@@ -60,14 +60,15 @@ void Database::checkThread() const {
 }
 void Database::migrate(const std::string &directory) {
     int version = std::stoi(query("PRAGMA user_version")[0][0]);
-    if (version > 11)
+    if (version > 13)
         throw std::runtime_error("Database version is newer than application");
     const char *files[] = {
         "001_initial.sql",          "002_attempt_snapshot.sql", "003_session_completion.sql",
         "004_interface_data.sql",   "005_graph_settings.sql",   "006_training.sql",
         "007_session_policies.sql", "008_manual_review.sql",    "009_answer_policies.sql",
-        "010_teacher_access.sql",   "011_lesson_options.sql"};
-    for (int next = version; next < 11; ++next) {
+        "010_teacher_access.sql",   "011_lesson_options.sql",   "012_lesson_source.sql",
+        "013_short_answer.sql"};
+    for (int next = version; next < 13; ++next) {
         std::ifstream input((directory + "/" + files[next]).c_str());
         if (!input)
             throw std::runtime_error("Migration file not found");

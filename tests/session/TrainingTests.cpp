@@ -230,10 +230,15 @@ void testTraining() {
               "004_interface_data.sql", "005_graph_settings.sql"})
             db.script(readFile("db/migrations/" + file));
         db.query("INSERT INTO profiles VALUES('old','Старый профиль')");
+        db.query("INSERT INTO sessions(id,student_id,mode,feedback,guided,task_limit) "
+                 "VALUES('old-lesson','old',0,0,0,3)");
     }
     {
         Store upgraded(migration);
         REQUIRE(upgraded.profiles()[0].first == "old");
+        REQUIRE(upgraded.session("old-lesson").source == "legacy");
+        REQUIRE(!upgraded.session("old-lesson").closed);
+        REQUIRE(upgraded.session("old-lesson").settings.taskLimit == 3);
         loginTeacherForTest(upgraded);
         SchoolService school(upgraded);
         school.addStarterContent();

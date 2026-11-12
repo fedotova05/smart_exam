@@ -15,7 +15,16 @@ struct CheckResult {
                 const std::string &text = "Проверка пока недоступна", int position = -1)
         : status(value), message(text), errorPosition(position) {}
 };
-enum class PartKind { Expression, Equation, Line, Parabola, Number, Choice, Polynomial };
+enum class PartKind {
+    Expression,
+    Equation,
+    Line,
+    Parabola,
+    Number,
+    Choice,
+    Polynomial,
+    ShortAnswer
+};
 struct Point {
     double x;
     double y;
@@ -35,6 +44,7 @@ struct TaskPart {
     std::string prompt;
     std::string expression;
     std::string displayExpression;
+    std::string correctAnswer;
     std::vector<std::string> skills;
     int maxScore;
     double graphSnap, graphTolerance;

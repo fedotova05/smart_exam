@@ -12,9 +12,12 @@
 #include "FormulaView.h"
 #include "io/Files.h"
 #include <windows.h>
+#ifndef SPI_GETCLIENTAREAANIMATION
+#define SPI_GETCLIENTAREAANIMATION 0x1042
+#endif
 namespace exam {
 namespace ui {
-App::App(SchoolService &school) : context(school), current(0) {
+App::App(SchoolService &school) : context(school), current(0), navigationFocus(-1) {
     char directory[MAX_PATH];
     GetWindowsDirectoryA(directory, MAX_PATH);
     std::string fonts = std::string(directory) + "/Fonts/";
@@ -30,48 +33,62 @@ App::App(SchoolService &school) : context(school), current(0) {
     screens["setup"].reset(new LessonSetupScreen(font, context));
     screens["progress"].reset(new ProgressScreen(font, context));
     screens["home"].reset(new HomeScreen(font, context));
+    screens["review"].reset(new HomeScreen(font, context));
+    screens["profiles"].reset(new HomeScreen(font, context));
     screens["lesson"].reset(new LessonScreen(font, context));
     screens["bank"].reset(new BankScreen(font, context));
     screens["knowledge"].reset(new KnowledgeScreen(font, context));
     screens["packages"].reset(new PackageScreen(font, context));
     screens["results"].reset(new ResultsScreen(font, context));
     for (auto &item : screens) {
-        item.second->setPosition(130, 130);
+        item.second->setPosition(224, 130);
         item.second->setHeadingFont(headingFont);
     }
-    screens["home"]->setPosition(52, 130);
+    screens["welcome"]->setPosition(130, 130);
     screens["lesson"]->setPosition(208, 130);
+    windowMode.reset(new Button(font, "Окно / экран · F11", 190));
+    windowMode->setPosition(854, 13);
+    windowMode->onClick = [this] { toggleFullscreen(); };
+    closeButton.reset(new Button(font, "Выйти", 110));
+    closeButton->setPosition(1054, 13);
+    closeButton->onClick = [this] {
+        current->ask("Закрыть программу?", [this] { window.close(); });
+    };
     show("welcome");
 }
 void App::buildNavigation() {
     navigation.clear();
     navigationPages.clear();
-    if (context.role == UserRole::Guest)
+    navigationFocus = -1;
+    if (context.role == UserRole::Guest || page == "lesson")
         return;
     std::vector<std::string> names;
     if (context.role == UserRole::Student) {
-        navigationPages = {"home", "progress", "results", "welcome"};
-        names = {"Моё занятие", "Мой прогресс", "История", "Сменить профиль"};
+        navigationPages = {"home", "practice", "progress", "results", "knowledge", "welcome"};
+        names = {"Мои занятия",     "Тренировка",    "Мой прогресс",
+                 "История решений", "Карта навыков", "Сменить профиль"};
     } else {
-        navigationPages = {"home", "bank", "progress", "packages", "welcome"};
-        names = {"Кабинет", "Задания", "Прогресс", "Пакеты", "Сменить роль"};
+        navigationPages = {"home",     "setup",     "bank",     "review", "profiles",
+                           "progress", "knowledge", "packages", "welcome"};
+        names = {"Кабинет",  "Создать занятие", "Банк заданий",     "Проверить ответы", "Ученики",
+                 "Прогресс", "Карта навыков",   "Импорт и экспорт", "Сменить роль"};
     }
     for (std::size_t i = 0; i < names.size(); ++i) {
-        std::unique_ptr<Button> button(new Button(font, names[i], 167));
-        button->setPosition(313 + i * 167.f, 16);
+        std::unique_ptr<Button> button(new Button(font, names[i], 180));
+        button->setPosition(18, 126 + i * 54.f);
         button->setNavigation(true);
         std::string id = navigationPages[i];
-        button->onClick = [this, id] { context.page = id; };
-        bool selected =
-            page == id ||
-            ((page == "lesson" || page == "setup" || page == "practice") && id == "home") ||
-            (page == "knowledge" && id == "progress") ||
-            (context.role == UserRole::Teacher && page == "results" && id == "home");
-        button->setSelected(selected);
+        button->onClick = [this, id] {
+            if (id == "results")
+                context.historyLesson.clear();
+            context.page = id;
+        };
+        button->setSelected(page == id);
         navigation.push_back(std::move(button));
     }
 }
 void App::show(const std::string &requested) {
+    easterEggs.reset();
     if (current)
         current->leave();
     window.setActive(true);
@@ -95,6 +112,10 @@ void App::show(const std::string &requested) {
         static_cast<ProgressScreen *>(current)->refresh();
     if (name == "home")
         static_cast<HomeScreen *>(current)->refresh();
+    if (name == "review")
+        static_cast<HomeScreen *>(current)->openReview();
+    if (name == "profiles")
+        static_cast<HomeScreen *>(current)->openProfiles();
     if (name == "lesson")
         static_cast<LessonScreen *>(current)->refresh();
     if (name == "bank")
@@ -112,25 +133,79 @@ void App::resize(unsigned width, unsigned height) {
         window.setSize(sf::Vector2u(std::max(1024u, width), std::max(720u, height)));
         return;
     }
-    sf::View view(sf::FloatRect(0, 0, 1200, 800));
-    // Не растягиваем готовые текстуры при увеличении окна.
-    float scale = std::min(1.f, std::min(width / 1200.f, height / 800.f));
-    float viewportWidth = 1200.f * scale / width;
-    float viewportHeight = 800.f * scale / height;
-    view.setViewport(sf::FloatRect((1 - viewportWidth) / 2, (1 - viewportHeight) / 2, viewportWidth,
-                                   viewportHeight));
-    window.setView(view);
+    float scale = std::min(width / 1200.f, height / 800.f);
+    setRenderScale(scale);
+    window.setView(sf::View(sf::FloatRect(0, 0, width / scale, height / scale)));
+    layoutScreen();
 }
+void App::layoutScreen() {
+    if (!current)
+        return;
+    const float extra = window.getView().getSize().x - 1200;
+    float baseWidth = 940;
+    if (page == "lesson") {
+        bool focused = static_cast<LessonScreen *>(current)->focusLayout();
+        baseWidth = focused ? 720.f : 940.f;
+        current->setPosition(focused ? 240.f : 130.f, 130);
+    }
+    current->layout(baseWidth + extra);
+    windowMode->setPosition(854 + extra, 13);
+    closeButton->setPosition(1054 + extra, 13);
+}
+
 void App::draw() {
+    layoutScreen();
+    const auto viewport = window.getView().getSize();
     window.clear(Theme::background);
-    window.draw(label(font, unicode("SmartExam"), 25, 52, 27));
-    rectangle(window, sf::RenderStates(), sf::Vector2f(1096, 1), Theme::line, sf::Vector2f(52, 66));
+    if (!navigation.empty()) {
+        rectangle(window, sf::RenderStates(), sf::Vector2f(208, viewport.y), Theme::paper);
+        rectangle(window, sf::RenderStates(), sf::Vector2f(1, viewport.y), Theme::line,
+                  sf::Vector2f(207, 0));
+        drawText(window,
+                 label(font, unicode(context.role == UserRole::Teacher ? "УЧИТЕЛЬ" : "УЧЕНИК"), 13,
+                       30, 94, Theme::muted));
+        drawText(window, label(font, unicode("F11 — окно / весь экран"), 12, 22, viewport.y - 51,
+                               Theme::muted));
+    }
+    drawText(window, label(font, unicode("SmartExam"), 25, navigation.empty() ? 52 : 24, 27));
+    if (page == "lesson") {
+        LessonScreen *lesson = static_cast<LessonScreen *>(current);
+        current->setPosition(lesson->focusLayout() ? 240.f : 130.f, 130);
+    }
+    if (context.role != UserRole::Guest) {
+        std::string identity =
+            context.role == UserRole::Teacher ? "Кабинет учителя" : context.profileName;
+        if (context.role == UserRole::Teacher && !context.profileName.empty())
+            identity += " / " + context.profileName;
+        drawText(window, label(font, shorten(font, unicode(identity), 15, viewport.x - 610), 15,
+                               240, 30, Theme::muted));
+    }
+    rectangle(window, sf::RenderStates(), sf::Vector2f(viewport.x - 260, 1), Theme::line,
+              sf::Vector2f(224, 64));
+    window.draw(*windowMode);
+    window.draw(*closeButton);
     for (const auto &button : navigation)
         window.draw(*button);
     window.draw(*current);
+    if ((page == "welcome" || page == "home") && !current->hasDialog())
+        easterEggs.draw(window, font, decorationClock.getElapsedTime().asSeconds());
     window.display();
 }
+void App::toggleFullscreen() {
+    fullscreen = !fullscreen;
+    auto mode = fullscreen ? sf::VideoMode::getDesktopMode() : sf::VideoMode(1200, 800);
+    window.create(mode, "SmartExam", fullscreen ? sf::Style::None : sf::Style::Default);
+    window.setFramerateLimit(60);
+    if (fullscreen)
+        window.setPosition(sf::Vector2i(0, 0));
+    resize(mode.width, mode.height);
+}
 int App::run(bool smoke, bool capture, bool widgets) {
+    BOOL systemMotion = TRUE;
+    SystemParametersInfoA(SPI_GETCLIENTAREAANIMATION, 0, &systemMotion, 0);
+    setMotionEnabled(systemMotion && !capture && !smoke);
+    if (!capture && !smoke && !widgets)
+        toggleFullscreen();
     if (widgets) {
         std::unique_ptr<Screen> demo(new Screen(font));
         demo->title = "Элементы интерфейса";
@@ -154,6 +229,9 @@ int App::run(bool smoke, bool capture, bool widgets) {
         makeDirectories("bin/captures");
         auto save = [this](const std::string &name) {
             draw();
+            auto pixels = window.getSize();
+            if (window.getViewport(window.getView()) != sf::IntRect(0, 0, pixels.x, pixels.y))
+                throw std::runtime_error("Область отрисовки не занимает всё окно");
             sf::Texture texture;
             texture.create(window.getSize().x, window.getSize().y);
             texture.update(window);
@@ -170,6 +248,22 @@ int App::run(bool smoke, bool capture, bool widgets) {
             current->handle(event, point);
             current->update();
         };
+        auto key = [this](sf::Keyboard::Key code) {
+            sf::Event event = {};
+            event.type = sf::Event::KeyPressed;
+            event.key.code = code;
+            current->handle(event, sf::Vector2f());
+            current->update();
+        };
+        auto type = [this](const std::string &text) {
+            for (sf::Uint32 c : unicode(text)) {
+                sf::Event event = {};
+                event.type = sf::Event::TextEntered;
+                event.text.unicode = c;
+                current->handle(event, sf::Vector2f());
+                current->update();
+            }
+        };
         show("welcome");
         save("welcome");
         context.role = UserRole::Student;
@@ -178,11 +272,11 @@ int App::run(bool smoke, bool capture, bool widgets) {
         save("home");
         show("practice");
         save("training-setup");
-        click(50, 210);
+        click(15, 230);
         save("training-topics-selected");
         show("training-demo");
         save("training-demo");
-        context.selectProfile("demo-training", "Демонстрация: разбор ошибки");
+        context.selectProfile("demo-deep", "Демонстрация: разбор ошибки");
         show("knowledge");
         save("training-skill-map");
         context.selectProfile("demo-check", "Демонстрация");
@@ -196,9 +290,18 @@ int App::run(bool smoke, bool capture, bool widgets) {
         save("setup-review");
         show("progress");
         save("progress-demo");
+        click(280, 20);
+        save("progress-details");
+        click(80, 20);
+        context.selectProfile("demo-deep", "Демонстрация");
+        show("progress");
+        save("progress-overview");
+        context.selectProfile("demo-check", "Демонстрация");
         context.selectProfile(context.school.createProfile("Мария"), "Мария");
         show("home");
         save("empty-profile");
+        show("progress");
+        save("progress-empty");
         SessionSettings settings;
         settings.taskLimit = 3;
         context.school.start(context.profile, settings,
@@ -219,7 +322,7 @@ int App::run(bool smoke, bool capture, bool widgets) {
         context.current = context.school.next();
         show("lesson");
         save("lesson-route");
-        click(660, 185);
+        click(450, 525);
         save("linear-optional-steps");
         show("knowledge");
         save("knowledge");
@@ -234,11 +337,77 @@ int App::run(bool smoke, bool capture, bool widgets) {
         context.role = UserRole::Teacher;
         show("home");
         save("teacher");
+        show("review");
+        save("review-menu");
+        show("profiles");
+        save("profiles-menu");
         show("bank");
         save("bank");
         click(300, 460);
+        save("task-editor");
+        for (int typeIndex = 0; typeIndex < 8; ++typeIndex) {
+            click(50, 104);
+            click(100, 75 + typeIndex * 60);
+            save("editor-type-picker");
+            click(80, 570);
+            save("editor-kind-" + std::to_string(typeIndex));
+        }
+        click(50, 104);
+        click(100, 135);
+        click(80, 570);
+        click(750, 118);
+        save("task-skills");
+        click(300, 570);
+        click(750, 400);
+        save("editor-extra");
+        click(300, 580);
+        click(50, 104);
+        for (int i = 0; i < 4; ++i)
+            key(sf::Keyboard::Down);
+        click(80, 570);
+        click(100, 300);
+        click(150, 210);
+        type("2");
+        click(150, 282);
+        type("3");
+        click(20, 205);
+        save("choice-settings");
         click(80, 580);
-        save("answer-settings");
+        click(80, 580);
+        TaskVersion choice;
+        for (const auto &task : context.school.tasks())
+            if (task.title == "Новое задание")
+                choice = task;
+        context.school.publish(choice.id);
+        context.selectProfile(context.school.createProfile("Выбор вариантов"), "Выбор вариантов");
+        context.school.start(context.profile, SessionSettings(), {choice.id});
+        context.settings = SessionSettings();
+        context.current = context.school.next();
+        context.role = UserRole::Student;
+        show("lesson");
+        click(15, 230);
+        save("choice-answer");
+        context.role = UserRole::Teacher;
+        auto assignedProfile = context.school.createProfile("Александра");
+        SessionSettings assignedSettings;
+        assignedSettings.taskLimit = 3;
+        context.school.start(assignedProfile, assignedSettings,
+                             {"intro-linear", "intro-fractions", "intro-parabola"}, "teacher",
+                             "Работа на три задания");
+        context.school.start(assignedProfile, SessionSettings(), {"intro-quadratic"}, "teacher",
+                             "Квадратные уравнения");
+        context.school.startTopics(assignedProfile, {"fractions"}, false, 1);
+        context.selectProfile(assignedProfile, "Александра");
+        context.role = UserRole::Student;
+        show("home");
+        save("assignments");
+        click(360, 20);
+        save("practice-list");
+        click(80, 20);
+        click(80, 435);
+        show("lesson");
+        save("assigned-lesson");
+        context.role = UserRole::Teacher;
         show("packages");
         save("packages");
         context.role = UserRole::Student;
@@ -280,6 +449,25 @@ int App::run(bool smoke, bool capture, bool widgets) {
         resize(1920, 1080);
         show("progress");
         save("progress-1920");
+        context.selectProfile("demo-deep", "Демонстрация");
+        show("knowledge");
+        save("knowledge-1920");
+        show("progress");
+        window.setSize(sf::Vector2u(2560, 1440));
+        resize(2560, 1440);
+        show("progress");
+        save("progress-2560");
+        window.setSize(sf::Vector2u(3440, 1440));
+        resize(3440, 1440);
+        show("progress");
+        save("progress-3440");
+        show("knowledge");
+        save("knowledge-3440");
+        toggleFullscreen();
+        show("home");
+        save("home-fullscreen");
+        toggleFullscreen();
+        save("home-window-restored");
         window.setSize(sf::Vector2u(1200, 800));
         resize(1200, 800);
         context.selectProfile(context.school.createProfile("Квадратные уравнения"),
@@ -297,9 +485,15 @@ int App::run(bool smoke, bool capture, bool widgets) {
         context.current = context.school.next();
         show("lesson");
         context.drafts["answer"].text = "0";
-        click(470, 340);
+        click(600, 300);
         save("training-support-choice");
-        click(100, 475);
+        click(100, 590);
+        save("training-support-confirm");
+        sf::Event confirm = {};
+        confirm.type = sf::Event::KeyPressed;
+        confirm.key.code = sf::Keyboard::Enter;
+        current->handle(confirm, sf::Vector2f());
+        current->update();
         save("training-coefficients");
         window.setSize(sf::Vector2u(1024, 720));
         resize(1024, 720);
@@ -311,9 +505,14 @@ int App::run(bool smoke, bool capture, bool widgets) {
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
+            layoutScreen();
             if (event.type == sf::Event::Closed) {
                 window.close();
                 break;
+            }
+            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::F11) {
+                toggleFullscreen();
+                continue;
             }
             if (event.type == sf::Event::Resized)
                 resize(event.size.width, event.size.height);
@@ -324,9 +523,42 @@ int App::run(bool smoke, bool capture, bool widgets) {
             if (event.type == sf::Event::MouseMoved)
                 pixel = sf::Vector2i(event.mouseMove.x, event.mouseMove.y);
             sf::Vector2f mouse = window.mapPixelToCoords(pixel);
-            if (!current->hasDialog())
+            if (easterEggs.handle(
+                    event, mouse, sf::FloatRect(navigation.empty() ? 52.f : 24.f, 24, 155, 40),
+                    (page == "welcome" || page == "home") && !current->hasDialog(),
+                    current->textInputFocused(), decorationClock.getElapsedTime().asSeconds()))
+                continue;
+            if (!navigation.empty() && !current->hasDialog() &&
+                event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Tab) {
+                if (navigationFocus >= 0) {
+                    navigation[navigationFocus]->setFocus(false);
+                    navigationFocus += event.key.shift ? -1 : 1;
+                    if (navigationFocus < 0 || navigationFocus >= int(navigation.size())) {
+                        navigationFocus = -1;
+                        current->moveFocus(event.key.shift, false);
+                    } else
+                        navigation[navigationFocus]->setFocus(true);
+                } else if (!current->moveFocus(event.key.shift, false)) {
+                    navigationFocus = event.key.shift ? int(navigation.size()) - 1 : 0;
+                    navigation[navigationFocus]->setFocus(true);
+                }
+                continue;
+            }
+            if (event.type == sf::Event::MouseButtonPressed && navigationFocus >= 0) {
+                navigation[navigationFocus]->setFocus(false);
+                navigationFocus = -1;
+            }
+            if (!current->hasDialog()) {
+                // После пересоздания окна координаты следующего события вычисляются заново.
+                if (windowMode->handle(event, mouse))
+                    continue;
+                if (closeButton->handle(event, mouse)) {
+                    current->update();
+                    continue;
+                }
                 for (auto &button : navigation)
                     button->handle(event, mouse);
+            }
             current->handle(event, mouse);
             current->update();
             if (!context.page.empty()) {

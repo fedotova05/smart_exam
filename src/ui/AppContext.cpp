@@ -14,7 +14,8 @@ bool canOpen(UserRole role, const std::string &page) {
         return true;
     if (page == "lesson")
         return role == UserRole::Student;
-    return role == UserRole::Teacher && (page == "bank" || page == "packages");
+    return role == UserRole::Teacher &&
+           (page == "bank" || page == "packages" || page == "review" || page == "profiles");
 }
 std::vector<std::string> splitCodes(const std::string &text) {
     std::string separated = text;
@@ -41,6 +42,8 @@ std::string kindName(PartKind kind) {
     switch (kind) {
     case PartKind::Expression:
         return "Значение";
+    case PartKind::ShortAnswer:
+        return "Слово или число";
     case PartKind::Number:
         return "Число";
     case PartKind::Choice:

@@ -8,7 +8,7 @@ enum class UserRole { Guest, Student, Teacher };
 struct AppContext {
     SchoolService &school;
     PackageService packages;
-    std::string profile, profileName, page;
+    std::string profile, profileName, page, historyLesson, historyAttempt;
     SessionSettings settings;
     UserRole role;
     NextTask current;
@@ -17,6 +17,8 @@ struct AppContext {
     AppContext(SchoolService &service)
         : school(service), packages(service), role(UserRole::Guest) {}
     void selectProfile(const std::string &id, const std::string &name) {
+        historyLesson.clear();
+        historyAttempt.clear();
         profile = id;
         profileName = name;
         current = NextTask();

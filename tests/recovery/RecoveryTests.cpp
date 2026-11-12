@@ -3,6 +3,7 @@
 #include "application/session/SessionService.h"
 #include "math/checkers/EquationChecker.h"
 #include <ctime>
+#include "io/Files.h"
 #include <cstdio>
 using namespace exam;
 namespace {
@@ -25,6 +26,8 @@ void seed(Store &store) {
 SessionRecord lesson(const std::string &id, ResumePolicy policy) {
     SessionRecord result;
     result.id = id;
+    result.source = "teacher";
+    result.title = "Сохранённое назначение";
     result.studentId = "student";
     result.tasks = {"task"};
     result.settings.resumePolicy = policy;
@@ -66,8 +69,34 @@ void testRecovery() {
     const char *path = "bin/recovery-test.db";
     std::remove(path);
     {
+        Database old(path);
+        const char *migrations[] = {
+            "001_initial.sql",          "002_attempt_snapshot.sql", "003_session_completion.sql",
+            "004_interface_data.sql",   "005_graph_settings.sql",   "006_training.sql",
+            "007_session_policies.sql", "008_manual_review.sql",    "009_answer_policies.sql",
+            "010_teacher_access.sql",   "011_lesson_options.sql",   "012_lesson_source.sql"};
+        for (const auto &file : migrations)
+            old.script(readFile(std::string("db/migrations/") + file));
+        REQUIRE(old.query("PRAGMA user_version")[0][0] == "12");
+        old.query("INSERT INTO "
+                  "tasks(id,title,published,archived,generator,seed,parameters,difficulty,"
+                  "description,common_function) VALUES('old','Старое',0,0,'',0,'',1000,'','')");
+        old.query("INSERT INTO parts VALUES('old','answer',1,'Решите','x=2',1,0,0.5,0.0001,'')");
+        old.query("INSERT INTO part_policies VALUES('old','answer',0,-1,0)");
+    }
+    {
         Store store(path);
+        REQUIRE(store.task("old").parts[0].correctAnswer.empty());
+        REQUIRE(store.task("old").parts[0].expression == "x=2");
         seed(store);
+        TaskVersion shortTask = store.task("task");
+        shortTask.id = "short";
+        shortTask.published = false;
+        shortTask.parts[0].kind = PartKind::ShortAnswer;
+        shortTask.parts[0].expression.clear();
+        shortTask.parts[0].correctAnswer = "01342";
+        store.saveDraft(shortTask);
+        store.publish(shortTask.id);
         LessonTemplate value;
         value.id = "template";
         value.name = "Вариант";
@@ -96,6 +125,10 @@ void testRecovery() {
     }
     {
         Store store(path);
+        REQUIRE(store.task("short").parts[0].correctAnswer == "01342");
+        REQUIRE(store.task("short").parts[0].kind == PartKind::ShortAnswer);
+        REQUIRE(store.session("active").source == "teacher");
+        REQUIRE(store.session("active").title == "Сохранённое назначение");
         REQUIRE(store.answerDrafts("copy:0")["part"].text == "2/");
         REQUIRE(store.sessionTime("deadline", 150).remainingSeconds == 10);
         REQUIRE(!store.sessionTime("deadline", 161).allowed);
