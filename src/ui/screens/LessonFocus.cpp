@@ -77,8 +77,8 @@ void LessonScreen::focusedTask() {
          0, 334, 720);
     auto preview = add(new FormulaView(headingFace(), 720, 45), 0, 370);
     preview->setFormula(part.kind == PartKind::ShortAnswer ? "" : answer->getText());
-    auto finish = button(
-        "Завершить задание →", 400, 570, 320, [this] { finishFocused(); }, answerSubmitted);
+    auto finish =
+        button("Завершить задание →", 400, 570, 320, [this] { finishFocused(); }, answerSubmitted);
     answer->onChange = [this, answer, preview, check, finish, part] {
         context.drafts[part.id].text = answer->getText();
         context.school.saveAnswerDraft(attempt, part.id, context.drafts[part.id]);
@@ -106,6 +106,8 @@ void LessonScreen::focusedTask() {
             detail = "steps";
             refresh();
         });
+    else if (!context.school.recommendedLectures(attempt).empty())
+        button("Лекции", 350, 510, 210, [this] { lectureChoices(); });
     if (!task.resources.empty())
         button("Рисунок", 575, 510, 145, [this] { resources(0); });
     if (context.school.canSupport(attempt))

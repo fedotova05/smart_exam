@@ -2,6 +2,7 @@
 #define SMARTEXAM_STORE_H
 #include "Database.h"
 #include "core/Types.h"
+#include "core/Materials.h"
 #include <functional>
 #include <atomic>
 #include <memory>
@@ -74,6 +75,13 @@ class Store {
     void saveReplay(const ReplayData &data);
 
   public:
+    std::vector<Lecture> lectures(bool drafts = false);
+    Lecture lecture(const std::string &id, bool drafts = false);
+    void saveLecture(const Lecture &lecture);
+    void seedLecture(const Lecture &lecture);
+    std::vector<ExamTask> examTasks(int number = 0, int category = 0);
+    void saveExamTask(const ExamTask &item);
+    bool hasTask(const std::string &id);
     bool hasTeacherPassword();
     void setTeacherPassword(const std::string &password);
     bool loginTeacher(const std::string &password);

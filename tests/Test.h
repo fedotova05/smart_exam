@@ -25,4 +25,6 @@ void testJobs();
 void testAnswers();
 void testTeacherAccess();
 void testDemonstration();
+void testMaterials();
+void testRegression();
 #endif

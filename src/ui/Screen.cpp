@@ -1,4 +1,5 @@
 #include "Screen.h"
+#include "widgets/TextArea.h"
 namespace exam {
 namespace ui {
 void Screen::clear() {
@@ -17,7 +18,8 @@ void Screen::clear() {
 }
 bool Screen::textInputFocused() const {
     return focus >= 0 && focus < int(widgets.size()) &&
-           dynamic_cast<TextField *>(widgets[focus].get()) != nullptr;
+           (dynamic_cast<TextField *>(widgets[focus].get()) != nullptr ||
+            dynamic_cast<TextArea *>(widgets[focus].get()) != nullptr);
 }
 void Screen::clearFocus() {
     if (focus >= 0 && focus < static_cast<int>(widgets.size()))

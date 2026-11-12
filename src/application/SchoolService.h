@@ -40,6 +40,15 @@ class SchoolService {
     void addTrainingDemo();
 
   public:
+    std::vector<Lecture> lectures(bool drafts = false);
+    Lecture lecture(const std::string &id, bool drafts = false);
+    void saveLecture(const Lecture &value, const std::string &file = "");
+    std::vector<Lecture> recommendedLectures(const std::string &attempt);
+    void readLecture(const std::string &id, const std::string &attempt = "");
+    void openLectureFile(const std::string &id, bool drafts = false);
+    std::vector<ExamTask> examTasks(int number = 0, int category = 0) {
+        return storage.examTasks(number, category);
+    }
     explicit SchoolService(Store &store) : storage(store), checker(geometry) {}
     bool hasTeacherPassword() {
         return storage.hasTeacherPassword();

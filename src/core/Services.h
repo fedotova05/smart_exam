@@ -29,7 +29,7 @@ class LearningModel {
                                              const std::vector<PartEvidence> &,
                                              double difficulty) const = 0;
 };
-// Подключается участником 2. Отсутствие проверки не означает верный ответ.
+// Отсутствие графической проверки не означает верный ответ.
 class UnavailableGraphChecker : public GraphChecker {
   public:
     CheckResult check(const TaskPart &, const GraphAnswer &) const override {

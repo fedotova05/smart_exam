@@ -1,3 +1,7 @@
+#include "ui/screens/LectureScreen.h"
+#include "ui/screens/ExamScreen.h"
+#include "ui/widgets/TextArea.h"
+#include "application/exams/ExamService.h"
 #include "../Test.h"
 #include "../Fixture.h"
 #include "ui/Screen.h"
@@ -706,6 +710,69 @@ int main() {
         REQUIRE(lesson.status == "Верно");
         school.finish(context.current.attempt.id);
         REQUIRE(school.history(shortStudent).front().result.score == 1);
+
+        installOgeCurriculum(store);
+        loginTeacherForTest(store);
+        context.role = UserRole::Teacher;
+        LectureScreen materials(font, context);
+        materials.refresh();
+        capture(materials, "lectures-catalog-teacher");
+        click(materials, 750, 20);
+        REQUIRE(materials.title == "Новая лекция");
+        type(materials, "Лекция учителя");
+        click(materials, 100, 120);
+        REQUIRE(materials.textInputFocused());
+        type(materials, "Первый абзац");
+        key(materials, sf::Keyboard::Enter);
+        type(materials, "Второй абзац");
+        click(materials, 650, 120);
+        capture(materials, "lecture-editor");
+        click(materials, 350, 585);
+        REQUIRE(materials.status == "Лекция опубликована");
+        bool savedLecture = false;
+        for (const auto &v : school.lectures())
+            if (v.title == "Лекция учителя")
+                savedLecture = v.body == "Первый абзац\nВторой абзац" && !v.skills.empty();
+        REQUIRE(savedLecture);
+        auto imported = ExamService(store).importPackage("data/samples/oge-2026.json");
+        REQUIRE(imported.tasks.size() == 19);
+        auto ogeProfile = school.createProfile("Задания ОГЭ");
+        context.selectProfile(ogeProfile, "Задания ОГЭ");
+        context.role = UserRole::Student;
+        ExamScreen exams(font, context);
+        exams.refresh();
+        REQUIRE(canOpen(context.role, "exams") && canOpen(context.role, "lectures"));
+        capture(exams, "oge-catalog");
+        settings = SessionSettings();
+        settings.training = true;
+        settings.taskLimit = 2;
+        school.start(ogeProfile, settings, {imported.tasks[8], imported.tasks[9]});
+        context.settings = settings;
+        context.current = school.next();
+        lesson.refresh();
+        capture(lesson, "oge-task");
+        type(lesson, "999");
+        key(lesson, sf::Keyboard::Enter);
+        REQUIRE(lesson.title == "Ответ пока неверный");
+        capture(lesson, "oge-help-choice");
+        click(lesson, 100, 545);
+        REQUIRE(lesson.title == "Материалы к заданию");
+        capture(lesson, "oge-related-lectures");
+        click(lesson, 100, 560);
+        REQUIRE(store.helpCount(context.current.attempt.id) == 1);
+        capture(lesson, "oge-lecture");
+        click(lesson, 750, 560);
+        REQUIRE(lesson.focusLayout());
+        REQUIRE(context.drafts["answer"].text == "999");
+        key(lesson, sf::Keyboard::A, true);
+        type(lesson, context.current.task.parts[0].correctAnswer);
+        key(lesson, sf::Keyboard::Enter);
+        REQUIRE(lesson.status == "Верно");
+        school.finish(context.current.attempt.id);
+        context.current = school.next();
+        REQUIRE(context.current.task.id == imported.tasks[9]);
+        materials.refresh();
+        capture(materials, "lectures-catalog-student");
 
         EasterEggs eggs;
         sf::Event secret = {};

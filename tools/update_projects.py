@@ -41,6 +41,11 @@ for name in ['smart_exam', 'tests', 'ui_tests']:
     else:
         files = [p for p in files if p.relative_to(root).parts[1] not in ('ui', 'graphics')]
         files += [p for p in sorted((root / 'tests').rglob('*')) if p.suffix in ('.cpp', '.h') and 'ui' not in p.relative_to(root).parts]
+    system_linker = project.find('Linker')
+    if system_linker is None:
+        system_linker = ET.SubElement(project, 'Linker')
+    for library in ['shell32']:
+        ET.SubElement(system_linker, 'Add', library=library)
     for file in files:
         ET.SubElement(project, 'Unit', filename='../' + file.relative_to(root).as_posix())
     unit = ET.SubElement(project, 'Unit', filename='../third_party/sqlite/sqlite3.c')

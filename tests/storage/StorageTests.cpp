@@ -1,5 +1,7 @@
 #include "../Test.h"
 #include "storage/Store.h"
+#include "../Fixture.h"
+#include "application/SchoolService.h"
 #include <cstdio>
 using namespace exam;
 void testStorage() {
@@ -65,11 +67,48 @@ void testStorage() {
         store.archive("v1");
         REQUIRE(store.publishedTasks().empty());
         REQUIRE(store.task(store.attempt(attempt.id).taskId).parts[0].expression == "x+1=2");
+        Database legacy(path);
+        legacy.script("DROP TABLE exam_tasks; DROP TABLE lecture_skills; DROP TABLE lectures; "
+                      "PRAGMA user_version=13;");
     }
     {
         Store reopened(path);
         REQUIRE(reopened.attempt("s1:0").finished);
         REQUIRE(reopened.responses("s1:0").size() == 1);
+        Database audit(path);
+        REQUIRE(audit.query("PRAGMA user_version")[0][0] == "14");
+        REQUIRE(reopened.lectures().empty());
+        addTask(reopened, "failure-test");
+        SchoolService school(reopened);
+        school.start("student", SessionSettings(), {"failure-test"});
+        auto current = school.next();
+        AnswerPayload answer;
+        answer.text = "1";
+        REQUIRE(school.submit(current.attempt.id, "answer", answer, true).status ==
+                CheckStatus::Correct);
+        for (auto table : {"observations", "student_skills"}) {
+            audit.script(std::string("CREATE TRIGGER injected_failure BEFORE INSERT ON ") + table +
+                         " BEGIN SELECT RAISE(ABORT,'write rejected'); END;");
+            bool failed = false;
+            try {
+                school.finish(current.attempt.id);
+            } catch (const std::exception &) {
+                failed = true;
+            }
+            REQUIRE(failed);
+            REQUIRE(!reopened.attempt(current.attempt.id).finished);
+            REQUIRE(reopened.responses(current.attempt.id).size() == 1);
+            REQUIRE(reopened.observationCount(current.attempt.id) == 0);
+            REQUIRE(!reopened.snapshot("student").skills["linear"].known);
+            audit.script("DROP TRIGGER injected_failure;");
+        }
+        school.finish(current.attempt.id);
+        school.finish(current.attempt.id);
+        REQUIRE(reopened.observationCount(current.attempt.id) == 1);
+        auto before = reopened.snapshot("student").skills["linear"];
+        reopened.replayModels();
+        auto after = reopened.snapshot("student").skills["linear"];
+        REQUIRE(before.mastery == after.mastery && before.rating == after.rating);
     }
     std::remove(path.c_str());
 }

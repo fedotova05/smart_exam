@@ -60,6 +60,18 @@ std::string parentPath(const std::string &path) {
     std::size_t slash = path.find_last_of("/\\");
     return slash == std::string::npos ? "." : path.substr(0, slash);
 }
+void writeFileAtomic(const std::string &path, const std::string &bytes) {
+    const auto temporary = path + "." + newId("part");
+    try {
+        writeFile(temporary, bytes);
+        if (!MoveFileExW(wide(temporary).c_str(), wide(path).c_str(),
+                         MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+            throw std::runtime_error("Не удалось сохранить файл: " + path);
+    } catch (...) {
+        DeleteFileW(wide(temporary).c_str());
+        throw;
+    }
+}
 void makeDirectories(const std::string &path) {
     if (path.empty() || path == "." || (path.size() == 2 && path[1] == ':'))
         return;
@@ -105,7 +117,8 @@ bool safeResourcePath(const std::string &path) {
         path.find_last_of('.') == std::string::npos ? path.size() : path.find_last_of('.'));
     for (char &letter : extension)
         letter = static_cast<char>(std::tolower(static_cast<unsigned char>(letter)));
-    return extension == ".png" || extension == ".jpg" || extension == ".jpeg";
+    return extension == ".png" || extension == ".jpg" || extension == ".jpeg" ||
+           extension == ".svg";
 }
 std::string resourcePath(const std::string &base, const std::string &relative) {
     if (!safeResourcePath(relative))

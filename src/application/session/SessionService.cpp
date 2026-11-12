@@ -7,11 +7,12 @@
 #include <chrono>
 namespace exam {
 void SessionService::start(const SessionRecord &session) {
-    if (session.settings.training && (session.settings.mode != SessionMode::Dynamic ||
-                                      session.settings.feedback != FeedbackPolicy::AfterStep ||
-                                      session.settings.targetSkills.empty()))
+    if (session.settings.training &&
+        (session.settings.feedback != FeedbackPolicy::AfterStep ||
+         (session.settings.mode == SessionMode::Dynamic && session.settings.targetSkills.empty()) ||
+         (session.settings.mode == SessionMode::Fixed && session.tasks.empty())))
         throw std::invalid_argument(
-            "Тренировка требует выбранных навыков, подбора заданий и немедленной проверки");
+            "Для тренировки нужны задания или выбранные навыки и немедленная проверка");
     if (session.settings.mode == SessionMode::Dynamic && !selector)
         throw std::runtime_error("Динамический подбор ещё не подключён");
     store.createSession(session);

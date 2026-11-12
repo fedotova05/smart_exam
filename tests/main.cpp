@@ -44,7 +44,10 @@ int main() {
         std::cout << "OK: teacher password, permissions, logout and profile archive\n";
         testDemonstration();
         std::cout << "OK: demonstration course, recursive support, review queue and paused draft\n";
-        std::cout << "All 17 test groups passed\n";
+        testMaterials();
+        std::cout << "OK: OGE imports, skill coverage, lectures and fixed training support\n";
+        testRegression();
+        std::cout << "All 19 test groups passed\n";
         return 0;
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';

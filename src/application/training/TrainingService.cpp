@@ -218,6 +218,8 @@ NextTask TrainingService::next(const std::string &id) {
         TrainingPlan route = plan(id, origin);
         if (route.stage == "done" || route.stage == "stop") {
             store.endSupport(id);
+            if (route.stage == "done" && lesson.settings.mode == SessionMode::Fixed)
+                return next(id);
             // После разбора показываем итог, а не начинаем следующий маршрут без объяснения.
             store.closeSession(id);
             result.reason = route.reason;
@@ -257,6 +259,19 @@ NextTask TrainingService::next(const std::string &id) {
         step.skill = route.skill;
         result.attempt = store.openTrainingAttempt(id, static_cast<int>(history.size()), task,
                                                    result.reason, step);
+    } else if (lesson.settings.mode == SessionMode::Fixed) {
+        std::size_t position = 0;
+        for (const auto &attempt : history)
+            if (store.trainingStep(attempt.id).stage.empty())
+                ++position;
+        if (position >= lesson.tasks.size() || position >= std::size_t(lesson.settings.taskLimit)) {
+            store.closeSession(id);
+            result.reason = "Подборка выполнена";
+            return result;
+        }
+        auto task = store.task(lesson.tasks[position]);
+        result.reason = "Задание " + std::to_string(position + 1) + " из подборки";
+        result.attempt = store.openAttempt(id, int(history.size()), task.id, result.reason);
     } else {
         std::vector<std::string> used;
         for (const auto &attempt : history)

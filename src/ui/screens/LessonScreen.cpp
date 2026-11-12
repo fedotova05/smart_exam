@@ -32,8 +32,9 @@ void LessonScreen::send(bool finalAnswer, const std::string &operation,
         answerSubmitted = true;
     refresh();
     status = feedback;
-    if (!focusCanvas && finalAnswer && result.status == CheckStatus::Incorrect &&
-        context.school.canSupport(attempt))
+    if (finalAnswer && result.status == CheckStatus::Incorrect &&
+        ((!focusCanvas && context.school.canSupport(attempt)) ||
+         !context.school.recommendedLectures(attempt).empty()))
         supportChoice();
 }
 void LessonScreen::supportChoice() {
@@ -56,8 +57,49 @@ void LessonScreen::supportChoice() {
             context.current = context.school.startSupport(attempt);
             refresh();
         },
-        true);
+        true)
+        ->setEnabled(context.school.canSupport(attempt));
     button("Попробовать ещё раз", 530, 460, 350, [this] { refresh(); });
+    if (!context.school.recommendedLectures(attempt).empty())
+        button("Почитать лекцию", 0, 525, 500, [this] { lectureChoices(); });
+}
+void LessonScreen::lectureChoices() {
+    auto values = context.school.recommendedLectures(attempt);
+    clear();
+    focusCanvas = false;
+    title = "Материалы к заданию";
+    note("Сначала показаны лекции по текущему навыку, затем — по необходимым основам.", 0, 0, 940);
+    std::vector<std::string> names;
+    for (auto &v : values)
+        names.push_back(v.title);
+    auto choices = list(names, 0, 60, 940, 420);
+    choices->setRowHeight(64);
+    button(
+        "Прочитать", 0, 540, 300,
+        [this, choices, values] {
+            if (choices->selection() < 0)
+                throw std::runtime_error("Выберите лекцию");
+            showLecture(values[choices->selection()].id);
+        },
+        true)
+        ->setEnabled(!values.empty());
+    button("← К заданию", 640, 540, 300, [this] { refresh(); });
+}
+void LessonScreen::showLecture(const std::string &id) {
+    context.school.readLecture(id, attempt);
+    auto value = context.school.lecture(id);
+    clear();
+    focusCanvas = false;
+    title = value.title;
+    note("Чтение учтено как помощь. Ответ и текущая попытка сохраняются.", 0, 0, 940);
+    add(new TextPanel(font, value.body.empty() ? "Материал находится во вложении." : value.body,
+                      940, 430),
+        0, 50);
+    button("← К материалам", 0, 540, 280, [this] { lectureChoices(); });
+    if (!value.attachment.empty())
+        button("Открыть PDF / Word", 300, 540, 300,
+               [this, id] { context.school.openLectureFile(id); });
+    button("К заданию →", 640, 540, 300, [this] { refresh(); }, true);
 }
 void LessonScreen::refresh() {
     clear();
@@ -187,8 +229,7 @@ void LessonScreen::refresh() {
         };
         note("Отметьте все правильные варианты. Пробел — поставить или снять флажок.", 0, 510, 600);
         text("Выберите ответы слева и отправьте их на проверку.", 630, 180, 19, 310, 4);
-        button(
-            "Отправить ответ", 0, 566, 230, [this] { send(true); }, true);
+        button("Отправить ответ", 0, 566, 230, [this] { send(true); }, true);
         focusWidget(choices);
     }
     if (graphPart) {
@@ -242,8 +283,7 @@ void LessonScreen::refresh() {
         TextField *answer = field(context.drafts[part.id].text, 0, 324, 420, 512);
         answer->setPlaceholder("Введите ответ");
         answer->onEnter = [this] { defer([this] { send(true); }); };
-        button(
-            "Проверить →", 440, 324, 160, [this] { send(true); }, true);
+        button("Проверить →", 440, 324, 160, [this] { send(true); }, true);
         FormulaView *preview = add(new FormulaView(headingFace(), 600, 85), 0, 425);
         preview->setFormula(part.kind == PartKind::ShortAnswer ? "" : answer->getText());
         answer->onChange = [this, answer, preview, part] {
@@ -326,8 +366,7 @@ void LessonScreen::refresh() {
         }
     list(history, 630, 443, 310, 98);
     if (graphPart)
-        button(
-            "Отправить ответ", 0, 566, 230, [this] { send(true); }, true);
+        button("Отправить ответ", 0, 566, 230, [this] { send(true); }, true);
     Button *hint = button(
         context.settings.helpAllowed ? "Нужна подсказка?" : "Без подсказок",
         (graphPart || part.kind == PartKind::Choice) ? 245 : 0, 574, 180, [this, part] {
@@ -369,7 +408,10 @@ void LessonScreen::resources(int index) {
     clear();
     focusCanvas = false;
     title = "Рисунок к заданию";
-    ListBox *files = list(context.current.task.resources, 0, 0, 940, 80);
+    std::vector<std::string> names;
+    for (std::size_t i = 0; i < context.current.task.resources.size(); ++i)
+        names.push_back("Рисунок / формула " + std::to_string(i + 1));
+    ListBox *files = list(names, 0, 0, 940, 80);
     files->select(index);
     files->onChange = [this](int value) { defer([this, value] { resources(value); }); };
     add(image.release(), 0, 95);
