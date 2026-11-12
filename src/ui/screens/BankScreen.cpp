@@ -64,8 +64,13 @@ void BankScreen::refresh() {
     }
     for (const auto &task : tasks) {
         std::string contents = task.title + " " + task.description + " " + task.id;
-        for (const auto &part : task.parts)
-            contents += " " + part.prompt + " " + joinCodes(part.skills);
+        for (const auto &part : task.parts) {
+            contents += " " + part.prompt;
+            for (const auto &skill : context.school.skills())
+                if (std::find(part.skills.begin(), part.skills.end(), skill.id) !=
+                    part.skills.end())
+                    contents += " " + skill.name;
+        }
         sf::String haystack = unicode(contents);
         for (std::size_t i = 0; i < haystack.getSize(); ++i) {
             if (haystack[i] >= 'A' && haystack[i] <= 'Z')
@@ -83,9 +88,12 @@ void BankScreen::refresh() {
                        " · частей: " + std::to_string(task.parts.size()));
     }
     ListBox *bank = list(rows, 0, 70, 940, 350);
+    bank->setRowHeight(56);
+    bank->setEmptyText("Задания не найдены. Измените поиск или создайте новое.");
     button("Открыть", 0, 445, 210, [this, bank, found] {
         if (bank->selection() < 0)
             return;
+        const bool published = found[bank->selection()].published;
         draft = found[bank->selection()];
         if (draft.published) {
             draft = context.school.newVersion(draft.id);
@@ -93,9 +101,11 @@ void BankScreen::refresh() {
         editing = true;
         partIndex = 0;
         editor();
-        status = "Опубликованное задание открывается как новая версия. Старая версия сохраняется.";
+        if (published)
+            status = "Создана новая версия. Исходное задание и решения сохранены.";
     });
-    button("Новое задание", 230, 445, 220, [this] { createTask(false); }, true);
+    button(
+        "Новое задание", 230, 445, 220, [this] { createTask(false); }, true);
     button("Корни + график", 470, 445, 220, [this] { createTask(true); });
     button("В архив", 710, 445, 230, [this, bank, found] {
         if (bank->selection() < 0)
@@ -128,7 +138,7 @@ void BankScreen::editor() {
     text("Общая функция (необязательно)", 0, 152, 16);
     TextField *function = field(draft.commonFunction, 0, 176, 450, 512);
     function->onChange = [this, function] { draft.commonFunction = function->getText(); };
-    text("Ресурсы в data/: пути через запятую", 480, 152, 16);
+    text("Изображения из папки data (через запятую)", 480, 152, 16);
     TextField *resources = field(joinCodes(draft.resources), 480, 176, 460, 1024);
     resources->onChange = [this, resources] { draft.resources = splitCodes(resources->getText()); };
     std::vector<std::string> parts;
@@ -172,77 +182,7 @@ void BankScreen::editor() {
     type->onChange = [this](int value) {
         draft.parts[partIndex].kind = static_cast<PartKind>(value);
     };
-    button("Дополнительно", 0, 566, 240, [this] {
-        clear();
-        title = "Настройки части задания";
-        const auto &part = draft.parts[partIndex];
-        text("Привязка графика: 0.01–10", 0, 0, 16);
-        auto snap = field(std::to_string(part.graphSnap), 0, 26, 300, 20);
-        text("Допуск графика: 0.000001–0.1", 350, 0, 16);
-        auto tolerance = field(std::to_string(part.graphTolerance), 350, 26, 300, 20);
-        text("Округление: -1 — точное, 0–6 — знаки", 0, 86, 16);
-        auto places = field(std::to_string(part.decimalPlaces), 0, 112, 300, 2);
-        text("Числовая погрешность: 0–1", 350, 86, 16);
-        auto numeric = field(std::to_string(part.answerTolerance), 350, 112, 300, 20);
-        note("Округление и числовая погрешность действуют только для числового ответа.", 0, 170,
-             900);
-        text("Формула для ученика (необязательно)", 0, 215, 16);
-        auto display = field(part.displayExpression, 0, 241, 900, 512);
-        auto steps = add(new Toggle(font, "Обязательное решение линейного уравнения", 650), 0, 305);
-        steps->setValue(part.requireSteps);
-        std::string options, correct;
-        for (const auto &value : part.choices) {
-            if (!options.empty())
-                options += "|";
-            options += value;
-        }
-        for (int value : part.correctChoices) {
-            if (!correct.empty())
-                correct += ";";
-            correct += std::to_string(value);
-        }
-        text("Варианты ответа через | (только для выбора вариантов)", 0, 365, 16);
-        auto choices = field(options, 0, 391, 900, 2048);
-        text("Номера правильных вариантов через ;", 0, 451, 16);
-        auto correctField = field(correct, 0, 477, 900, 100);
-        button(
-            "Применить", 0, 566, 240,
-            [this, snap, tolerance, places, numeric, display, steps, choices, correctField] {
-                TaskPart &part = draft.parts[partIndex];
-                double digits = readNumber(places->getText());
-                if (digits < -1 || digits > 6 || digits != int(digits))
-                    throw std::runtime_error("Округление: целое от -1 до 6");
-                std::vector<std::string> options;
-                std::vector<int> correct;
-                std::string token;
-                std::istringstream texts(choices->getText()), numbers(correctField->getText());
-                while (std::getline(texts, token, '|'))
-                    options.push_back(token);
-                while (std::getline(numbers, token, ';')) {
-                    double id = readNumber(token);
-                    if (id < 1 || id > 12 || id != int(id))
-                        throw std::runtime_error("Номер варианта: целое от 1 до 12");
-                    correct.push_back(int(id));
-                }
-                double step = readNumber(snap->getText()),
-                       precision = readNumber(tolerance->getText()),
-                       allowed = readNumber(numeric->getText());
-                if (step < 0.01 || step > 10 || precision < 0.000001 || precision > 0.1 ||
-                    allowed < 0 || allowed > 1)
-                    throw std::runtime_error("Допуск или привязка вне указанных границ");
-                part.graphSnap = step;
-                part.graphTolerance = precision;
-                part.decimalPlaces = int(digits);
-                part.answerTolerance = allowed;
-                part.requireSteps = steps->getValue();
-                part.displayExpression = display->getText();
-                part.choices = options;
-                part.correctChoices = correct;
-                editor();
-            },
-            true);
-        button("Отмена", 260, 566, 200, [this] { editor(); });
-    });
+    button("Настроить ответ", 0, 566, 240, [this] { answerSettings(); });
     text("Условие выбранной части", 270, 228, 16);
     TextField *prompt = field(part.prompt, 270, 252, 670, 2048);
     prompt->onChange = [this, prompt] { draft.parts[partIndex].prompt = prompt->getText(); };
@@ -254,11 +194,9 @@ void BankScreen::editor() {
         draft.parts[partIndex].expression = expression->getText();
         formula->setFormula(expression->getText());
     };
-    text("Коды навыков через запятую", 270, 476, 16);
-    TextField *skills = field(joinCodes(part.skills), 270, 500, 390, 512);
-    skills->onChange = [this, skills] {
-        draft.parts[partIndex].skills = splitCodes(skills->getText());
-    };
+    text("Проверяемые навыки", 270, 476, 16);
+    button("Выбрано: " + std::to_string(part.skills.size()) + " · изменить", 270, 500, 390,
+           [this] { selectSkills(); });
     text("Балл", 680, 476, 16);
     TextField *score = field(std::to_string(part.maxScore), 680, 500, 100, 3);
     text("Сложность", 800, 476, 16);

@@ -56,10 +56,12 @@ void ProgressScreen::refresh() {
         average.mastery = sum / known;
     }
     text(hidden ? "Пока скрыто" : skillEstimate(average), 320, 87, 32, 250, 1);
-    text(hidden ? "Проверка после занятия" : "Оценено " + std::to_string(known) + " из " +
-         std::to_string(skills.size()) + " навыков", 590, 99, 18, 330, 2);
-    note("Среднее по навыкам с наблюдениями. Не является процентом освоения всей темы.",
-         320, 149, 600);
+    text(hidden ? "Проверка после занятия"
+                : "Оценено " + std::to_string(known) + " из " + std::to_string(skills.size()) +
+                      " навыков",
+         590, 99, 18, 330, 2);
+    note("Среднее по навыкам с наблюдениями. Не является процентом освоения всей темы.", 320, 149,
+         600);
     // Подсказки считаем по связанным завершённым заданиям, отдельно от наблюдений модели.
     std::map<std::string, int> hints;
     if (!hidden)
@@ -70,7 +72,8 @@ void ProgressScreen::refresh() {
             for (const auto &skill : skills) {
                 bool related = false;
                 for (const auto &part : task.parts)
-                    if (std::find(part.skills.begin(), part.skills.end(), skill.id) != part.skills.end())
+                    if (std::find(part.skills.begin(), part.skills.end(), skill.id) !=
+                        part.skills.end())
                         related = true;
                 if (related)
                     hints[skill.id] += entry.help;
@@ -78,7 +81,7 @@ void ProgressScreen::refresh() {
         }
     note("НАВЫК", 0, 226, 300);
     note("ОЦЕНКА", 310, 226, 300);
-    note("НАБЛЮДЕНИЙ", 660, 226, 150);
+    note("РЕШЕНИЙ", 660, 226, 150);
     note("ПОДСКАЗОК*", 820, 226, 120);
     if (first >= static_cast<int>(skills.size()))
         first = 0;
@@ -97,15 +100,30 @@ void ProgressScreen::refresh() {
     if (skills.empty())
         note("В этой теме пока нет навыков.", 0, 270, 940);
     text("Один верный самостоятельный ответ даёт около 58%, а не 100%. Ошибки учитываются, "
-         "даже после исправления. Решение с подсказкой не меняет оценку навыка.", 0, 520, 14, 940, 2);
-    note("Наблюдение — результат навыка в одном задании. *Подсказки в связанных завершённых заданиях.",
-         0, 562, 940);
-    button("Карта связей →", 0, 600, 210, [this] { context.page = "knowledge"; });
-    button("История решений", 230, 600, 230, [this] { context.page = "results"; });
+         "даже после исправления. Решение с подсказкой не меняет оценку навыка.",
+         0, 506, 14, 940, 2);
+    note("Решений — число завершённых заданий по навыку. *Подсказки в связанных завершённых "
+         "заданиях.",
+         0, 545, 940);
+    button("Карта связей →", 0, 586, 210, [this] { context.page = "knowledge"; });
+    button("История решений", 230, 586, 230, [this] { context.page = "results"; });
+    if (context.role == UserRole::Student)
+        button("Тренироваться", 480, 586, 210, [this, skills] {
+            context.practiceSkills.clear();
+            for (const auto &skill : skills)
+                context.practiceSkills.push_back(skill.id);
+            context.page = "practice";
+        })->setEnabled(!skills.empty());
     if (first > 0)
-        button("← Назад", 620, 600, 150, [this] { first -= 5; refresh(); });
+        button("← Назад", 710, 586, 105, [this] {
+            first -= 5;
+            refresh();
+        });
     if (first + 5 < static_cast<int>(skills.size()))
-        button("Далее →", 790, 600, 150, [this] { first += 5; refresh(); });
+        button("Далее →", 830, 586, 110, [this] {
+            first += 5;
+            refresh();
+        });
 }
 } // namespace ui
 } // namespace exam

@@ -16,6 +16,7 @@ class App {
     std::vector<std::string> navigationPages;
     Screen *current;
     std::string page;
+    int navigationFocus;
     void show(const std::string &name);
     void buildNavigation();
     void draw();

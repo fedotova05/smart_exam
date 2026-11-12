@@ -7,6 +7,45 @@ void Screen::clear() {
     surfaces.clear();
     focus = -1;
     status.clear();
+    clockText.clear();
+    contentWidth = 940;
+    setStatusArea(0, 628, 930);
+}
+void Screen::clearFocus() {
+    if (focus >= 0 && focus < static_cast<int>(widgets.size()))
+        widgets[focus]->setFocus(false);
+    focus = -1;
+}
+void Screen::focusWidget(Widget *widget) {
+    clearFocus();
+    for (std::size_t i = 0; i < widgets.size(); ++i)
+        if (widgets[i].get() == widget && widget->focusable() && widget->isEnabled() &&
+            widget->isVisible()) {
+            focus = static_cast<int>(i);
+            widget->setFocus(true);
+            break;
+        }
+}
+bool Screen::moveFocus(bool backward, bool wrap) {
+    if (widgets.empty())
+        return false;
+    int next = focus < 0 ? (backward ? static_cast<int>(widgets.size()) : -1) : focus;
+    for (std::size_t i = 0; i < widgets.size(); ++i) {
+        next += backward ? -1 : 1;
+        if (next < 0 || next >= static_cast<int>(widgets.size())) {
+            if (!wrap) {
+                clearFocus();
+                return false;
+            }
+            next = backward ? static_cast<int>(widgets.size()) - 1 : 0;
+        }
+        if (widgets[next]->focusable() && widgets[next]->isVisible() &&
+            widgets[next]->isEnabled()) {
+            focusWidget(widgets[next].get());
+            return true;
+        }
+    }
+    return false;
 }
 void Screen::heading(const std::string &value, float x, float y, unsigned size) {
     captions.push_back(label(*headingFont, unicode(value), size, x, y));
@@ -58,8 +97,9 @@ void Screen::handle(const sf::Event &event, sf::Vector2f mouse) {
         bool no = event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape;
         if (event.type == sf::Event::MouseButtonReleased &&
             event.mouseButton.button == sf::Mouse::Left) {
-            yes = sf::FloatRect(220, 330, 180, 44).contains(mouse);
-            no = sf::FloatRect(420, 330, 180, 44).contains(mouse);
+            float left = (contentWidth - 560) / 2;
+            yes = sf::FloatRect(left + 60, 330, 180, 44).contains(mouse);
+            no = sf::FloatRect(left + 260, 330, 180, 44).contains(mouse);
         }
         if (yes) {
             pending = confirmation;
@@ -70,20 +110,7 @@ void Screen::handle(const sf::Event &event, sf::Vector2f mouse) {
         return;
     }
     if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Tab) {
-        if (widgets.empty())
-            return;
-        int next = focus;
-        for (std::size_t i = 0; i < widgets.size(); ++i) {
-            next = (next + (event.key.shift ? -1 : 1) + static_cast<int>(widgets.size())) %
-                   widgets.size();
-            if (widgets[next]->focusable() && widgets[next]->isVisible() &&
-                widgets[next]->isEnabled())
-                break;
-        }
-        if (focus >= 0)
-            widgets[focus]->setFocus(false);
-        focus = next;
-        widgets[focus]->setFocus(true);
+        moveFocus(event.key.shift);
         return;
     }
     if (event.type == sf::Event::MouseButtonPressed) {
@@ -114,8 +141,9 @@ void Screen::update() {
 }
 void Screen::draw(sf::RenderTarget &target, sf::RenderStates states) const {
     states.transform *= getTransform();
-    target.draw(label(*headingFont, shorten(*headingFont, unicode(title), 32, 940), 32, 0, -57),
-                states);
+    target.draw(
+        label(*headingFont, shorten(*headingFont, unicode(title), 32, contentWidth), 32, 0, -57),
+        states);
     for (const auto &surface : surfaces)
         target.draw(surface, states);
     for (const auto &caption : captions)
@@ -123,17 +151,29 @@ void Screen::draw(sf::RenderTarget &target, sf::RenderStates states) const {
     for (const auto &widget : widgets)
         if (widget->isVisible())
             target.draw(*widget, states);
-    target.draw(label(font, wrap(font, unicode(status), 16, 930, 2), 16, 0, 634, Theme::accent),
-                states);
+    if (!clockText.empty())
+        target.draw(label(font, unicode(clockText), 14, contentWidth - 300, -20, Theme::muted),
+                    states);
+    if (!status.empty()) {
+        rectangle(target, states, sf::Vector2f(statusWidth, statusLines * 18.f + 8), Theme::pale,
+                  statusPosition - sf::Vector2f(0, 6));
+        target.draw(label(font, wrap(font, unicode(status), 14, statusWidth - 24, statusLines), 14,
+                          statusPosition.x + 12, statusPosition.y, Theme::ink),
+                    states);
+    }
     if (!dialog.empty()) {
-        rectangle(target, states, sf::Vector2f(940, 620), sf::Color(32, 56, 49, 140));
-        rectangle(target, states, sf::Vector2f(560, 240), Theme::paper, sf::Vector2f(160, 160),
+        float left = (contentWidth - 560) / 2;
+        rectangle(target, states, sf::Vector2f(contentWidth, 620), sf::Color(32, 56, 49, 140));
+        rectangle(target, states, sf::Vector2f(560, 240), Theme::paper, sf::Vector2f(left, 160),
                   Theme::line);
-        target.draw(label(font, wrap(font, unicode(dialog), 20, 500, 5), 20, 190, 190), states);
-        rectangle(target, states, sf::Vector2f(180, 44), Theme::accent, sf::Vector2f(220, 330));
-        rectangle(target, states, sf::Vector2f(180, 44), Theme::pale, sf::Vector2f(420, 330));
-        target.draw(label(font, unicode("Да · Enter"), 18, 240, 341, Theme::white), states);
-        target.draw(label(font, unicode("Отмена · Esc"), 18, 440, 341), states);
+        target.draw(label(font, wrap(font, unicode(dialog), 20, 500, 5), 20, left + 30, 190),
+                    states);
+        rectangle(target, states, sf::Vector2f(180, 44), Theme::accent,
+                  sf::Vector2f(left + 60, 330));
+        rectangle(target, states, sf::Vector2f(180, 44), Theme::pale,
+                  sf::Vector2f(left + 260, 330));
+        target.draw(label(font, unicode("Да · Enter"), 18, left + 80, 341, Theme::white), states);
+        target.draw(label(font, unicode("Отмена · Esc"), 18, left + 280, 341), states);
     }
 }
 } // namespace ui

@@ -2,13 +2,14 @@
 #include "ui/SkillMap.h"
 #include <algorithm>
 #include <set>
+#include "io/Files.h"
 namespace exam {
 namespace ui {
 void KnowledgeScreen::refresh() {
     clear();
     if (topic.empty() && context.profile == "demo-training")
         topic = "quadratic_course";
-    title = "Карта знаний";
+    title = "Карта навыков";
     auto skills = context.school.skills();
     auto topics = context.school.topics();
     std::vector<std::string> names = {"Все темы"};
@@ -64,8 +65,10 @@ void KnowledgeScreen::refresh() {
         });
     };
     text(context.profile.empty() ? "Профиль не выбран" : context.profileName, 630, 0, 20, 310, 1);
-    if (!visible.empty() && std::find_if(visible.begin(), visible.end(),
-            [this](const SkillInfo &skill) { return skill.id == selected; }) == visible.end())
+    if (!visible.empty() &&
+        std::find_if(visible.begin(), visible.end(), [this](const SkillInfo &skill) {
+            return skill.id == selected;
+        }) == visible.end())
         selected = visible.front().id;
     auto found = std::find_if(visible.begin(), visible.end(),
                               [this](const SkillInfo &skill) { return skill.id == selected; });
@@ -73,11 +76,11 @@ void KnowledgeScreen::refresh() {
         text(found->name, 630, 45, 22, 310, 2);
         SkillState skill = state.skills[found->id];
         text(hidden ? "Пока скрыто" : skillEstimate(skill), 630, 112, 32, 310, 1);
-        progressBar(hidden || !skill.known ? 0.f : static_cast<float>(skill.mastery),
-                    630, 162, 310);
+        progressBar(hidden || !skill.known ? 0.f : static_cast<float>(skill.mastery), 630, 162,
+                    310);
         note("ОЦЕНКА ОСВОЕНИЯ НАВЫКА", 630, 190, 310);
-        note(hidden ? "Проверка отложена до завершения занятия." : skillEvidence(skill),
-             630, 224, 310);
+        note(hidden ? "Проверка отложена до завершения занятия." : skillEvidence(skill), 630, 224,
+             310);
         int help = 0;
         std::vector<std::string> history;
         if (!context.profile.empty())
@@ -90,7 +93,8 @@ void KnowledgeScreen::refresh() {
                         related = true;
                 if (related) {
                     help += entry.help;
-                    history.push_back(entry.title + " · " + scoreText(entry.result, entry.maximumScore));
+                    history.push_back(entry.title + " · " +
+                                      scoreText(entry.result, entry.maximumScore));
                 }
             }
         note("Подсказок в связанных заданиях: " + std::to_string(help), 630, 313, 310);
@@ -102,14 +106,14 @@ void KnowledgeScreen::refresh() {
         button("Новая тема", 430, 560, 200, [this] {
             clear();
             title = "Новая тема";
-            text("Код темы", 0, 0);
-            TextField *id = field("", 0, 30, 350, 80);
-            text("Название", 0, 95);
-            TextField *name = field("", 0, 125, 600, 120);
+            text("Название темы", 0, 0);
+            TextField *name = field("", 0, 40, 600, 120);
+            name->setPlaceholder("Например: Квадратные уравнения");
+            focusWidget(name);
             button(
                 "Сохранить", 0, 220, 220,
-                [this, id, name] {
-                    context.school.saveTopic(id->getText(), name->getText());
+                [this, name] {
+                    context.school.saveTopic(newId("topic"), name->getText());
                     refresh();
                 },
                 true);
@@ -127,7 +131,8 @@ void KnowledgeScreen::explain() {
     title = "Как читать результаты";
     heading("Баллы за задание", 0, 20, 28);
     text("Баллы начисляются за последние верные ответы в частях задания. Например, 1 / 1 — полный "
-         "балл за одно задание. Это не означает, что вся тема освоена.", 0, 67, 19, 900, 3);
+         "балл за одно задание. Это не означает, что вся тема освоена.",
+         0, 67, 19, 900, 3);
     surface(0, 145, 940, 1, Theme::line);
     heading("Ход занятия", 0, 174, 28);
     text("1 из 3 завершено — выполнена треть набора. Остальные задания ещё впереди. "
@@ -137,7 +142,8 @@ void KnowledgeScreen::explain() {
     heading("Оценка навыка", 0, 331, 28);
     text("Это прогноз по самостоятельным решениям. Первый верный ответ даёт около 58%, "
          "а не 100%. Ошибки учитываются, даже если ответ исправлен. Решение с подсказкой "
-         "не меняет оценку этого навыка.", 0, 378, 19, 900, 4);
+         "не меняет оценку этого навыка.",
+         0, 378, 19, 900, 4);
     note("Одно наблюдение — один результат по навыку в завершённом задании, а не каждое нажатие "
          "«Проверить». Нет данных — не нулевая оценка. Прогноз не гарантирует знание темы.",
          0, 486, 900);
@@ -158,11 +164,10 @@ void KnowledgeScreen::editSkill(bool create) {
         throw std::runtime_error("Сначала создайте тему");
     clear();
     title = create ? "Новый навык" : "Изменение навыка";
-    text("Код", 0, 0);
-    TextField *id = field(skill.id, 0, 30, 300, 80);
-    id->setEnabled(create);
-    text("Название", 330, 0);
-    TextField *name = field(skill.name, 330, 30, 610, 120);
+    if (create)
+        skill.id = newId("skill");
+    text("Название навыка", 0, 0);
+    TextField *name = field(skill.name, 0, 36, 940, 120);
     text("Тема", 0, 100);
     std::vector<std::string> rows;
     int selectedTopic = 0;
@@ -173,31 +178,37 @@ void KnowledgeScreen::editSkill(bool create) {
     }
     ListBox *topicList = list(rows, 0, 130, 400, 160);
     topicList->select(selectedTopic);
-    text("Предпосылки: коды через запятую", 440, 100);
-    TextField *parents =
-        field(joinCodes(context.school.skillGraph()[skill.id]), 440, 130, 500, 512);
-    std::vector<std::string> available;
+    text("Что нужно знать заранее", 440, 100, 20);
+    std::vector<SkillInfo> available;
+    std::vector<std::string> labels;
     for (const auto &item : skills)
-        available.push_back(item.id + " — " + item.name);
-    ListBox *choices = list(available, 440, 190, 500, 240);
-    button("Добавить выбранный", 440, 445, 270, [parents, choices, skills] {
-        if (choices->selection() < 0)
-            return;
-        auto codes = splitCodes(parents->getText());
-        const std::string &code = skills[choices->selection()].id;
-        if (std::find(codes.begin(), codes.end(), code) == codes.end())
-            codes.push_back(code);
-        parents->setText(joinCodes(codes));
-    });
-    text("Для удаления связи уберите код из поля. Циклические связи не сохраняются.", 0, 340, 18,
-         400, 5);
+        if (item.id != skill.id) {
+            available.push_back(item);
+            labels.push_back(item.name);
+        }
+    auto previous = context.school.skillGraph()[skill.id];
+    auto parents = std::make_shared<std::set<std::string>>(previous.begin(), previous.end());
+    auto choices = list(labels, 440, 140, 500, 336);
+    choices->setRowHeight(56);
+    choices->setCheckable(true);
+    choices->setEmptyText("Других навыков пока нет");
+    for (std::size_t i = 0; i < available.size(); ++i)
+        choices->setChecked(int(i), parents->count(available[i].id) != 0);
+    choices->onToggle = [parents, choices, available](int i) {
+        if (!parents->erase(available[i].id))
+            parents->insert(available[i].id);
+        choices->setChecked(i, parents->count(available[i].id) != 0);
+    };
+    note("Отметьте навыки, на которых основан этот. Пустой список означает, что предварительные "
+         "знания не требуются.",
+         0, 340, 400);
     button(
         "Сохранить", 0, 550, 220,
-        [this, skill, id, name, parents, topicList, topics]() mutable {
-            skill.id = id->getText();
+        [this, skill, name, parents, topicList, topics]() mutable {
             skill.name = name->getText();
             skill.topicId = topics[topicList->selection()].first;
-            context.school.saveSkill(skill, splitCodes(parents->getText()));
+            context.school.saveSkill(skill,
+                                     std::vector<std::string>(parents->begin(), parents->end()));
             selected = skill.id;
             refresh();
         },

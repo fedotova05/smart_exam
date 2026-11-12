@@ -88,6 +88,21 @@ int main() {
         screen.handle(wheel, sf::Vector2f(420, 20));
         click(screen, 420, 20);
         REQUIRE(list->selection() == 3);
+        ListBox *checks = screen.list({"Первый", "Второй", "Третий"}, 650, 0, 240, 180);
+        checks->setCheckable(true);
+        checks->setRowHeight(60);
+        int toggled = -1;
+        checks->onToggle = [&](int i) {
+            toggled = i;
+            checks->setChecked(i, true);
+        };
+        click(screen, 710, 20);
+        key(screen, sf::Keyboard::Down);
+        REQUIRE(toggled == -1 && checks->selection() == 1);
+        key(screen, sf::Keyboard::Space);
+        REQUIRE(toggled == 1);
+        click(screen, 665, 140);
+        REQUIRE(toggled == 2);
         FormulaView formula(font, 800, 180);
         for (const std::string &value : {"(x+1)/(x^2+sqrt(3))", "-2;2", "none", "(x+1)^2=4"}) {
             formula.setFormula(value);
@@ -168,6 +183,46 @@ int main() {
         click(bank, 300, 465);
         capture(bank, "editor");
         REQUIRE(bank.title == "Редактор задания");
+        click(bank, 400, 520);
+        REQUIRE(bank.title == "Навыки задания");
+        click(bank, 310, 570);
+        click(bank, 50, 480);
+        for (int i = 0; i < 4; ++i)
+            key(bank, sf::Keyboard::Down);
+        click(bank, 100, 580);
+        REQUIRE(bank.title == "Настройка ответа");
+        click(bank, 150, 210);
+        type(bank, "2");
+        click(bank, 150, 282);
+        type(bank, "3");
+        click(bank, 20, 205);
+        capture(bank, "choice-settings");
+        click(bank, 80, 580);
+        click(bank, 320, 580);
+        REQUIRE(bank.status == "Черновик сохранён");
+        TaskVersion choiceTask;
+        for (const auto &candidate : school.tasks())
+            if (candidate.title == "Новое задание")
+                choiceTask = candidate;
+        REQUIRE(choiceTask.parts.size() == 1);
+        REQUIRE(choiceTask.parts[0].choices == std::vector<std::string>({"2", "3"}));
+        REQUIRE(choiceTask.parts[0].correctChoices == std::vector<int>({1}));
+        school.publish(choiceTask.id);
+        context.role = UserRole::Student;
+        school.start(context.profile, SessionSettings(), {choiceTask.id});
+        context.current = school.next();
+        LessonScreen choiceLesson(font, context);
+        choiceLesson.refresh();
+        click(choiceLesson, 15, 230);
+        REQUIRE(context.drafts["a"].text == "1");
+        click(choiceLesson, 80, 580);
+        REQUIRE(school.responses(context.current.attempt.id).back().result.status ==
+                CheckStatus::Correct);
+        capture(choiceLesson, "choice-answer");
+        school.finish(context.current.attempt.id);
+        school.closeLesson();
+        loginTeacherForTest(store);
+        context.role = UserRole::Teacher;
         // Создание составного задания, ввод ответа и возврат к части.
         TaskVersion task;
         task.id = "ui-task";
@@ -234,17 +289,17 @@ int main() {
         capture(packages, "packages-screen");
         context.role = UserRole::Student;
         home.refresh();
-        click(home, 60, 340);
+        click(home, 60, 306);
         REQUIRE(context.page == "practice");
         school.start(context.profile, SessionSettings(),
                      {"intro-fractions", "intro-linear", "intro-parabola"});
         home.refresh();
-        click(home, 60, 340);
+        click(home, 60, 306);
         REQUIRE(context.page == "lesson" && context.current.available);
         REQUIRE(context.current.task.id == "intro-fractions");
         std::string attempt = context.current.attempt.id;
         home.refresh();
-        click(home, 60, 340);
+        click(home, 60, 306);
         REQUIRE(context.current.attempt.id == attempt);
         // Продолжение учительского занятия восстанавливает режим проверки.
         std::string pupil = school.createProfile("Ученик с заданным режимом");
@@ -253,39 +308,54 @@ int main() {
         school.start(pupil, settings, {"intro-linear"});
         context.selectProfile(pupil, "Ученик с заданным режимом");
         home.refresh();
-        click(home, 60, 340);
+        click(home, 60, 306);
         REQUIRE(context.settings.guided);
         REQUIRE(context.settings.feedback == FeedbackPolicy::AfterTask);
         REQUIRE(context.current.task.id == "intro-linear");
-        // Шаги не нужны для итогового ответа даже в старом занятии guided.
+        // Отложенная проверка сохраняет ответ без раскрытия результата.
         lesson.refresh();
-        click(lesson, 50, 340);
         type(lesson, "4");
-        click(lesson, 470, 340);
+        key(lesson, sf::Keyboard::Enter);
         REQUIRE(school.responses(context.current.attempt.id).back().result.status ==
                 CheckStatus::Incomplete);
+        std::size_t sentCount = school.responses(context.current.attempt.id).size();
+        key(lesson, sf::Keyboard::Enter);
+        REQUIRE(school.responses(context.current.attempt.id).size() == sentCount);
         REQUIRE(school.finish(context.current.attempt.id).score == 1);
         school.closeLesson();
-        // Поле шага не заменяет итоговый ответ; выбранное действие действительно проверяется.
+        // Шаги и итоговый ответ имеют отдельные черновики.
         settings.feedback = FeedbackPolicy::AfterStep;
+        settings.timeLimitSeconds = 300;
         school.start(context.profile, settings, {"intro-linear"});
         context.settings = settings;
         context.current = school.next();
         lesson.refresh();
-        click(lesson, 50, 340);
         type(lesson, "4");
-        click(lesson, 650, 185);
-        click(lesson, 650, 230);
+        click(lesson, 450, 525);
+        REQUIRE(lesson.title == "Решение по шагам");
         type(lesson, "2*x=8");
-        click(lesson, 650, 320);
-        click(lesson, 650, 370);
+        click(lesson, 50, 335);
+        click(lesson, 400, 300);
         type(lesson, "3");
-        click(lesson, 770, 370);
+        click(lesson, 500, 370);
         REQUIRE(school.responses(context.current.attempt.id).back().result.status ==
                 CheckStatus::Correct);
         REQUIRE(context.drafts["a"].text == "4");
-        click(lesson, 470, 340);
+        key(lesson, sf::Keyboard::Escape);
+        key(lesson, sf::Keyboard::Enter);
         REQUIRE(school.responses(context.current.attempt.id).back().finalAnswer);
+        const std::string feedback = lesson.status;
+        Sleep(1100);
+        lesson.tick();
+        REQUIRE(lesson.status == feedback && !lesson.clockText.empty());
+        // Незавершённое редактирование не отправляется при завершении задания.
+        key(lesson, sf::Keyboard::A, true);
+        type(lesson, "5");
+        click(lesson, 500, 590);
+        REQUIRE(lesson.hasDialog());
+        key(lesson, sf::Keyboard::Escape);
+        REQUIRE(context.drafts["a"].text == "5");
+        REQUIRE(!context.current.attempt.finished);
         REQUIRE(school.finish(context.current.attempt.id).score == 1);
         school.closeLesson();
         // Поиск по теме/названию и сборка занятия без записи черновиков до старта.
@@ -327,8 +397,7 @@ int main() {
         click(setup, 680, 595);
         REQUIRE(setup.title == "Занятие подготовлено");
         REQUIRE(school.tasks().size() == beforeGeneration + 3);
-        home.refresh();
-        click(home, 350, 565);
+        home.openReview();
         REQUIRE(home.title == "Проверка решений");
         capture(home, "review-queue");
         click(home, 30, 15);
@@ -339,7 +408,7 @@ int main() {
         REQUIRE(school.latestLesson(context.profile).tasks.size() == 4);
         context.role = UserRole::Student;
         home.refresh();
-        click(home, 60, 340);
+        click(home, 60, 306);
         REQUIRE(context.current.available);
         REQUIRE(context.current.task.id == "intro-fractions");
         ProgressScreen progress(font, context);
@@ -350,26 +419,31 @@ int main() {
         context.selectProfile(school.createProfile("Темы ученика"), "Темы ученика");
         TrainingSetupScreen topics(font, context);
         topics.refresh();
-        click(topics, 50, 210);
-        click(topics, 340, 170);
-        click(topics, 340, 210);
-        click(topics, 340, 250);
-        click(topics, 750, 300);
+        // Просмотр темы и стрелки не выбирают навыки.
+        click(topics, 370, 175);
+        key(topics, sf::Keyboard::Down);
+        key(topics, sf::Keyboard::Down);
+        key(topics, sf::Keyboard::Down);
+        key(topics, sf::Keyboard::Space);
+        click(topics, 750, 310);
         key(topics, sf::Keyboard::A, true);
         type(topics, "1");
-        click(topics, 700, 595);
+        click(topics, 700, 585);
         REQUIRE(context.page == "lesson");
         REQUIRE(context.settings.training);
         REQUIRE(context.settings.targetSkills == std::vector<std::string>({"q_roots"}));
         lesson.refresh();
-        click(lesson, 50, 340);
         type(lesson, "0");
-        click(lesson, 470, 340);
-        REQUIRE(lesson.title == "Ответ пока неверный");
-        click(lesson, 600, 475);
-        REQUIRE(lesson.title != "Ответ пока неверный");
-        click(lesson, 470, 340);
-        click(lesson, 100, 475);
+        key(lesson, sf::Keyboard::Enter);
+        REQUIRE(!lesson.status.empty());
+        REQUIRE(!context.current.attempt.finished);
+        capture(lesson, "focus-incorrect");
+        click(lesson, 100, 590);
+        REQUIRE(lesson.hasDialog());
+        key(lesson, sf::Keyboard::Escape);
+        REQUIRE(context.drafts[context.current.task.parts.front().id].text == "0");
+        click(lesson, 100, 590);
+        key(lesson, sf::Keyboard::Enter);
         REQUIRE(context.current.task.parts.front().skills ==
                 std::vector<std::string>({"q_coefficients"}));
         graphics.setActive(true);

@@ -135,8 +135,10 @@
     <Unit filename="../src/ui/ImageView.cpp" />
     <Unit filename="../src/ui/Screen.cpp" />
     <Unit filename="../src/ui/screens/BankScreen.cpp" />
+    <Unit filename="../src/ui/screens/BankSettings.cpp" />
     <Unit filename="../src/ui/screens/HomeScreen.cpp" />
     <Unit filename="../src/ui/screens/KnowledgeScreen.cpp" />
+    <Unit filename="../src/ui/screens/LessonFocus.cpp" />
     <Unit filename="../src/ui/screens/LessonOptions.cpp" />
     <Unit filename="../src/ui/screens/LessonScreen.cpp" />
     <Unit filename="../src/ui/screens/LessonSetupScreen.cpp" />

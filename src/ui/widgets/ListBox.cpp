@@ -3,7 +3,8 @@
 namespace exam {
 namespace ui {
 ListBox::ListBox(const sf::Font &face, float width, float height)
-    : Widget(face, width, height), selected(-1), first(0), rowHeight(40) {
+    : Widget(face, width, height), selected(-1), first(0), rowHeight(40), checkable(false),
+      emptyText("Нет элементов") {
     canvas.create(static_cast<unsigned>(width), static_cast<unsigned>(height));
     canvas.setSmooth(true);
 }
@@ -11,6 +12,7 @@ void ListBox::setItems(const std::vector<std::string> &values) {
     items = values;
     selected = items.empty() ? -1 : 0;
     first = 0;
+    checks.clear();
 }
 void ListBox::select(int index, bool notify) {
     if (index < 0) {
@@ -33,8 +35,13 @@ bool ListBox::handle(const sf::Event &event, sf::Vector2f mouse) {
         return false;
     if (event.type == sf::Event::MouseButtonPressed &&
         event.mouseButton.button == sf::Mouse::Left && contains(mouse)) {
-        select(first + static_cast<int>(getInverseTransform().transformPoint(mouse).y / rowHeight),
-               true);
+        sf::Vector2f point = getInverseTransform().transformPoint(mouse);
+        int index = first + static_cast<int>(point.y / rowHeight);
+        if (index >= static_cast<int>(items.size()))
+            return true;
+        select(index, !(checkable && point.x < 36));
+        if (checkable && point.x < 36 && onToggle)
+            onToggle(index);
         return true;
     }
     if (event.type == sf::Event::MouseWheelScrolled && contains(mouse)) {
@@ -44,6 +51,11 @@ bool ListBox::handle(const sf::Event &event, sf::Vector2f mouse) {
         return true;
     }
     if (focused && event.type == sf::Event::KeyPressed) {
+        if (checkable && event.key.code == sf::Keyboard::Space && selected >= 0) {
+            if (onToggle)
+                onToggle(selected);
+            return true;
+        }
         if (event.key.code == sf::Keyboard::Up) {
             select(std::max(0, selected - 1), true);
             return true;
@@ -66,14 +78,34 @@ void ListBox::draw(sf::RenderTarget &target, sf::RenderStates states) const {
     states.transform *= getTransform();
     canvas.clear(Theme::background);
     if (items.empty())
-        canvas.draw(label(font, unicode("Список пуст"), 16, 12, 16, Theme::muted));
-    for (int i = first; i < static_cast<int>(items.size()) && (i - first) * rowHeight < size.y;
+        canvas.draw(label(font, wrap(font, unicode(emptyText), 16, size.x - 24, 4), 16, 12, 16,
+                          Theme::muted));
+    for (int i = first; i < static_cast<int>(items.size()) && (i - first + 1) * rowHeight <= size.y;
          ++i) {
         float y = (i - first) * rowHeight;
         if (i == selected)
             rectangle(canvas, sf::RenderStates(), sf::Vector2f(size.x, rowHeight), Theme::pale,
                       sf::Vector2f(0, y));
-        canvas.draw(label(font, shorten(font, unicode(items[i]), 16, size.x - 26), 16, 12, y + 12));
+        float left = checkable ? 38.f : 12.f;
+        unsigned textSize = rowHeight >= 48 ? 16 : 14;
+        canvas.draw(label(font, wrap(font, unicode(items[i]), textSize, size.x - left - 14, 2),
+                          textSize, left, y + (rowHeight >= 48 ? 8 : 5)));
+        if (checkable) {
+            auto value = checks.find(i);
+            int checked = value == checks.end() ? 0 : value->second;
+            rectangle(canvas, sf::RenderStates(), sf::Vector2f(18, 18),
+                      checked ? Theme::ink : Theme::paper, sf::Vector2f(10, y + 12), Theme::muted);
+            if (checked == 2) {
+                rectangle(canvas, sf::RenderStates(), sf::Vector2f(10, 2), Theme::white,
+                          sf::Vector2f(14, y + 20));
+            } else if (checked) {
+                sf::VertexArray mark(sf::LineStrip, 3);
+                mark[0] = sf::Vertex(sf::Vector2f(13, y + 20), Theme::white);
+                mark[1] = sf::Vertex(sf::Vector2f(17, y + 24), Theme::white);
+                mark[2] = sf::Vertex(sf::Vector2f(25, y + 16), Theme::white);
+                canvas.draw(mark);
+            }
+        }
         rectangle(canvas, sf::RenderStates(), sf::Vector2f(size.x, 1), Theme::line,
                   sf::Vector2f(0, y + rowHeight - 1));
     }

@@ -10,6 +10,10 @@ class BankScreen : public Screen {
     bool editing;
     int partIndex;
     std::string query;
+    TaskPart answerDraft;
+    int choiceFirst = 0;
+    void answerSettings(bool reset = true);
+    void selectSkills();
     void editor();
     void preview();
     void createTask(bool combined);

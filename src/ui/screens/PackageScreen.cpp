@@ -10,64 +10,71 @@ void PackageScreen::refresh() {
         title = "Учебные пакеты доступны учителю";
         return;
     }
-    title = "Учебные пакеты";
-    text("Импорт создаёт черновики. Сопоставьте каждый навык пакета с навыком вашего банка.", 0, 0,
-         18, 940, 2);
-    TextField *file = field(path, 0, 58, 680, 2048);
-    file->setPlaceholder("Путь к JSON-пакету");
-    button("Выбрать файл", 700, 58, 240, [this] {
-        std::string selected = choosePackage(false);
-        if (!selected.empty()) {
-            path = selected;
-            inspectAsync();
-        }
-    });
-    button("Прочитать", 0, 112, 200, [this, file] {
-        path = file->getText();
-        inspectAsync();
-    });
-    button("Экспорт заданий", 700, 112, 240, [this] { exportView(); });
+    title = "Импорт и экспорт";
+    text("1. Откройте файл заданий", 0, 0, 23);
+    auto file = field(path, 0, 48, 680, 2048);
+    file->setPlaceholder("Путь к файлу JSON");
+    file->onChange = [this, file] { path = file->getText(); };
+    file->onEnter = [this] { defer([this] { inspectAsync(); }); };
+    button(
+        "Выбрать файл", 700, 48, 240,
+        [this] {
+            std::string selected = choosePackage(false);
+            if (!selected.empty()) {
+                path = selected;
+                inspectAsync();
+            }
+        },
+        true);
+    button("Открыть по пути", 0, 104, 240, [this] { inspectAsync(); });
+    button("Экспорт заданий →", 700, 104, 240, [this] { exportView(); });
+    if (package.items.empty()) {
+        surface(0, 196, 940, 270, Theme::pale);
+        text("Перенос заданий между компьютерами", 24, 222, 25, 892, 2);
+        text("Импорт", 24, 288, 20);
+        note("Выберите пакет, сопоставьте навыки и добавьте задания как черновики. После проверки "
+             "их можно опубликовать в банке.",
+             24, 329, 412);
+        text("Экспорт", 490, 288, 20);
+        note("Отметьте задания и сохраните файл. Профили учеников и история решений в пакет не "
+             "входят.",
+             490, 329, 426);
+        return;
+    }
     std::vector<std::string> rows;
     for (const auto &item : package.items)
-        rows.push_back(item.sourceId + " · " + (item.error.empty() ? item.task.title : item.error));
-    list(rows, 0, 180, 940, 120);
-    text("Навык пакета", 0, 320, 18);
-    ListBox *source = list(package.skills, 0, 350, 280, 160);
+        rows.push_back(item.error.empty() ? item.task.title : "Ошибка: " + item.error);
+    list(rows, 0, 171, 940, 96)->setRowHeight(48);
+    text("2. Сопоставьте навыки", 0, 288, 23);
+    note("Из пакета", 0, 328, 280);
+    note("В вашем банке", 310, 328, 320);
+    note("Связано", 660, 328, 280);
+    auto source = list(package.skills, 0, 358, 280, 144);
     auto skills = context.school.skills();
-    std::vector<std::string> targets;
+    std::vector<std::string> targets, pairs;
     for (const auto &skill : skills)
-        targets.push_back(skill.id + " · " + skill.name);
-    text("Навык в вашем банке", 310, 320, 18);
-    ListBox *target = list(targets, 310, 350, 320, 160);
-    text("Сопоставление", 660, 320, 18);
-    std::vector<std::string> pairs;
-    for (const auto &pair : mapping)
-        pairs.push_back(pair.first + " → " + pair.second);
-    list(pairs, 660, 350, 280, 160);
-    button("Связать выбранные", 0, 550, 280, [this, source, target, skills] {
+        targets.push_back(skill.name);
+    auto target = list(targets, 310, 358, 320, 144);
+    for (const auto &pair : mapping) {
+        std::string name = pair.second;
+        for (const auto &skill : skills)
+            if (skill.id == pair.second)
+                name = skill.name;
+        pairs.push_back(pair.first + " → " + name);
+    }
+    list(pairs, 660, 358, 280, 144)->setEmptyText("Выберите пару и нажмите «Связать»");
+    button("Связать", 0, 520, 280, [this, source, target, skills] {
         if (source->selection() < 0 || target->selection() < 0)
-            throw std::runtime_error("Выберите исходный и местный навык");
+            throw std::runtime_error("Выберите навык слева и соответствующий ему навык в центре");
         mapping[package.skills[source->selection()]] = skills[target->selection()].id;
         refresh();
     });
     button(
-        "Импортировать", 310, 550, 320,
-        [this] {
-            if (package.items.empty())
-                throw std::runtime_error("Сначала прочитайте пакет");
-            importAsync();
-        },
-        true);
-    button("О загрузке из ФИПИ", 660, 550, 280, [this] {
-        clear();
-        title = "Загрузка из ФИПИ пока недоступна";
-        text("05.11.2026: страница ФИПИ открывается, но запрос к банку ОГЭ завершился тайм-аутом.",
-             0, 30, 23, 900, 3);
-        note("Формат карточек и условия автоматической загрузки пока не подтверждены. Учебные "
-             "примеры приложения составлены отдельно.",
-             0, 170, 900);
-        button("← Локальные JSON-пакеты", 0, 350, 380, [this] { refresh(); });
-    });
+        "3. Добавить черновики", 660, 568, 280, [this] { importAsync(); }, true)
+        ->setEnabled(mapping.size() >= package.skills.size());
+    note("Связано навыков: " + std::to_string(mapping.size()) + " из " +
+             std::to_string(package.skills.size()),
+         0, 580, 600);
 }
 void PackageScreen::waiting() {
     clear();
@@ -85,6 +92,8 @@ void PackageScreen::inspectAsync() {
         jobs.reset(new JobQueue(context.school.databasePath()));
     leave();
     inspecting = true;
+    package = PackagePreview();
+    mapping.clear();
     pendingPreview.reset(new PackagePreview);
     auto output = pendingPreview;
     std::string filePath = path;
@@ -161,40 +170,44 @@ void PackageScreen::tick() {
 void PackageScreen::exportView() {
     clear();
     title = "Экспорт заданий";
-    text("В пакет входят только задания, коды навыков и ресурсы. Профили и история не передаются.",
-         0, 0, 18, 940, 2);
+    note("Отметьте задания. Профили учеников и история решений в файл не входят.", 0, 0, 940);
     auto tasks = context.school.tasks();
     std::vector<std::string> rows;
     for (const auto &task : tasks)
-        rows.push_back(task.title + " · " + task.id);
-    ListBox *bank = list(rows, 0, 70, 590, 340);
-    text("Выбрано: " + std::to_string(exportIds.size()), 620, 70, 20);
-    list(exportIds, 620, 110, 320, 300);
-    button("Добавить", 0, 435, 180, [this, bank, tasks] {
-        if (bank->selection() < 0)
-            return;
-        std::string id = tasks[bank->selection()].id;
-        if (std::find(exportIds.begin(), exportIds.end(), id) == exportIds.end())
+        rows.push_back(task.title + (task.published ? " · опубликовано" : " · черновик"));
+    auto bank = list(rows, 0, 60, 940, 420);
+    bank->setRowHeight(60);
+    bank->setCheckable(true);
+    for (std::size_t i = 0; i < tasks.size(); ++i)
+        bank->setChecked(int(i), std::find(exportIds.begin(), exportIds.end(), tasks[i].id) !=
+                                     exportIds.end());
+    bank->onToggle = [this, bank, tasks](int i) {
+        const auto &id = tasks[i].id;
+        auto found = std::find(exportIds.begin(), exportIds.end(), id);
+        if (found == exportIds.end())
             exportIds.push_back(id);
-        exportView();
-    });
-    button("Очистить", 200, 435, 180, [this] {
-        exportIds.clear();
-        exportView();
-    });
+        else
+            exportIds.erase(found);
+        bank->setChecked(i, std::find(exportIds.begin(), exportIds.end(), id) != exportIds.end());
+        status = "Выбрано заданий: " + std::to_string(exportIds.size());
+    };
     button(
-        "Сохранить JSON", 0, 550, 280,
+        "Сохранить файл", 0, 550, 280,
         [this] {
             if (exportIds.empty())
-                throw std::runtime_error("Выберите хотя бы одно задание");
+                throw std::runtime_error("Отметьте хотя бы одно задание");
             std::string destination = choosePackage(true);
             if (destination.empty())
                 return;
             context.packages.exportPackage(destination, exportIds);
-            status = "Пакет сохранён: " + destination;
+            status = "Файл сохранён: " + destination;
         },
         true);
-    button("К импорту", 310, 550, 240, [this] { refresh(); });
+    button("Очистить выбор", 310, 550, 280, [this] {
+        exportIds.clear();
+        exportView();
+    });
+    button("← К импорту", 620, 550, 320, [this] { refresh(); });
 }
 } // namespace ui
 } // namespace exam

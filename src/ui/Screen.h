@@ -14,16 +14,32 @@ class Screen : public sf::Drawable, public sf::Transformable {
     int focus;
     std::function<void()> pending, confirmation;
     std::string dialog;
+    sf::Vector2f statusPosition;
+    float contentWidth, statusWidth;
+    int statusLines;
     void draw(sf::RenderTarget &target, sf::RenderStates states) const override;
 
   public:
     const sf::Font &font;
-    std::string title, status;
-    explicit Screen(const sf::Font &face) : headingFont(&face), focus(-1), font(face) {}
+    std::string title, status, clockText;
+    explicit Screen(const sf::Font &face)
+        : headingFont(&face), focus(-1), statusPosition(0, 628), contentWidth(940),
+          statusWidth(930), statusLines(2), font(face) {}
     virtual ~Screen() {}
     virtual void tick() {}
     virtual void leave() {}
     void clear();
+    void focusWidget(Widget *widget);
+    bool moveFocus(bool backward, bool wrap = true);
+    void clearFocus();
+    void setContentWidth(float width) {
+        contentWidth = width;
+    }
+    void setStatusArea(float x, float y, float width, int lines = 2) {
+        statusPosition = sf::Vector2f(x, y);
+        statusWidth = width;
+        statusLines = lines;
+    }
     void setHeadingFont(const sf::Font &face) {
         headingFont = &face;
     }
@@ -55,7 +71,7 @@ class Screen : public sf::Drawable, public sf::Transformable {
     bool hasDialog() const {
         return !dialog.empty();
     }
-    void handle(const sf::Event &event, sf::Vector2f mouse);
+    virtual void handle(const sf::Event &event, sf::Vector2f mouse);
     void update();
 };
 } // namespace ui

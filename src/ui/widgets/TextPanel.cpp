@@ -35,6 +35,8 @@ void TextPanel::draw(sf::RenderTarget &target, sf::RenderStates states) const {
     canvas.display();
     states.transform *= getTransform();
     target.draw(sf::Sprite(canvas.getTexture()), states);
+    if (focused)
+        rectangle(target, states, size, sf::Color::Transparent, sf::Vector2f(), Theme::accent);
 }
 } // namespace ui
 } // namespace exam

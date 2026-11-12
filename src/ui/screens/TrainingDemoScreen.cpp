@@ -6,7 +6,8 @@ void TrainingDemoScreen::refresh() {
     clear();
     title = "Как работает разбор ошибки";
     note("УЧЕБНЫЙ ПРИМЕР / КВАДРАТНЫЕ УРАВНЕНИЯ", 0, 0);
-    text("Ошибка в корнях → проверка навыков → упражнения → возврат к задаче", 0, 35, 21, 940, 2);
+    text("1. Ошибка     →     2. Разбор     →     3. Практика     →     4. Повтор задачи", 0, 35,
+         21, 940, 2);
     std::string demo = "demo-training";
     for (const auto &profile : context.school.profiles())
         if (profile.first == "demo-deep")
@@ -19,6 +20,8 @@ void TrainingDemoScreen::refresh() {
     if (selected >= static_cast<int>(history.size()))
         selected = 0;
     ListBox *steps = list(rows, 0, 110, 480, 360);
+    steps->setRowHeight(60);
+    steps->setEmptyText("История примера пока недоступна");
     steps->select(history.empty() ? -1 : selected);
     steps->onChange = [this](int index) {
         defer([this, index] {
@@ -40,11 +43,11 @@ void TrainingDemoScreen::refresh() {
                               response.result.message);
         list(answers, 515, 345, 425, 120);
     }
-    note("Это сохранённая история работы обычного алгоритма. Ошибки заданы для примера; "
-         "при самостоятельном прохождении маршрут зависит от ваших ответов.",
+    note("Выберите шаг слева, чтобы увидеть задание и ответы. Это учебный пример; в вашей "
+         "тренировке порядок упражнений зависит от решений.",
          0, 495, 940);
     button(
-        "Пройти похожий маршрут →", 0, 580, 340,
+        "Попробовать на новом профиле", 0, 580, 340,
         [this] {
             std::string name = "Проба: квадратные уравнения";
             context.selectProfile(context.school.createProfile(name), name);
