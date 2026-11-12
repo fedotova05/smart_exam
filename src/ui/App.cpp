@@ -88,6 +88,7 @@ void App::buildNavigation() {
     }
 }
 void App::show(const std::string &requested) {
+    easterEggs.reset();
     if (current)
         current->leave();
     window.setActive(true);
@@ -186,6 +187,8 @@ void App::draw() {
     for (const auto &button : navigation)
         window.draw(*button);
     window.draw(*current);
+    if ((page == "welcome" || page == "home") && !current->hasDialog())
+        easterEggs.draw(window, font, decorationClock.getElapsedTime().asSeconds());
     window.display();
 }
 void App::toggleFullscreen() {
@@ -342,7 +345,7 @@ int App::run(bool smoke, bool capture, bool widgets) {
         save("bank");
         click(300, 460);
         save("task-editor");
-        for (int typeIndex = 0; typeIndex < 7; ++typeIndex) {
+        for (int typeIndex = 0; typeIndex < 8; ++typeIndex) {
             click(50, 104);
             click(100, 75 + typeIndex * 60);
             save("editor-type-picker");
@@ -520,6 +523,11 @@ int App::run(bool smoke, bool capture, bool widgets) {
             if (event.type == sf::Event::MouseMoved)
                 pixel = sf::Vector2i(event.mouseMove.x, event.mouseMove.y);
             sf::Vector2f mouse = window.mapPixelToCoords(pixel);
+            if (easterEggs.handle(
+                    event, mouse, sf::FloatRect(navigation.empty() ? 52.f : 24.f, 24, 155, 40),
+                    (page == "welcome" || page == "home") && !current->hasDialog(),
+                    current->textInputFocused(), decorationClock.getElapsedTime().asSeconds()))
+                continue;
             if (!navigation.empty() && !current->hasDialog() &&
                 event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Tab) {
                 if (navigationFocus >= 0) {

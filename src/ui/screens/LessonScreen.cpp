@@ -149,6 +149,7 @@ void LessonScreen::refresh() {
                                                  : part.kind == PartKind::Choice ? 80
                                                                                  : 150),
                                  0, 118);
+    condition->setVisible(part.kind != PartKind::ShortAnswer || !part.displayExpression.empty());
     condition->setFeatured(true);
     condition->setFormula(part.displayExpression.empty() ? part.expression
                                                          : part.displayExpression);
@@ -244,21 +245,24 @@ void LessonScreen::refresh() {
         button(
             "Проверить →", 440, 324, 160, [this] { send(true); }, true);
         FormulaView *preview = add(new FormulaView(headingFace(), 600, 85), 0, 425);
-        preview->setFormula(answer->getText());
+        preview->setFormula(part.kind == PartKind::ShortAnswer ? "" : answer->getText());
         answer->onChange = [this, answer, preview, part] {
             context.drafts[part.id].text = answer->getText();
             context.school.saveAnswerDraft(attempt, part.id, context.drafts[part.id]);
-            preview->setFormula(answer->getText());
+            preview->setFormula(part.kind == PartKind::ShortAnswer ? "" : answer->getText());
         };
         const char *inserts[] = {"x", "^2", "sqrt(", "(", ")", "/"};
-        for (int i = 0; i < 6; ++i) {
+        for (int i = 0; part.kind != PartKind::ShortAnswer && i < 6; ++i) {
             std::string token = inserts[i];
             button(token, i * 60.f, 375, 54, [answer, token] { answer->insert(token); });
         }
-        text((part.kind == PartKind::Equation
-                  ? "Корни: 2; 3. Нет корней: none. Все числа: all.\n"
-                  : "Число: -3. Дробь: 1/2. Квадратный корень: sqrt(5).\n") +
-                 std::string("Предпросмотр: колесо — прокрутка, Ctrl + колесо — масштаб."),
+        text(part.kind == PartKind::ShortAnswer
+                 ? "Введите только ответ. Порядок цифр важен; десятичная дробь — через точку или "
+                   "запятую."
+                 : (part.kind == PartKind::Equation
+                        ? "Корни: 2; 3. Нет корней: none. Все числа: all.\n"
+                        : "Число: -3. Дробь: 1/2. Квадратный корень: sqrt(5).\n") +
+                       std::string("Предпросмотр: колесо — прокрутка, Ctrl + колесо — масштаб."),
              0, 522, 13, 600, 2);
         if (linearSteps)
             button(stepMode            ? "Скрыть шаги ↑"
@@ -294,6 +298,9 @@ void LessonScreen::refresh() {
             if (part.kind == PartKind::Choice)
                 instruction =
                     "Введите номера выбранных вариантов через ;. Например: 1;3. Порядок не важен.";
+            if (part.kind == PartKind::ShortAnswer)
+                instruction = "Запишите слово, число или последовательность. Регистр и пробелы по "
+                              "краям не учитываются.";
             if (part.kind == PartKind::Polynomial)
                 instruction =
                     "Введите выражение с x. Например: x^2+2*x+1. Равносильные записи принимаются.";
@@ -326,7 +333,9 @@ void LessonScreen::refresh() {
         (graphPart || part.kind == PartKind::Choice) ? 245 : 0, 574, 180, [this, part] {
             context.school.help(attempt, part.id);
             status =
-                part.kind == PartKind::Equation
+                part.kind == PartKind::ShortAnswer
+                    ? "Перечитайте вопрос. Запишите только ответ в нужном порядке, без пояснений."
+                : part.kind == PartKind::Equation
                     ? "Для квадратного уравнения используйте D = b² − 4ac. Подставьте найденные "
                       "корни для проверки. Для линейного выполняйте одно действие с обеими частями."
                 : (part.kind == PartKind::Expression || part.kind == PartKind::Number)

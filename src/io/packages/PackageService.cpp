@@ -72,12 +72,13 @@ PackagePreview PackageService::inspect(const std::string &path) const {
                 if (!identifier(part.id) || !partIds.insert(part.id).second)
                     throw std::runtime_error("Неверный или повторный id части");
                 int kind = partValue.field("kind").integer();
-                if (kind < 0 || kind > 6)
+                if (kind < 0 || kind > 7)
                     throw std::runtime_error("Неизвестный тип части");
                 part.kind = static_cast<PartKind>(kind);
                 part.prompt = partValue.field("prompt").text();
                 part.expression = partValue.field("expression").text();
                 part.displayExpression = optionalText(partValue, "display_expression");
+                part.correctAnswer = optionalText(partValue, "correct_answer");
                 part.maxScore = partValue.field("score").integer();
                 if (partValue.object.count("require_steps")) {
                     int required = partValue.field("require_steps").integer();
@@ -222,6 +223,7 @@ void PackageService::exportPackage(const std::string &path,
             value.object["prompt"] = Json(part.prompt);
             value.object["expression"] = Json(part.expression);
             value.object["display_expression"] = Json(part.displayExpression);
+            value.object["correct_answer"] = Json(part.correctAnswer);
             value.object["require_steps"] = Json(double(part.requireSteps));
             value.object["decimal_places"] = Json(double(part.decimalPlaces));
             value.object["answer_tolerance"] = Json(part.answerTolerance);

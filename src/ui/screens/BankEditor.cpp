@@ -8,9 +8,9 @@
 namespace exam {
 namespace ui {
 std::string BankScreen::typeLabel(PartKind kind) {
-    const char *names[] = {"Вычислить точно",        "Решить уравнение",        "Построить прямую",
-                           "Построить параболу",     "Вычислить с округлением", "Выбрать варианты",
-                           "Упростить выражение с x"};
+    const char *names[] = {"Вычислить точно",         "Решить уравнение",        "Построить прямую",
+                           "Построить параболу",      "Вычислить с округлением", "Выбрать варианты",
+                           "Упростить выражение с x", "Слово или число"};
     return names[static_cast<int>(kind)];
 }
 TaskPart BankScreen::examplePart(PartKind kind) {
@@ -22,10 +22,14 @@ TaskPart BankScreen::examplePart(PartKind kind) {
                              "Постройте график функции.",
                              "Вычислите значение с указанной точностью.",
                              "Выберите все верные утверждения.",
-                             "Раскройте скобки и приведите подобные слагаемые."};
-    const char *expressions[] = {"1/2+1/3", "x^2-4=0", "2*x+1", "x^2-4", "sqrt(2)", "", "(x+1)^2"};
+                             "Раскройте скобки и приведите подобные слагаемые.",
+                             "Запишите ответ одним словом, числом или последовательностью."};
+    const char *expressions[] = {"1/2+1/3", "x^2-4=0", "2*x+1",   "x^2-4",
+                                 "sqrt(2)", "",        "(x+1)^2", ""};
     part.prompt = prompts[static_cast<int>(kind)];
     part.expression = expressions[static_cast<int>(kind)];
+    if (kind == PartKind::ShortAnswer)
+        part.correctAnswer = "";
     if (kind == PartKind::Number)
         part.decimalPlaces = 2;
     if (kind == PartKind::Choice)
@@ -50,9 +54,9 @@ void BankScreen::chooseType(int selected) {
     title = "Тип задания";
     note("Выберите, что должен сделать ученик.", 0, 0, 940);
     std::vector<std::string> names;
-    for (int i = 0; i < 7; ++i)
+    for (int i = 0; i < 8; ++i)
         names.push_back(typeLabel(static_cast<PartKind>(i)));
-    auto types = list(names, 0, 55, 430, 420);
+    auto types = list(names, 0, 55, 430, 480);
     types->setRowHeight(60);
     types->select(selected);
     types->onChange = [this](int i) { defer([this, i] { chooseType(i); }); };
@@ -67,7 +71,10 @@ void BankScreen::chooseType(int selected) {
         "допустимую погрешность.",
         "Ученик отмечает один или несколько вариантов. Вы вводите тексты вариантов и отмечаете "
         "правильные.",
-        "Ученик преобразует выражение с переменной x. Равносильная запись считается правильной."};
+        "Ученик преобразует выражение с переменной x. Равносильная запись считается правильной.",
+        "Короткий ответ для экзаменационных заданий: слово, число или последовательность цифр. "
+        "Вы задаёте правильный ответ вручную. Регистр и пробелы по краям не учитываются; "
+        "десятичная запятая и точка равнозначны. Порядок цифр важен."};
     text(names[selected], 480, 55, 25, 460, 2);
     add(new TextPanel(font, details[selected], 460, 160), 480, 130);
     auto sample = examplePart(static_cast<PartKind>(selected));
@@ -115,7 +122,20 @@ void BankScreen::editor() {
     text(draft.parts.size() > 1 ? "Вопрос этой части" : "Вопрос для ученика", 0, 148, 18);
     auto prompt = field(part.prompt, 0, 180, 620, 2048);
     prompt->onChange = [this, prompt] { draft.parts[partIndex].prompt = prompt->getText(); };
-    if (part.kind == PartKind::Choice) {
+    if (part.kind == PartKind::ShortAnswer) {
+        text("Правильный ответ", 0, 248, 18);
+        auto expected = field(part.correctAnswer, 0, 282, 620, 512);
+        expected->setPlaceholder("Например: 1342, -2,5 или слово");
+        expected->onChange = [this, expected] {
+            draft.parts[partIndex].correctAnswer = expected->getText();
+        };
+        note("Регистр и пробелы по краям не учитываются. В десятичной дроби можно поставить "
+             "точку или запятую. Порядок цифр важен.",
+             0, 350, 620);
+        note("Ученику показывается только вопрос. Формулу или рисунок можно добавить "
+             "в дополнительных параметрах.",
+             0, 440, 620);
+    } else if (part.kind == PartKind::Choice) {
         text("Варианты ответа", 0, 248, 18);
         button(
             "Редактировать варианты и верные ответы", 0, 282, 620, [this] { answerSettings(); },
@@ -263,8 +283,8 @@ void BankScreen::extraSettings() {
     const auto &part = draft.parts[partIndex];
     text("Формула условия (необязательно)", 0, 0, 19);
     auto display = field(part.displayExpression, 0, 40, 940, 512);
-    note(part.kind == PartKind::Choice
-             ? "Показывается над вариантами. Для текстового вопроса оставьте пустым."
+    note(part.kind == PartKind::Choice || part.kind == PartKind::ShortAnswer
+             ? "Показывается в условии. Для текстового вопроса оставьте пустым."
              : "Меняет только вид условия. Проверка использует выражение из основной формы.",
          0, 100, 940);
     text("Изображения из папки data", 0, 180, 19);
@@ -322,6 +342,8 @@ void BankScreen::preview() {
     note("Баллов: " + std::to_string(part.maxScore) +
              "\nНавыков: " + std::to_string(part.skills.size()),
          670, 175, 270);
+    if (part.kind == PartKind::ShortAnswer)
+        note("Ключ ответа: " + part.correctAnswer + "\nВиден только учителю.", 670, 260, 270);
     if (part.kind == PartKind::Choice)
         note("Здесь отмечены правильные варианты. Ученику они заранее не показываются.", 670, 260,
              270);

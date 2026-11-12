@@ -123,9 +123,9 @@ void Store::saveDraft(const TaskVersion &value) {
                   part.expression, number(part.maxScore), number(partPosition++),
                   std::to_string(part.graphSnap), std::to_string(part.graphTolerance),
                   part.displayExpression});
-        db.query("INSERT INTO part_policies VALUES(?,?,?,?,?)",
+        db.query("INSERT INTO part_policies VALUES(?,?,?,?,?,?)",
                  {value.id, part.id, number(part.requireSteps), number(part.decimalPlaces),
-                  decimal(part.answerTolerance)});
+                  decimal(part.answerTolerance), part.correctAnswer});
         for (std::size_t i = 0; i < part.choices.size(); ++i)
             db.query("INSERT INTO part_choices VALUES(?,?,?,?,?)",
                      {value.id, part.id, number(int(i) + 1), part.choices[i],
@@ -141,7 +141,8 @@ void Store::publish(const std::string &id) {
     TaskVersion value = task(id);
     require(!value.parts.empty() && !value.archived, "Cannot publish empty or archived task");
     for (const TaskPart &part : value.parts) {
-        require((part.kind == PartKind::Choice || !part.expression.empty()) &&
+        require((part.kind == PartKind::Choice || part.kind == PartKind::ShortAnswer ||
+                 !part.expression.empty()) &&
                     !part.prompt.empty() && !part.skills.empty(),
                 "Incomplete task part");
         std::string error = answerPolicyError(part);
@@ -190,13 +191,15 @@ TaskVersion Store::task(const std::string &id) {
         part.graphSnap = std::stod(p[5]);
         part.graphTolerance = std::stod(p[6]);
         part.displayExpression = p[7];
-        auto policies = db.query("SELECT require_steps,decimal_places,tolerance FROM part_policies "
-                                 "WHERE task_id=? AND part_id=?",
-                                 {id, part.id});
+        auto policies = db.query(
+            "SELECT require_steps,decimal_places,tolerance,correct_answer FROM part_policies "
+            "WHERE task_id=? AND part_id=?",
+            {id, part.id});
         if (!policies.empty()) {
             part.requireSteps = policies[0][0] == "1";
             part.decimalPlaces = std::stoi(policies[0][1]);
             part.answerTolerance = std::stod(policies[0][2]);
+            part.correctAnswer = policies[0][3];
         }
         for (const Row &choice : db.query("SELECT position,text,correct FROM part_choices WHERE "
                                           "task_id=? AND part_id=? ORDER BY position",

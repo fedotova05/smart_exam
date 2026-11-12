@@ -97,6 +97,7 @@
     <Unit filename="../src/ui/screens/WelcomeScreen.h" />
     <Unit filename="../src/ui/SkillMap.h" />
     <Unit filename="../src/ui/Theme.h" />
+    <Unit filename="../src/ui/EasterEggs.h" />
     <Unit filename="../src/ui/widgets/Button.h" />
     <Unit filename="../src/ui/widgets/ListBox.h" />
     <Unit filename="../src/ui/widgets/TextField.h" />

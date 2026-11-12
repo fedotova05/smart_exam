@@ -44,14 +44,22 @@ void LessonScreen::focusedTask() {
             "\nОкруглите до " + std::to_string(part.decimalPlaces) + " знаков после запятой.";
     if (part.answerTolerance > 0)
         condition += "\nДопустимая погрешность: " + std::to_string(part.answerTolerance);
-    add(new TextPanel(font, condition, 720, 72), 0, 47);
-    auto formula = add(new FormulaView(headingFace(), 720, 108), 0, 128);
-    formula->setFeatured(true);
-    formula->setFormula(part.displayExpression.empty() ? part.expression : part.displayExpression);
+    add(new TextPanel(font, condition, 720,
+                      part.kind == PartKind::ShortAnswer && part.displayExpression.empty() ? 180
+                                                                                           : 72),
+        0, 47);
+    if (part.kind != PartKind::ShortAnswer || !part.displayExpression.empty()) {
+        auto formula = add(new FormulaView(headingFace(), 720, 108), 0, 128);
+        formula->setFeatured(true);
+        formula->setFormula(part.displayExpression.empty() ? part.expression
+                                                           : part.displayExpression);
+    }
     text("Ваш ответ", 0, 248, 18);
     auto answer = field(context.drafts[part.id].text, 0, 280, 480, 512);
-    answer->setPlaceholder(part.kind == PartKind::Equation ? "Например: 1; 4"
-                                                           : "Число, дробь или выражение");
+    answer->setPlaceholder(part.kind == PartKind::ShortAnswer
+                               ? "Слово, число или последовательность"
+                           : part.kind == PartKind::Equation ? "Например: 1; 4"
+                                                             : "Число, дробь или выражение");
     auto check = button(
         context.settings.feedback == FeedbackPolicy::AfterStep ? "Проверить ответ"
                                                                : "Сохранить ответ",
@@ -61,18 +69,20 @@ void LessonScreen::focusedTask() {
         if (!answerSubmitted)
             defer([this] { send(true); });
     };
-    note(part.kind == PartKind::Equation
+    note(part.kind == PartKind::ShortAnswer ? "Введите только ответ. Порядок цифр важен; "
+                                              "десятичная дробь — через точку или запятую."
+         : part.kind == PartKind::Equation
              ? "Корни разделяйте через ;. Нет корней — none, все числа — all."
              : "Дробь: 1/2. Корень: sqrt(5). Степень: x^2. Десятичная дробь — через точку.",
          0, 334, 720);
     auto preview = add(new FormulaView(headingFace(), 720, 45), 0, 370);
-    preview->setFormula(answer->getText());
+    preview->setFormula(part.kind == PartKind::ShortAnswer ? "" : answer->getText());
     auto finish = button(
         "Завершить задание →", 400, 570, 320, [this] { finishFocused(); }, answerSubmitted);
     answer->onChange = [this, answer, preview, check, finish, part] {
         context.drafts[part.id].text = answer->getText();
         context.school.saveAnswerDraft(attempt, part.id, context.drafts[part.id]);
-        preview->setFormula(answer->getText());
+        preview->setFormula(part.kind == PartKind::ShortAnswer ? "" : answer->getText());
         feedback.clear();
         status.clear();
         answerSubmitted = false;
@@ -142,7 +152,10 @@ void LessonScreen::focusedDetails() {
     formula->setFormula(part.displayExpression.empty() ? part.expression : part.displayExpression);
     if (detail == "hint") {
         std::string hint =
-            part.kind == PartKind::Equation
+            part.kind == PartKind::ShortAnswer
+                ? "Перечитайте вопрос. Запишите только ответ в нужном порядке, без пояснений и "
+                  "единиц измерения, если они не требуются в условии."
+            : part.kind == PartKind::Equation
                 ? (isLinearEquation(part.expression)
                        ? "Выполняйте одно действие с обеими частями уравнения. Перенесите числа, "
                          "затем найдите x."

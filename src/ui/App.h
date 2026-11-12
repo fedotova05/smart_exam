@@ -2,12 +2,15 @@
 #define SMARTEXAM_APP_H
 #include "AppContext.h"
 #include "Screen.h"
+#include "EasterEggs.h"
 #include <memory>
 namespace exam {
 namespace ui {
 class App {
     sf::Context graphicsContext;
     sf::RenderWindow window;
+    EasterEggs easterEggs;
+    sf::Clock decorationClock;
     sf::Font font;
     sf::Font headingFont;
     AppContext context;

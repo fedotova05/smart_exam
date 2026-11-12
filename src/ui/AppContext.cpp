@@ -42,6 +42,8 @@ std::string kindName(PartKind kind) {
     switch (kind) {
     case PartKind::Expression:
         return "Значение";
+    case PartKind::ShortAnswer:
+        return "Слово или число";
     case PartKind::Number:
         return "Число";
     case PartKind::Choice:

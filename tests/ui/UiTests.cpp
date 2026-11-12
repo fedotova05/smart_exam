@@ -1,6 +1,7 @@
 #include "../Test.h"
 #include "../Fixture.h"
 #include "ui/Screen.h"
+#include "ui/EasterEggs.h"
 #include "ui/FormulaView.h"
 #include "ui/SkillMap.h"
 #include "graphics/GraphView.h"
@@ -647,7 +648,7 @@ int main() {
         click(types, 100, 45);
         key(types, sf::Keyboard::A, true);
         type(types, "Проверка типов");
-        for (int kind = 0; kind < 7; ++kind) {
+        for (int kind = 0; kind < 8; ++kind) {
             click(types, 50, 104);
             click(types, 100, 75 + 60 * kind);
             click(types, 80, 570);
@@ -669,6 +670,92 @@ int main() {
                 REQUIRE(value.parts[0].kind == PartKind::Choice);
                 REQUIRE(value.parts[0].choices.size() == 2);
             }
+        click(types, 50, 104);
+        click(types, 100, 495);
+        click(types, 80, 570);
+        click(types, 120, 200);
+        key(types, sf::Keyboard::A, true);
+        type(types, "Запишите название дерева с белой корой.");
+        click(types, 120, 300);
+        type(types, "Берёза");
+        capture(types, "short-answer-editor");
+        click(types, 80, 580);
+        click(types, 380, 580);
+        REQUIRE(types.title == "Предпросмотр задания");
+        capture(types, "short-answer-preview");
+        click(types, 80, 590);
+        click(types, 780, 580);
+        TaskVersion shortTask;
+        for (const auto &value : school.tasks())
+            if (value.title == "Проверка типов")
+                shortTask = value;
+        REQUIRE(shortTask.published && shortTask.parts[0].correctAnswer == "Берёза");
+        REQUIRE(shortTask.parts[0].expression.empty());
+        auto shortStudent = school.createProfile("Короткий ответ");
+        school.start(shortStudent, SessionSettings(), {shortTask.id}, "teacher", "Слово или число");
+        context.selectProfile(shortStudent, "Короткий ответ");
+        context.role = UserRole::Student;
+        context.settings = SessionSettings();
+        context.current = school.next();
+        lesson.refresh();
+        REQUIRE(lesson.textInputFocused());
+        type(lesson, "БЕРЁЗА");
+        REQUIRE(school.answerDrafts(context.current.attempt.id)["a"].text == "БЕРЁЗА");
+        capture(lesson, "short-answer-student");
+        key(lesson, sf::Keyboard::Enter);
+        REQUIRE(lesson.status == "Верно");
+        school.finish(context.current.attempt.id);
+        REQUIRE(school.history(shortStudent).front().result.score == 1);
+
+        EasterEggs eggs;
+        sf::Event secret = {};
+        secret.type = sf::Event::MouseButtonPressed;
+        secret.mouseButton.button = sf::Mouse::Left;
+        sf::FloatRect logo(24, 24, 155, 40);
+        for (int i = 0; i < 6; ++i)
+            eggs.handle(secret, {40, 40}, logo, true, false, i * 0.1f);
+        REQUIRE(!eggs.planeVisible(0.6f));
+        eggs.handle(secret, {40, 40}, logo, true, false, 0.6f);
+        REQUIRE(eggs.planeVisible(1.f));
+        REQUIRE(!eggs.planeVisible(3.1f));
+        sf::RenderTexture decoration;
+        REQUIRE(decoration.create(1200, 800));
+        decoration.clear(Theme::background);
+        setMotionEnabled(true);
+        eggs.draw(decoration, font, 1.7f);
+        decoration.display();
+        REQUIRE(decoration.getTexture().copyToImage().saveToFile("bin/captures/easter-plane.png"));
+        setMotionEnabled(false);
+        eggs.draw(decoration, font, 1.7f);
+        secret.type = sf::Event::TextEntered;
+        secret.text.unicode = '4';
+        eggs.handle(secret, {}, logo, true, true, 4.f);
+        secret.text.unicode = '2';
+        eggs.handle(secret, {}, logo, true, true, 4.1f);
+        REQUIRE(!eggs.answerVisible(4.1f));
+        secret.text.unicode = '4';
+        eggs.handle(secret, {}, logo, true, false, 5.f);
+        secret.text.unicode = '2';
+        eggs.handle(secret, {}, logo, true, false, 5.1f);
+        REQUIRE(eggs.answerVisible(5.1f));
+        decoration.clear(Theme::background);
+        eggs.draw(decoration, font, 5.2f);
+        decoration.display();
+        REQUIRE(decoration.getTexture().copyToImage().saveToFile("bin/captures/easter-42.png"));
+        REQUIRE(!eggs.answerVisible(9.2f));
+        eggs.handle(secret, {}, logo, false, false, 5.2f);
+        REQUIRE(!eggs.answerVisible(5.2f));
+        for (int i = 0; i < 7; ++i) {
+            secret.type = sf::Event::MouseButtonPressed;
+            eggs.handle(secret, {40, 40}, logo, false, false, 10.f + i * 0.1f);
+        }
+        REQUIRE(!eggs.planeVisible(11.f));
+        secret.type = sf::Event::TextEntered;
+        secret.text.unicode = '4';
+        eggs.handle(secret, {}, logo, true, false, 12.f);
+        secret.text.unicode = '2';
+        eggs.handle(secret, {}, logo, true, false, 14.f);
+        REQUIRE(!eggs.answerVisible(14.f));
         graphics.setActive(true);
         std::cout
             << "OK: Unicode, cursor, focus, dialog, scroll, formula, graph and student workflow\n";

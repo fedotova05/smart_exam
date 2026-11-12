@@ -3,8 +3,52 @@
 #include <cmath>
 #include <set>
 #include <sstream>
+#include <windows.h>
+#ifndef LOCALE_INVARIANT
+#define LOCALE_INVARIANT 0x007f
+#endif
 namespace exam {
 namespace {
+std::wstring shortAnswer(const std::string &text) {
+    if (text.size() > 512 || text.find('\0') != std::string::npos)
+        throw MathError("Ответ: не более 512 байтов, без служебных символов");
+    if (text.empty())
+        return L"";
+    int size =
+        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), int(text.size()), 0, 0);
+    if (!size)
+        throw MathError("Неверная кодировка ответа");
+    std::wstring result(size, L' ');
+    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), int(text.size()), &result[0],
+                        size);
+    const auto first = result.find_first_not_of(L" \t\r\n\u00a0");
+    if (first == std::wstring::npos)
+        return L"";
+    result = result.substr(first, result.find_last_not_of(L" \t\r\n\u00a0") - first + 1);
+    for (wchar_t c : result)
+        if (c < 32 || c == 127)
+            throw MathError("Введите ответ одной строкой");
+    std::wstring lower(result.size(), L' ');
+    if (!LCMapStringW(LOCALE_INVARIANT, LCMAP_LOWERCASE, result.data(), int(result.size()),
+                      &lower[0], int(lower.size())))
+        throw MathError("Не удалось прочитать ответ");
+    bool decimal = true, digit = false;
+    int separators = 0;
+    for (std::size_t i = 0; i < lower.size(); ++i) {
+        wchar_t c = lower[i];
+        if (c >= L'0' && c <= L'9')
+            digit = true;
+        else if (c == L'.' || c == L',')
+            ++separators;
+        else if (i != 0 || (c != L'-' && c != L'+'))
+            decimal = false;
+    }
+    if (decimal && digit && separators == 1)
+        for (auto &c : lower)
+            if (c == L',')
+                c = L'.';
+    return lower;
+}
 double numeric(const Radical &value) {
     return double(value.a.numerator()) / value.a.denominator() +
            double(value.b.numerator()) / value.b.denominator() * std::sqrt(double(value.d));
@@ -43,6 +87,10 @@ std::string answerPolicyError(const TaskPart &part) {
         return "Обязательные шаги поддерживаются только для линейного уравнения";
     try {
         switch (part.kind) {
+        case PartKind::ShortAnswer:
+            if (shortAnswer(part.correctAnswer).empty())
+                return "Введите правильный ответ: слово, число или последовательность";
+            break;
         case PartKind::Expression:
         case PartKind::Number:
             evaluateExact(parseExpression(part.expression));
@@ -88,7 +136,12 @@ CheckResult checkStructuredAnswer(const TaskPart &part, const AnswerPayload &ans
         return CheckResult(CheckStatus::Unsupported, "Ответ длиннее 512 байтов");
     try {
         bool correct = false;
-        if (part.kind == PartKind::Choice)
+        if (part.kind == PartKind::ShortAnswer) {
+            auto actual = shortAnswer(answer.text);
+            if (actual.empty())
+                return CheckResult(CheckStatus::Incomplete, "Введите ответ");
+            correct = actual == shortAnswer(part.correctAnswer);
+        } else if (part.kind == PartKind::Choice)
             correct = selected(answer.text, int(part.choices.size())) ==
                       std::set<int>(part.correctChoices.begin(), part.correctChoices.end());
         else if (part.kind == PartKind::Polynomial)

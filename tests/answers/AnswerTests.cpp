@@ -57,6 +57,60 @@ void testAnswers() {
     auto imported = packages.inspect("bin/answer-package.json");
     REQUIRE(imported.items[0].task.parts[0].choices == part.choices);
     REQUIRE(imported.items[0].task.parts[0].correctChoices == part.correctChoices);
+    TaskVersion shortTask;
+    shortTask.id = "short-answer";
+    shortTask.title = "Короткий ответ";
+    TaskPart shortPart;
+    shortPart.id = "answer";
+    shortPart.kind = PartKind::ShortAnswer;
+    shortPart.prompt = "Запишите ответ";
+    shortPart.skills = {"linear"};
+    shortPart.correctAnswer = "Берёза";
+    shortTask.parts = {shortPart};
+    REQUIRE(school.validate(shortTask).empty());
+    for (const auto &text : {"берёза", "БЕРЁЗА", "  Берёза  ", "\tБерёза\n"}) {
+        answer.text = text;
+        REQUIRE(checker.checkAnswer(shortPart, answer).status == CheckStatus::Correct);
+    }
+    answer.text = "береза";
+    REQUIRE(checker.checkAnswer(shortPart, answer).status == CheckStatus::Incorrect);
+    answer.text = "\xC2\xA0";
+    REQUIRE(checker.checkAnswer(shortPart, answer).status == CheckStatus::Incomplete);
+    answer.text = "бе\nрёза";
+    REQUIRE(checker.checkAnswer(shortPart, answer).status == CheckStatus::InvalidInput);
+    shortPart.correctAnswer = "-2,5";
+    answer.text = "-2.5";
+    REQUIRE(checker.checkAnswer(shortPart, answer).status == CheckStatus::Correct);
+    answer.text = "-5/2";
+    REQUIRE(checker.checkAnswer(shortPart, answer).status == CheckStatus::Incorrect);
+    shortPart.correctAnswer = "01342";
+    for (const auto &text : {"1342", "01432", "01 342", "0+1342"}) {
+        answer.text = text;
+        REQUIRE(checker.checkAnswer(shortPart, answer).status == CheckStatus::Incorrect);
+    }
+    answer.text = "01342";
+    REQUIRE(checker.checkAnswer(shortPart, answer).status == CheckStatus::Correct);
+    shortTask.parts[0] = shortPart;
+    school.saveDraft(shortTask);
+    school.publish(shortTask.id);
+    REQUIRE(store.task(shortTask.id).parts[0].correctAnswer == "01342");
+    REQUIRE(store.task(shortTask.id).parts[0].expression.empty());
+    packages.exportPackage("bin/short-answer-package.json", {shortTask.id});
+    auto shortPackage = packages.inspect("bin/short-answer-package.json");
+    REQUIRE(shortPackage.items[0].task.parts[0].kind == PartKind::ShortAnswer);
+    REQUIRE(shortPackage.items[0].task.parts[0].correctAnswer == "01342");
+    REQUIRE(school.validate(shortPackage.items[0].task).empty());
+    auto student = school.createProfile("Короткие ответы");
+    school.start(student, SessionSettings(), {shortTask.id});
+    auto shortAttempt = school.next();
+    REQUIRE(school.submit(shortAttempt.attempt.id, "answer", answer, true).status ==
+            CheckStatus::Correct);
+    school.finish(shortAttempt.attempt.id);
+    REQUIRE(school.history(student).front().result.score == 1);
+    shortTask.parts[0].correctAnswer = "   ";
+    REQUIRE(!school.validate(shortTask).empty());
+    shortTask.parts[0].correctAnswer = std::string(513, '1');
+    REQUIRE(!school.validate(shortTask).empty());
     TaskVersion steps = choice;
     steps.id = "steps";
     steps.parts[0] = TaskPart();

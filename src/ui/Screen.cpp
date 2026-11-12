@@ -15,6 +15,10 @@ void Screen::clear() {
     contentWidth = 940;
     setStatusArea(0, 628, 930);
 }
+bool Screen::textInputFocused() const {
+    return focus >= 0 && focus < int(widgets.size()) &&
+           dynamic_cast<TextField *>(widgets[focus].get()) != nullptr;
+}
 void Screen::clearFocus() {
     if (focus >= 0 && focus < static_cast<int>(widgets.size()))
         widgets[focus]->setFocus(false);

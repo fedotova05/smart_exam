@@ -47,13 +47,15 @@ std::vector<std::string> SchoolService::validate(const TaskVersion &task) const 
             errors.push_back("Неверный путь ресурса");
     for (const TaskPart &part : task.parts) {
         std::string label = part.id + ": ";
-        if (containsNull(part.prompt) || containsNull(part.expression))
+        if (containsNull(part.prompt) || containsNull(part.expression) ||
+            containsNull(part.correctAnswer))
             errors.push_back(label + "нулевой символ в условии");
         if (part.id.empty() || !ids.insert(part.id).second)
             errors.push_back("Идентификаторы частей должны быть уникальными");
         if (part.prompt.empty() || part.prompt.size() > 4096)
             errors.push_back(label + "нужно условие до 4096 байтов");
-        if ((part.expression.empty() && part.kind != PartKind::Choice) ||
+        if ((part.expression.empty() && part.kind != PartKind::Choice &&
+             part.kind != PartKind::ShortAnswer) ||
             part.expression.size() > 512)
             errors.push_back(label + "нужна формула до 512 байтов");
         if (part.maxScore < 1 || part.maxScore > 100)
@@ -81,7 +83,7 @@ std::vector<std::string> SchoolService::validate(const TaskVersion &task) const 
             if (!policyError.empty())
                 errors.push_back(label + policyError);
             if (part.kind == PartKind::Number || part.kind == PartKind::Choice ||
-                part.kind == PartKind::Polynomial) {
+                part.kind == PartKind::Polynomial || part.kind == PartKind::ShortAnswer) {
                 // Общая проверка формата выполнена выше.
             } else if (part.kind == PartKind::Expression)
                 evaluateExact(parseExpression(part.expression));
