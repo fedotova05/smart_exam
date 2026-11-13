@@ -17,6 +17,7 @@ void LessonScreen::focusedTask() {
     const auto &part = task.parts.front();
     const auto progress = context.school.progress(context.profile);
     title = task.title;
+    setTitleWidth(520);
     setStatusArea(0, 426, 720, 3);
     status = feedback;
     note((context.settings.training ? "Тренировка" : "Занятие") + std::string(" · Задание ") +
@@ -27,7 +28,7 @@ void LessonScreen::focusedTask() {
                 30, 720);
     button(progress.lesson.settings.resumePolicy == ResumePolicy::ActiveTime ? "Пауза"
                                                                              : "К занятию",
-           540, -110, 180, [this, progress] {
+           540, -64, 180, [this, progress] {
                if (!progress.lesson.closed &&
                    progress.lesson.settings.resumePolicy == ResumePolicy::ActiveTime)
                    context.school.pauseLesson();

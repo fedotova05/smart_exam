@@ -21,10 +21,10 @@ std::vector<TaskVersion> TrainingService::scopedTasks(const std::vector<std::str
     std::set<std::string> allowed(skills.begin(), skills.end());
     std::vector<TaskVersion> result;
     for (const auto &task : store.publishedTasks()) {
-        bool matches = !skills.empty();
+        bool matches = false;
         for (const auto &skill : skillsOf(task))
-            if (!allowed.count(skill))
-                matches = false;
+            if (allowed.count(skill))
+                matches = true;
         if (matches)
             result.push_back(task);
     }
@@ -36,8 +36,10 @@ std::vector<TaskVersion> TrainingService::exercises(const std::string &skill,
     for (const auto &attempt : history)
         used.insert(attempt.taskId);
     auto tasks = scopedTasks({skill});
-    tasks.erase(std::remove_if(tasks.begin(), tasks.end(),
-                               [&](const TaskVersion &task) { return used.count(task.id) != 0; }),
+    tasks.erase(std::remove_if(tasks.begin(), tasks.end(), [&](const TaskVersion &task) {
+                    // Разбор проверяет один навык, без дополнительных частей на другие темы.
+                    return used.count(task.id) != 0 || skillsOf(task) != std::set<std::string>{skill};
+                }),
                 tasks.end());
     std::sort(tasks.begin(), tasks.end(), [](const TaskVersion &a, const TaskVersion &b) {
         if (a.difficulty != b.difficulty)
@@ -292,7 +294,7 @@ NextTask TrainingService::next(const std::string &id) {
             store.closeSession(id);
             return result;
         }
-        result.reason = choice.reason + "; только выбранные темы";
+        result.reason = choice.reason + "; по выбранным навыкам";
         result.attempt =
             store.openAttempt(id, static_cast<int>(history.size()), choice.task.id, result.reason);
     }

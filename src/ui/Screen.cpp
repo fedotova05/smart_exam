@@ -14,6 +14,7 @@ void Screen::clear() {
     status.clear();
     clockText.clear();
     contentWidth = 940;
+    titleWidth = 0;
     setStatusArea(0, 628, 930);
 }
 bool Screen::textInputFocused() const {
@@ -179,7 +180,8 @@ void Screen::draw(sf::RenderTarget &target, sf::RenderStates states) const {
     states.transform *= getTransform();
     drawText(target,
              label(*headingFont,
-                   shorten(*headingFont, unicode(title), 32, contentWidth * widthFactor), 32, 0,
+                   shorten(*headingFont, unicode(title), 32,
+                           (titleWidth > 0 ? titleWidth : contentWidth) * widthFactor), 32, 0,
                    -57),
              states);
     for (auto surface : surfaces) {

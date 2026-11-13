@@ -19,6 +19,12 @@ void testGeneration() {
             else {
                 Equation equation = parseEquation(task.parts[0].expression);
                 Polynomial p = polynomial(equation.left) - polynomial(equation.right);
+                bool linear = family == Family::Linear || family == Family::Line;
+                REQUIRE(p.degree() == (linear ? 1 : 2));
+                if (linear)
+                    REQUIRE(task.parts[0].expression.find("x^2") == std::string::npos);
+                else
+                    REQUIRE(p.coefficients[2] != Rational(0));
                 Roots roots = solve(p);
                 REQUIRE(!roots.values.empty());
                 for (const Radical &root : roots.values) {

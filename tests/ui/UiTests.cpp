@@ -304,6 +304,11 @@ int main() {
         task.id = "ui-task";
         task.title = "Корни и график функции";
         task.commonFunction = "x^2-4";
+        makeDirectories("data/exam");
+        sf::Image taskImage;
+        taskImage.create(80, 60, sf::Color::White);
+        REQUIRE(taskImage.saveToFile("data/exam/ui-layout-test.png"));
+        task.resources = {"exam/ui-layout-test.png"};
         TaskPart part;
         part.id = "a";
         part.prompt = "Найдите корни";
@@ -345,6 +350,14 @@ int main() {
         click(lesson, 450, 520);
         REQUIRE(context.drafts["b"].graph.coefficients.size() == 3);
         capture(lesson, "graph-answer");
+        auto helpBeforeImage = store.helpCount(context.current.attempt.id);
+        click(lesson, 418, 585);
+        REQUIRE(lesson.title == task.title);
+        REQUIRE(store.helpCount(context.current.attempt.id) == helpBeforeImage);
+        click(lesson, 450, 585);
+        REQUIRE(lesson.title == "Рисунок к заданию");
+        click(lesson, 100, 585);
+        REQUIRE(lesson.title == task.title);
         click(lesson, 50, 585);
         click(lesson, 700, 585);
         key(lesson, sf::Keyboard::Enter);
@@ -531,6 +544,57 @@ int main() {
         key(lesson, sf::Keyboard::Enter);
         REQUIRE(context.current.task.parts.front().skills ==
                 std::vector<std::string>({"q_coefficients"}));
+        context.selectProfile(school.createProfile("Только парабола"), "Только парабола");
+        context.practiceSkills = {"parabola_graph"};
+        context.page.clear();
+        topics.refresh();
+        click(topics, 750, 310);
+        key(topics, sf::Keyboard::A, true);
+        type(topics, "2");
+        capture(topics, "training-parabola-selection");
+        click(topics, 700, 585);
+        REQUIRE(topics.status.empty() && context.page == "lesson");
+        REQUIRE(context.current.available);
+        REQUIRE(context.settings.targetSkills == std::vector<std::string>{"parabola_graph"});
+        bool hasParabola = false;
+        for (const auto &part : context.current.task.parts)
+            hasParabola = hasParabola || part.kind == PartKind::Parabola;
+        REQUIRE(hasParabola);
+        lesson.refresh();
+        capture(lesson, "training-parabola-started");
+        school.finish(context.current.attempt.id);
+        school.closeLesson();
+        // Выбранное в интерфейсе семейство сохраняет степень сгенерированных уравнений.
+        loginTeacherForTest(store);
+        for (int degree : {1, 2}) {
+            context.selectProfile(school.createProfile("Генератор"), "Генератор");
+            context.settings = SessionSettings();
+            context.page.clear();
+            LessonSetupScreen generated(font, context);
+            generated.refresh();
+            click(generated, 230, 90);
+            click(generated, 100, 190 + degree * 40);
+            click(generated, 100, 490);
+            REQUIRE(generated.status.find("Добавлено примеров: 3") != std::string::npos);
+            capture(generated, degree == 1 ? "generator-linear" : "generator-quadratic");
+            click(generated, 700, 595);
+            click(generated, 700, 595);
+            REQUIRE(generated.status.empty());
+            auto created = school.latestLesson(context.profile);
+            REQUIRE(created.tasks.size() == 3);
+            for (const auto &id : created.tasks) {
+                auto value = school.task(id);
+                auto equation = parseEquation(value.parts.front().expression);
+                auto polynomialValue = polynomial(equation.left) - polynomial(equation.right);
+                REQUIRE(polynomialValue.degree() == degree);
+                if (degree == 1)
+                    REQUIRE(value.parts.front().expression.find("x^2") == std::string::npos);
+                else
+                    REQUIRE(polynomialValue.coefficients[2] != Rational(0));
+            }
+            school.finish(context.current.attempt.id);
+            school.closeLesson();
+        }
         // Несколько назначений и несколько вопросов в каждом доступны независимо от практики.
         loginTeacherForTest(store);
         auto multiple = school.createProfile("Несколько занятий");
@@ -736,6 +800,13 @@ int main() {
         REQUIRE(savedLecture);
         auto imported = ExamService(store).importPackage("data/samples/oge-2026.json");
         REQUIRE(imported.tasks.size() == 19);
+        auto illustratedOge = school.task(imported.tasks[8]);
+        illustratedOge.id = "ui-oge-illustrated";
+        illustratedOge.published = false;
+        illustratedOge.title = "Задание ОГЭ с рисунком и длинным названием для проверки верхней панели";
+        illustratedOge.resources = {"exam/ui-layout-test.png"};
+        school.saveDraft(illustratedOge);
+        school.publish(illustratedOge.id);
         auto ogeProfile = school.createProfile("Задания ОГЭ");
         context.selectProfile(ogeProfile, "Задания ОГЭ");
         context.role = UserRole::Student;
@@ -746,11 +817,15 @@ int main() {
         settings = SessionSettings();
         settings.training = true;
         settings.taskLimit = 2;
-        school.start(ogeProfile, settings, {imported.tasks[8], imported.tasks[9]});
+        school.start(ogeProfile, settings, {illustratedOge.id, imported.tasks[9]});
         context.settings = settings;
         context.current = school.next();
         lesson.refresh();
         capture(lesson, "oge-task");
+        click(lesson, 650, 525);
+        REQUIRE(lesson.title == "Рисунок к заданию");
+        click(lesson, 100, 585);
+        REQUIRE(lesson.focusLayout());
         type(lesson, "999");
         key(lesson, sf::Keyboard::Enter);
         REQUIRE(lesson.title == "Ответ пока неверный");
@@ -773,6 +848,7 @@ int main() {
         REQUIRE(context.current.task.id == imported.tasks[9]);
         materials.refresh();
         capture(materials, "lectures-catalog-student");
+        std::remove("data/exam/ui-layout-test.png");
 
         EasterEggs eggs;
         sf::Event secret = {};

@@ -7,13 +7,14 @@
 namespace exam {
 namespace ui {
 void LessonScreen::route() {
+    setTitleWidth(740);
     const auto progress = context.school.progress(context.profile);
     note("Задание " + std::to_string(context.current.attempt.position + 1) + " из " +
              std::to_string(progress.totalTasks),
          0, -24, 500);
     const auto lesson = progress.lesson;
     button(lesson.settings.resumePolicy == ResumePolicy::ActiveTime ? "Пауза" : "К занятию", 760,
-           -110, 180, [this, lesson] {
+           -64, 180, [this, lesson] {
                if (!lesson.closed && lesson.settings.resumePolicy == ResumePolicy::ActiveTime)
                    context.school.pauseLesson();
                context.page = "home";
@@ -369,7 +370,7 @@ void LessonScreen::refresh() {
         button("Отправить ответ", 0, 566, 230, [this] { send(true); }, true);
     Button *hint = button(
         context.settings.helpAllowed ? "Нужна подсказка?" : "Без подсказок",
-        (graphPart || part.kind == PartKind::Choice) ? 245 : 0, 574, 180, [this, part] {
+        (graphPart || part.kind == PartKind::Choice) ? 245 : 0, 566, 165, [this, part] {
             context.school.help(attempt, part.id);
             status =
                 part.kind == PartKind::ShortAnswer
@@ -388,8 +389,8 @@ void LessonScreen::refresh() {
         });
     hint->setEnabled(context.settings.helpAllowed);
     if (!task.resources.empty())
-        button("Рисунки", 415, 566, 185, [this] { resources(0); });
-    button("Завершить задание →", 630, 574, 310, [this] {
+        button("Рисунки", 425, 566, 175, [this] { resources(0); });
+    button("Завершить задание →", 630, 566, 310, [this] {
         ask("Завершить задание? Будут учтены последние отправленные ответы по всем частям.",
             [this] {
                 context.school.finish(attempt);

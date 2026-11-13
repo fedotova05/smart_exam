@@ -26,6 +26,45 @@ void answer(SchoolService &school, const NextTask &task, bool correct) {
 }
 } // namespace
 void testTraining() {
+    // Достаточно выбрать график параболы, даже если другая часть проверяет её корни.
+    {
+        Store store(":memory:");
+        loginTeacherForTest(store);
+        SchoolService school(store);
+        school.addStarterContent(false);
+        TaskVersion second = school.task("intro-parabola");
+        second.id = "another-parabola";
+        second.published = false;
+        school.saveDraft(second);
+        school.publish(second.id);
+        REQUIRE(TrainingService(store).scopedTasks({}).empty());
+        auto candidates = TrainingService(store).scopedTasks({"parabola_graph"});
+        REQUIRE(candidates.size() == 2);
+        for (bool training : {false, true}) {
+            auto pupil = school.createProfile(training ? "График в тренировке" : "График в проверке");
+            school.startTopics(pupil, {"parabola_graph"}, training, 2);
+            std::set<std::string> seen;
+            for (int i = 0; i < 2; ++i) {
+                auto next = school.next();
+                REQUIRE(next.available && next.task.parts.size() == 2);
+                REQUIRE(seen.insert(next.task.id).second);
+                REQUIRE(next.task.parts[1].skills == std::vector<std::string>{"parabola_graph"});
+                for (const auto &part : next.task.parts) {
+                    AnswerPayload value;
+                    if (part.kind == PartKind::Parabola)
+                        value.graph.coefficients = {1, 0, -4};
+                    else
+                        value.text = "-2;2";
+                    school.submit(next.attempt.id, part.id, value, true);
+                }
+                school.finish(next.attempt.id);
+            }
+            REQUIRE(!school.next().available);
+            REQUIRE(school.snapshot(pupil).skills["parabola_graph"].observations == 2);
+        }
+        school.archive(second.id);
+        REQUIRE(TrainingService(store).scopedTasks({"parabola_graph"}).size() == 1);
+    }
     // Ошибки ниже третьего уровня не должны возвращать бесконечное повторение темы.
     {
         Store store(":memory:");
@@ -38,6 +77,16 @@ void testTraining() {
         }
         for (std::size_t i = 0; i + 1 < chain.size(); ++i)
             store.setPrerequisites(chain[i], {chain[i + 1]});
+        auto mixed = store.task("middle0");
+        mixed.id = "mixed-support";
+        mixed.published = false;
+        mixed.difficulty = 0;
+        auto extra = mixed.parts.front();
+        extra.id = "extra";
+        extra.skills = {"fractions"};
+        mixed.parts.push_back(extra);
+        store.saveDraft(mixed);
+        store.publish(mixed.id);
         loginTeacherForTest(store);
         SchoolService school(store);
         school.startTopics("student", {"root"}, true, 1);
@@ -47,6 +96,7 @@ void testTraining() {
         // Сначала нижний навык проходит диагностику, но ошибка на закреплении среднего
         // снова направляет к его предпосылкам, уже на других заданиях.
         REQUIRE(store.trainingStep(current.attempt.id).skill == "middle");
+        REQUIRE(current.task.parts.size() == 1);
         answer(school, current, false);
         school.finish(current.attempt.id);
         current = school.next();

@@ -32,6 +32,7 @@ class Screen : public sf::Drawable, public sf::Transformable {
     std::string dialog;
     sf::Vector2f statusPosition;
     float contentWidth, statusWidth;
+    float titleWidth = 0;
     int statusLines;
     void draw(sf::RenderTarget &target, sf::RenderStates states) const override;
 
@@ -52,6 +53,9 @@ class Screen : public sf::Drawable, public sf::Transformable {
     void setContentWidth(float width) {
         contentWidth = width;
         layoutWidth = 0;
+    }
+    void setTitleWidth(float width) {
+        titleWidth = width;
     }
     void setStatusArea(float x, float y, float width, int lines = 2) {
         statusPosition = sf::Vector2f(x, y);

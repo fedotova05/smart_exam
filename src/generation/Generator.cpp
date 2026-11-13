@@ -8,7 +8,26 @@ int integer(std::mt19937 &random, int low, int high) {
     return low + static_cast<int>(random() % static_cast<unsigned>(high - low + 1));
 }
 std::string polynomialText(int a, int b, int c) {
-    return std::to_string(a) + "*x^2+(" + std::to_string(b) + ")*x+(" + std::to_string(c) + ")";
+    std::string result;
+    const auto term = [&result](int coefficient, const std::string &variable) {
+        if (!coefficient)
+            return;
+        if (coefficient < 0)
+            result += '-';
+        else if (!result.empty())
+            result += '+';
+        int magnitude = coefficient < 0 ? -coefficient : coefficient;
+        if (variable.empty() || magnitude != 1) {
+            result += std::to_string(magnitude);
+            if (!variable.empty())
+                result += '*';
+        }
+        result += variable;
+    };
+    term(a, "x^2");
+    term(b, "x");
+    term(c, "");
+    return result.empty() ? "0" : result;
 }
 TaskPart makePart(const std::string &id, PartKind kind, const std::string &prompt,
                   const std::string &expression, const std::string &skill) {
@@ -64,12 +83,15 @@ TaskVersion Generator::generateTask(const GenerationRequest &request) const {
                 }
             }
             std::string expression = polynomialText(a, b, c);
-            task.title = linear ? "Линейная функция" : "Квадратичная функция";
+            bool graph = request.family == Family::Line || request.family == Family::Parabola;
+            task.title = graph ? (linear ? "Корень и прямая" : "Корни и парабола")
+                               : (linear ? "Линейное уравнение" : "Квадратное уравнение");
             task.parameters =
                 "a=" + std::to_string(a) + ";b=" + std::to_string(b) + ";c=" + std::to_string(c);
-            task.parts.push_back(makePart("roots", PartKind::Equation, "Найдите нули функции",
+            task.parts.push_back(makePart("roots", PartKind::Equation,
+                                          graph ? "Найдите нули функции" : "Решите уравнение",
                                           expression + "=0", linear ? "linear" : "quadratic"));
-            if (request.family == Family::Line || request.family == Family::Parabola) {
+            if (graph) {
                 task.parts.push_back(makePart("graph", linear ? PartKind::Line : PartKind::Parabola,
                                               "Постройте график той же функции", expression,
                                               linear ? "line_graph" : "parabola_graph"));
